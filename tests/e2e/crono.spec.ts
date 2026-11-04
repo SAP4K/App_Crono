@@ -1,0 +1,77 @@
+import { expect, test } from '@playwright/test';
+
+test('stopwatch, laps, reload, history, preferences and reset work together', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  let now = new Date('2026-11-04T10:00:00Z').getTime();
+  await page.clock.setFixedTime(now);
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: 'Pornește', exact: true })).toBeVisible();
+  await page.screenshot({ path: 'previews/01-cronometru.png', fullPage: true, animations: 'disabled' });
+  await page.getByRole('button', { name: 'Pornește', exact: true }).click();
+  await expect(page.getByText('În desfășurare', { exact: true })).toBeVisible();
+  now += 12340;
+  await page.clock.setFixedTime(now);
+  await page.getByRole('button', { name: 'Înregistrează o tură' }).click();
+  now += 10560;
+  await page.clock.setFixedTime(now);
+  await page.getByRole('button', { name: 'Înregistrează o tură' }).click();
+  now += 1000;
+  await page.clock.setFixedTime(now);
+  await page.getByRole('button', { name: 'Pauză', exact: true }).click();
+  await expect(page.getByText('În pauză', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Timp total 00:23.90')).toBeVisible();
+  await page.screenshot({ path: 'previews/02-ture.png', fullPage: true, animations: 'disabled' });
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Continuă', exact: true })).toBeVisible();
+  await expect(page.getByLabel('Timp total 00:23.90')).toBeVisible();
+  await page.getByRole('button', { name: 'Salvează sesiunea', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Pornește', exact: true })).toBeVisible();
+  await page.getByRole('tab', { name: 'Istoric', exact: true }).click();
+  const session = page.getByRole('button', { name: /^Sesiune .*00:23\.90, 2 ture$/ });
+  await expect(session).toBeVisible();
+  await page.screenshot({ path: 'previews/03-istoric.png', fullPage: true, animations: 'disabled' });
+  await session.click();
+  await expect(page.getByRole('button', { name: 'Distribuie rezultatele', exact: true })).toBeVisible();
+  await expect(page.getByText('00:10.56', { exact: true }).first()).toBeVisible();
+  await page.getByRole('button', { name: 'Închide', exact: true }).click();
+  await page.getByRole('button', { name: 'Setări', exact: true }).click();
+  await page.getByRole('switch', { name: 'Feedback tactil', exact: true }).click();
+  await expect(page.getByRole('switch', { name: 'Feedback tactil', exact: true })).not.toBeChecked();
+  await page.screenshot({ path: 'previews/04-setari.png', fullPage: true, animations: 'disabled' });
+  await page.getByRole('button', { name: 'Închide', exact: true }).click();
+  await page.reload();
+  await page.getByRole('button', { name: 'Setări', exact: true }).click();
+  await expect(page.getByRole('switch', { name: 'Feedback tactil', exact: true })).not.toBeChecked();
+  await page.getByRole('button', { name: 'Închide', exact: true }).click();
+  await page.getByRole('tab', { name: 'Cronometru', exact: true }).click();
+  await page.getByRole('button', { name: 'Pornește', exact: true }).click();
+  now += 1000;
+  await page.clock.setFixedTime(now);
+  await page.reload();
+  await expect(page.getByText('În desfășurare', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Timp total 00:01.00')).toBeVisible();
+  await page.getByRole('button', { name: 'Pauză', exact: true }).click();
+  await page.getByRole('button', { name: 'Resetează cronometrul', exact: true }).click();
+  await page.getByRole('button', { name: 'Renunță', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Un nou început?' })).not.toBeVisible();
+  await expect(page.getByLabel('Timp total 00:01.00')).toBeVisible();
+  await page.getByRole('button', { name: 'Resetează cronometrul', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Un nou început?' }).getByRole('button', { name: 'Resetează cronometrul', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Pornește', exact: true })).toBeVisible();
+  await page.getByRole('tab', { name: 'Istoric', exact: true }).click();
+  await session.click();
+  await page.getByRole('dialog', { name: 'Sesiunea ta.' }).getByRole('button', { name: 'Șterge sesiunea', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Ștergi sesiunea?' }).getByRole('button', { name: 'Șterge sesiunea', exact: true }).click();
+  await expect(page.getByText('Primul pas e un start.', { exact: true })).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+for (const width of [320, 430, 1024]) {
+  test(`fits a ${width}px viewport without horizontal overflow`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/');
+    await expect(page.getByRole('button', { name: 'Pornește', exact: true })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  });
+}

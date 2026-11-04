@@ -2,6 +2,8 @@
 
 # dependencies
 node_modules/
+.npm/
+.cache/
 
 # Expo
 .expo/
@@ -15,8 +17,18 @@ expo-env.d.ts
 *.jks
 *.p8
 *.p12
+*.pfx
 *.key
+*.keystore
 *.mobileprovision
+*.provisionprofile
+credentials.json
+
+# Local build packages
+/build/
+*.apk
+*.aab
+*.ipa
 
 # Metro
 .metro-health-check*
@@ -25,13 +37,37 @@ expo-env.d.ts
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+*.log
 
 # macOS
 .DS_Store
 *.pem
+Thumbs.db
+Desktop.ini
 
-# local env files
-.env*.local
+# Environment files (keep sanitized templates versioned)
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+!.env.*.example
+!.env.*.sample
+!.env.*.template
+
+# Local editor and agent settings
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.claude/settings.local.json
+.claude/worktrees/
+.eslintcache
+
+# Python caches from tooling scripts
+__pycache__/
+*.py[cod]
 
 # typescript
 *.tsbuildinfo
@@ -39,3 +75,12 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Test output
+test-results/
+playwright-report/
+blob-report/
+coverage/
+.nyc_output/
+/previews/
+audit-*.json

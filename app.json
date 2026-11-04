@@ -1,25 +1,42 @@
 {
   "expo": {
-    "name": "App_Crono",
-    "slug": "App_Crono",
+    "name": "Crono",
+    "slug": "crono",
+    "scheme": "crono",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "ro.appcrono.mobile",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#D1F26F",
         "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "package": "ro.appcrono.mobile",
+      "predictiveBackGestureEnabled": true
     },
     "web": {
-      "favicon": "./assets/favicon.png"
-    }
+      "favicon": "./assets/favicon.png",
+      "name": "Crono",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-font",
+      "expo-router",
+      ["expo-splash-screen", {
+        "image": "./assets/splash-icon.png",
+        "imageWidth": 160,
+        "resizeMode": "contain",
+        "backgroundColor": "#F6F7F2"
+      }]
+    ]
   }
 }
