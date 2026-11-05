@@ -1,12 +1,14 @@
 import { expect, test } from '@playwright/test';
 import { initialData } from '../../src/core/stopwatch';
 import { initialTimer, startTimer } from '../../src/core/timer';
-import { audioSpy, duration, playCount, seed, settings, stored } from './helpers';
+import { audioSpy, duration, expectNoPageErrors, observePageErrors, playCount, seed, settings, stored } from './helpers';
 
 test.beforeEach(async ({ page }) => {
+  observePageErrors(page);
   await page.clock.install({ time: new Date('2026-11-05T10:00:00Z') });
   await page.clock.pauseAt(new Date('2026-11-05T10:00:01Z'));
 });
+test.afterEach(({ page }) => expectNoPageErrors(page));
 
 test('validates duration fields and preserves fractional remaining time across pause/reload/resume', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', (error) => errors.push(error.message));
@@ -59,8 +61,8 @@ test('running timer persists and completes once in settings while stopwatch rema
   await page.clock.runFor(10000);
   await expect(dialog.getByLabel('Temporizator finalizat', { exact: true })).toBeVisible();
   await expect.poll(() => playCount(page)).toBe(1);
-  await dialog.getByRole('switch', { name: 'Sunet temporizator', exact: true }).click();
-  await dialog.getByRole('switch', { name: 'Sunet temporizator', exact: true }).click();
+  await dialog.getByRole('switch', { name: 'Alerte sonore', exact: true }).click();
+  await dialog.getByRole('switch', { name: 'Alerte sonore', exact: true }).click();
   expect(await playCount(page)).toBe(1);
   await dialog.getByRole('button', { name: 'Închide', exact: true }).click();
   await page.getByRole('tab', { name: 'Cronometru', exact: true }).click();
@@ -94,6 +96,8 @@ for (const target of ['details', 'delete', 'reset'] as const) {
     const dialog = page.getByRole('dialog', { name: target === 'delete' ? 'Ștergi sesiunea?' : target === 'reset' ? 'Resetezi temporizatorul?' : 'Sesiunea ta.', exact: true });
     await expect(dialog.getByLabel('Temporizator finalizat', { exact: true })).toBeVisible();
     expect(await playCount(page)).toBe(1);
+    await dialog.getByRole('button', { name: 'Oprește sunetul', exact: true }).click();
+    expect((await stored(page)).timer.status).toBe('completed');
     if (target === 'details') await dialog.getByRole('button', { name: 'Închide', exact: true }).click();
     else await dialog.getByRole('button', { name: target === 'delete' ? 'Șterge sesiunea' : 'Resetează temporizatorul', exact: true }).click();
     if (target === 'delete') await expect(page.getByText('Primul pas e un start.', { exact: true })).toBeVisible();
@@ -104,17 +108,17 @@ for (const target of ['details', 'delete', 'reset'] as const) {
 test('muted preference persists; blocked playback falls back without an unhandled rejection', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', (error) => errors.push(error.message));
   await audioSpy(page, true); await page.goto('/timer');
-  await settings(page); await page.getByRole('switch', { name: 'Sunet temporizator', exact: true }).click();
+  await settings(page); await page.getByRole('switch', { name: 'Alerte sonore', exact: true }).click();
   await expect.poll(async () => (await stored(page)).preferences.timerSound).toBe(false);
   await page.reload(); const dialog = await settings(page);
-  await expect(dialog.getByRole('switch', { name: 'Sunet temporizator', exact: true })).not.toBeChecked();
+  await expect(dialog.getByRole('switch', { name: 'Alerte sonore', exact: true })).not.toBeChecked();
   await dialog.getByRole('button', { name: 'Închide', exact: true }).click();
   await page.clock.runFor(300);
   await expect(dialog).not.toBeVisible();
   await duration(page, '01'); await page.getByRole('button', { name: 'Pornește temporizatorul', exact: true }).click();
   await page.clock.runFor(1000); await expect(page.getByLabel('Temporizator finalizat', { exact: true })).toBeVisible();
   expect(await playCount(page)).toBe(0);
-  await settings(page); await page.getByRole('switch', { name: 'Sunet temporizator', exact: true }).click();
+  await settings(page); await page.getByRole('switch', { name: 'Alerte sonore', exact: true }).click();
   expect(await playCount(page)).toBe(0);
   await page.getByRole('button', { name: 'Închide', exact: true }).click();
   await page.clock.runFor(300);
@@ -148,6 +152,9 @@ test('shipped completion effect is served and decodable', async ({ page }) => {
   let assetUrl = '';
   page.on('request', (request) => { if (/timer-complete[^/]*\.wav/.test(request.url())) assetUrl = request.url(); });
   await page.goto('/timer'); await expect(page.getByRole('button', { name: 'Pornește temporizatorul', exact: true })).toBeVisible();
+  await duration(page, '01');
+  await page.getByRole('button', { name: 'Pornește temporizatorul', exact: true }).click();
+  await page.clock.runFor(1000);
   await expect.poll(() => assetUrl).not.toBe('');
   const decoded = await page.evaluate(async (url) => {
     const response = await fetch(url);
@@ -210,4 +217,17 @@ test('successful timer completion clears the previous run audio error', async ({
   await page.clock.runFor(3500);
   await expect(completion).toHaveText('Timpul a expirat.');
   expect(await playCount(page)).toBe(2);
+});
+
+test('timer completion preserves an unrelated session-save notice', async ({ page }) => {
+  const data = initialData(); data.stopwatch.accumulatedMs = 1000;
+  await seed(page, data); await audioSpy(page); await page.goto('/timer');
+  await duration(page, '01');
+  await page.getByRole('button', { name: 'Pornește temporizatorul', exact: true }).click();
+  await page.getByRole('tab', { name: 'Cronometru', exact: true }).click();
+  await page.getByRole('button', { name: 'Salvează sesiunea', exact: true }).click();
+  await expect(page.getByText('Sesiune salvată în istoric.', { exact: true })).toBeVisible();
+  await page.clock.runFor(1000);
+  await expect(page.getByLabel('Temporizator finalizat', { exact: true })).toBeVisible();
+  await expect(page.getByText('Sesiune salvată în istoric.', { exact: true })).toBeVisible();
 });

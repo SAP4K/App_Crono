@@ -2,7 +2,7 @@
 
 ## Purpose
 
-CRONO is a local stopwatch and countdown app for iOS and Android, with a web preview. Its interface is Romanian. Users can time an activity, record laps, save sessions, review history, and share results without an account or an application backend.
+CRONO is a local stopwatch, countdown, and action schedule app for iOS and Android, with a web preview. Its interface is Romanian. Users can time activities, run ordered action sequences, record laps, save sessions, review history, and share results without an account or an application backend.
 
 ## Implemented Features
 
@@ -12,9 +12,12 @@ CRONO is a local stopwatch and countdown app for iOS and Android, with a web pre
 - Save paused sessions and retain the latest 50 sessions, with up to 1,000 laps per session.
 - View session details, share results, and delete sessions with confirmation.
 - Run a separate countdown (one second to 23:59:59, five-minute default) alongside the stopwatch, with pause/resume, reset confirmation, restart, and visible completion across tabs/sheets.
-- Play an original bundled completion sound in the foreground; show overdue completion silently on return/relaunch.
-- Restore active timing state, countdown, laps, history, and preferences from local storage.
-- Save manual light/dark selection (light default), completion sound, mobile haptic feedback, and screen wake lock preferences independently.
+- Save up to 20 schedules with 1–50 named actions each, automatic advancement, exact pause/resume, confirmed replacement/reset, and protected running/paused templates. Names are limited to 80 trimmed characters; action durations range from one second to 23:59:59.
+- Run one schedule alongside the independent stopwatch and timer. The Planificare tab follows Timer; schedule runs do not enter stopwatch history.
+- Select Clasic, Clopoțel, Digital, or Gong with 5/15/30-second looping playback, manual preview, and Stop controls. Defaults are Clasic and five seconds; the retained automatic-alert switch applies to timer and schedule boundaries.
+- Play foreground action/final alerts, with one final event for the last action. Reconcile overdue timing silently on return/relaunch, without background alarms or notifications.
+- Restore active timing state, schedule snapshots/templates, laps, history, and preferences from local storage.
+- Save manual light/dark selection (light default), sound ID/duration, automatic alerts, mobile haptic feedback, and screen wake lock preferences independently.
 - Adapt the interface to compact screens, safe areas, and a constrained desktop preview width.
 
 ## Technology Stack
@@ -30,7 +33,7 @@ Versions below describe the current package manifest, not a requirement to upgra
 | Shared state | React Context and custom hooks |
 | Persistence | AsyncStorage `2.2.0`, JSON schema version 1 |
 | Device behavior | Expo Haptics, KeepAwake, SystemUI, StatusBar, and SplashScreen |
-| Completion audio | SDK-compatible `expo-audio ~57.0.5` on native, `expo-asset ~57.0.20` and an observed HTML media play promise on web; bundled PCM WAV |
+| Completion audio | SDK-compatible `expo-audio ~57.0.5` on native, `expo-asset ~57.0.20` and an observed HTML media play promise on web; four bundled original PCM WAV patterns |
 | Visuals | React Native StyleSheet, react-native-svg, bundled Inter fonts |
 | Core tests | Node.js test runner and strict assertions |
 | Browser tests | Playwright using locally installed Google Chrome |
@@ -39,7 +42,7 @@ Versions below describe the current package manifest, not a requirement to upgra
 
 ## Architecture
 
-Pattern: **Layered Architecture adapted to a mobile application**, with shared pure stopwatch/countdown cores.
+Pattern: **Layered Architecture adapted to a mobile application**, with shared pure stopwatch/countdown/schedule cores, global timing coordinators, and one alert playback controller.
 
 Read [ARCHITECTURE.md](ARCHITECTURE.md) for the actual folder structure, dependency boundaries, data flow, and TypeScript examples. The app currently has one small functional domain; additional service, repository, or feature-module layers are not required for routine changes.
 
@@ -47,20 +50,27 @@ Read [ARCHITECTURE.md](ARCHITECTURE.md) for the actual folder structure, depende
 
 | Path | Responsibility |
 |---|---|
-| `src/app/_layout.tsx` | Fonts, safe areas, shared/theme providers, startup gate, three-tab shell, settings, and notices |
+| `src/app/_layout.tsx` | Fonts, safe areas, shared/theme providers, startup gate, four-tab shell, settings, and notices |
 | `src/app/index.tsx` | Stopwatch screen and user actions |
 | `src/app/timer.tsx` | Countdown duration editor and controls |
+| `src/app/planning.tsx` | Saved-template CRUD, editor composition, and confirmed run replacement |
 | `src/app/history.tsx` | Session history, details, sharing, and deletion |
 | `src/core/stopwatch.ts` | Types, immutable timing operations, limits, formatting, statistics, and stored-data validation |
 | `src/core/timer.ts` | Pure countdown transitions, bounds, restoration, parsing, and ceiling-based display |
+| `src/core/planning.ts` | Schedule bounds, validation/CRUD, run snapshots, and cumulative transitions |
+| `src/core/sounds.ts`, `src/audio/sources.ts` | Pure preference catalog and separate static asset map |
 | `src/hooks/useStopwatch.ts` | Hydration, shared data updates, serialized writes, and app-state persistence |
-| `src/context/CronoContext.tsx` | Shared state, global timer/audio owner, notices, haptics, and one screen wake guard |
+| `src/context/CronoContext.tsx` | Shared state, global timer/planning runners, one audio owner, notices, haptics, and one screen wake guard |
 | `src/context/ThemeContext.tsx` | Saved theme projection, navigation palette, native appearance and root background |
 | `src/hooks/timerCompletion.ts` | Injectable completion coordinator with current-state guards and cancellation |
 | `src/hooks/useTimerCompletion.ts` | Readiness and foreground lifecycle adapter for the coordinator |
-| `src/hooks/useTimerSound.ts`, `.web.ts` | Managed native playback and browser autoplay-error handling |
+| `src/hooks/planningRunner.ts`, `usePlanningRunner.ts` | Accepted schedule transitions, boundary identity, and silent lifecycle reconciliation |
+| `src/hooks/alertPlayback.ts`, `useAlertPlayback.ts` | Shared duration limits, event priority, preview/Stop, and scoped failures |
+| `src/hooks/useAlertSound.ts`, `.web.ts` | Source-bound native/browser playback with explicit cleanup |
 | `src/components/StopwatchFace.tsx` | Local display refresh and stopwatch dial |
 | `src/components/TimerFace.tsx`, `TimerCompletionNotice.tsx` | Local countdown display and completion feedback in shell/sheets |
+| `src/components/ScheduleEditorSheet.tsx`, `ScheduleStepRow.tsx` | Controlled drafts, ordered actions, validation, and explicit save/discard |
+| `src/components/PlanningRunCard.tsx`, `PlanningNotice.tsx`, `TimingNotices.tsx` | Local schedule display, controls, and shared notices/Stop in shell/sheets |
 | `src/theme.ts` | Pure semantic light/dark palettes and font-family names |
 
 ## Data and Persistence
@@ -70,14 +80,15 @@ The `AppData` object contains:
 - `version: 1` to identify the persisted schema.
 - `stopwatch`: accumulated milliseconds, an optional start timestamp, and recorded laps.
 - `timer`: status, configured duration, remaining snapshot, optional deadline, and run identity.
+- `planning`: saved schedules and an optional run snapshot containing its identity, source ID/name/actions, running/paused/completed status, current index, remaining milliseconds, and optional deadline.
 - `sessions`: saved session identifiers, save timestamps, total durations, and laps.
-- `preferences`: `haptics`, `keepAwake`, and `timerSound` booleans, plus `theme: 'light' | 'dark'`.
+- `preferences`: `haptics`, `keepAwake`, and `timerSound` booleans, `theme: 'light' | 'dark'`, `alertSoundId: 'classic' | 'bell' | 'digital' | 'gong'`, and `alertDurationSeconds: 5 | 15 | 30`. The legacy `timerSound` name now controls automatic timer and schedule alerts.
 
 The hook stores the entire object as JSON under `@crono/app-v1`. Actions go through `update(action)`, which applies a functional transformation and queues a write. Its synchronous `{ changed, data }` result confirms in-memory acceptance, not durable storage; stable `getSnapshot()` reads the current accepted state. Additional writes are requested when the app leaves the active state. Display refreshes do not persist a new snapshot on every frame.
 
 `restoreData` validates unknown JSON and filters invalid stored records. Unsupported versions and malformed input fall back to initial data. This fallback is existing behavior, not a migration strategy for future schema changes.
 
-Optional timer/preferences additions retain version 1 and the storage key. Missing or invalid theme defaults to light; missing or invalid timer defaults to an idle five-minute countdown; sound defaults on. These fields restore independently while preserving valid stopwatch/history data and existing false boolean preferences. Valid overdue running timers remain running until the global coordinator reconciles them.
+Optional timer/planning/preferences additions retain version 1 and the storage key. Missing or invalid fields independently default to light theme, an idle five-minute timer, empty planning, Clasic, and five-second sound; automatic alerts default on. Existing valid clocks/history and false preferences are preserved. Schedule restoration filters bad templates independently and rejects incoherent run snapshots independently; validated snapshots can outlive their source template. Valid overdue runs remain running until the provider reconciles them. A literal pre-planning fixture exercises compatibility through restoration, settings, real Classic asset playback, completion, and reload.
 
 Time is derived from `Date.now()` timestamps and accumulated paused time. Background time counts on return. Manual changes to the device clock can affect measurements; this app does not provide a metrological accuracy guarantee.
 
@@ -85,8 +96,10 @@ Time is derived from `Date.now()` timestamps and accumulated paused time. Backgr
 
 - Android and iOS are the primary platforms; web provides a preview and browser test target.
 - Haptics and screen wake lock are enabled only on mobile and respect saved preferences.
-- One wake guard covers either running clock. Theme and sound controls also work on web; manual appearance overrides the OS setting. The interactive shell waits for storage/fonts; the static native splash cannot read the saved preference before JavaScript.
-- Completion effects belong to the provider, independent of the active route. Each accepted foreground completion has at most one audio attempt per live run. Mute/reset/restart/lifecycle cleanup invalidate pending work; completed hydration never replays audio. No background notifications or recording permissions are configured.
+- One wake guard covers any running stopwatch, timer, or schedule. Theme and sound controls also work on web; manual appearance overrides the OS setting. The interactive shell waits for storage/fonts; the static native splash cannot read the saved preference before JavaScript.
+- Timer and schedule coordinators belong to the provider and publish effects only after accepted updates. Schedule actions advance against cumulative deadlines; delayed callbacks publish only the latest crossed boundary. Hydration/background return catches up silently; completed hydration never replays sound. No background notifications or recording permissions are configured.
+- One playback controller arbitrates all alerts and previews. Live alerts outrank previews; later live deadlines win, with exact ties ordered timer completion, schedule completion, then action boundary. The final action emits only a schedule-complete event. Patterns loop for the selected duration after playback starts; startup is limited to four seconds. Stop, mute, sound/duration changes, and lifecycle cleanup cancel obsolete playback without resetting timing. Owner-specific pause/reset cannot cancel another activity's sound. Settings close cancels only preview; preview may play while automatic alerts are muted.
+- Native and browser transports create a player for each accepted request and release old resources explicitly. Audio errors match their event/run; a later success clears old feedback without clearing unrelated session-save notices. TimingNotices projects completion and Stop into both shell and open sheets.
 - Native sound respects silent mode and mixes with existing audio. Browser autoplay rejection produces visible feedback; the web adapter observes `HTMLMediaElement.play()` because SDK 57's web player does not observe that promise.
 - Mobile sharing uses React Native Share. Web uses native browser sharing when available, otherwise the clipboard.
 - Application data remains on the device or in browser storage. Uninstalling the app or clearing browser data removes it.
@@ -105,7 +118,7 @@ Time is derived from `Date.now()` timestamps and accumulated paused time. Backgr
 | `npm run export` | Export JavaScript/assets for all platforms |
 | `npx expo-doctor` | Diagnose Expo dependency and configuration issues |
 
-Feature checks on 2026-11-05: 31 Node tests, 20 Playwright scenarios against the web export, lint/typecheck, Android/iOS/web export, dependency compatibility, and 21 Expo Doctor checks pass. Native config introspection contains no microphone/recording permission or background audio mode. Phone sound/appearance/wake-lock behavior and signed builds remain unverified.
+Feature checks on 2026-11-05: 51 Node tests, all 39 Playwright scenarios against the development server on port 8091 (default timeouts, no retries), lint/typecheck, and Android/iOS/web export pass. All 12 sound/duration combinations have controller boundary coverage; browser checks observe playback calls and decode all four actual assets. The earlier baseline passed dependency compatibility and 21 Expo Doctor checks; dependencies and playback-only app configuration are unchanged. Physical-phone audible duration/Stop, silent mode/routing, keyboard, appearance, wake lock, and locked/background return remain pending because no native device/runtime is available. Signed builds remain unverified.
 
 Install app dependencies through `npx expo install <package>` to resolve SDK-compatible versions. Follow [AGENTS.md](../AGENTS.md) for versioned documentation requirements and EAS commands. Browser tests and successful exports do not establish physical-device behavior or signed-build readiness.
 
@@ -129,6 +142,6 @@ Plan fixes separately and verify the relevant behavior before changing storage f
 - Installed workflow skills: `../.agents/skills/` (33 existing AI Factory skills).
 - Communication and generated artifact languages: English, as configured.
 - Git base branch: `master`; new full/ultra plans may create branches using `feature/`.
-- Active full plan: `plans/feature-dark-mode-preference.md`; no roadmap or research artifact is present.
+- Latest implementation plan: `plans/feature-sound-settings-schedules.md`; the earlier dark-mode/timer plan remains at `plans/feature-dark-mode-preference.md`. No roadmap or research artifact is present.
 
 The connected GitHub app is available in the current agent session. No repository-level MCP server configuration is present. Reuse host-provided integrations when available; additional servers should address a concrete project need.

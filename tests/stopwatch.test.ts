@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { readFileSync } from 'node:fs';
 import { elapsed, emptyStopwatch, formatTime, initialData, lapStats, MAX_SESSIONS, pause, recordLap, restoreData, saveSession, sessionText, start } from '../src/core/stopwatch.ts';
 
 test('start is idempotent, including a timestamp of zero', () => {
@@ -115,7 +116,7 @@ test('theme defaults and restoration preserve legacy stopwatch data independentl
   const legacy = { ...data, stopwatch, preferences: { haptics: false, keepAwake: false } };
   const restored = restoreData(JSON.stringify(legacy), 5000);
   assert.equal(initialData().preferences.theme, 'light');
-  assert.deepEqual(restored, { ...data, stopwatch, preferences: { haptics: false, keepAwake: false, theme: 'light', timerSound: true } });
+  assert.deepEqual(restored, { ...data, stopwatch, preferences: { ...initialData().preferences, haptics: false, keepAwake: false, theme: 'light', timerSound: true } });
   for (const theme of ['light', 'dark'] as const) {
     assert.equal(restoreData(JSON.stringify({ ...legacy, preferences: { ...legacy.preferences, theme } }), 5000).preferences.theme, theme);
   }
@@ -147,4 +148,22 @@ test('timer and sound restore independently without changing legacy sessions or 
   assert.deepEqual(result.timer, activeTimer);
   assert.deepEqual(saveSession({ ...result, stopwatch: { accumulatedMs: 1234, startedAt: null, laps: [] } }, 6000).timer, activeTimer);
   assert.equal(restoreData(JSON.stringify({ ...legacy, preferences: { timerSound: 'false' } })).preferences.timerSound, true);
+});
+
+test('literal pre-planning v1 data retains all clocks, history, theme and false settings', () => {
+  const raw = readFileSync(new URL('./fixtures/app-v1-before-planning.json', import.meta.url), 'utf8');
+  const legacy = JSON.parse(raw);
+  const restored = restoreData(raw);
+  assert.deepEqual(restored.stopwatch, legacy.stopwatch);
+  assert.deepEqual(restored.timer, legacy.timer);
+  assert.deepEqual(restored.sessions, legacy.sessions);
+  assert.deepEqual(restored.preferences, { ...legacy.preferences, alertSoundId: 'classic', alertDurationSeconds: 5 });
+  assert.deepEqual(restored.planning, { schedules: [], run: null });
+  const valid = { id: 'sequence', name: 'Orar', steps: [{ id: 'step', name: 'Respiră', durationMs: 1000 }] };
+  const mixed = restoreData(JSON.stringify({ ...legacy, planning: { schedules: [valid, {}], run: {} }, preferences: { ...legacy.preferences, alertSoundId: 'gong', alertDurationSeconds: '30' } }));
+  assert.deepEqual(mixed.planning, { schedules: [valid], run: null });
+  assert.equal(mixed.preferences.alertSoundId, 'gong');
+  assert.equal(mixed.preferences.alertDurationSeconds, 5);
+  assert.equal(mixed.preferences.timerSound, false);
+  assert.deepEqual(restoreData(JSON.stringify(mixed)), mixed);
 });

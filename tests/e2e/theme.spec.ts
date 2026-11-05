@@ -60,13 +60,27 @@ for (const dark of [false, true]) for (const width of [320, 430, 1024]) {
     const data = initialData(); data.preferences.theme = dark ? 'dark' : 'light';
     data.stopwatch = { accumulatedMs: 3500, startedAt: null, laps: [{ number: 1, elapsedMs: 2000, splitMs: 2000 }] };
     data.sessions = [{ id: 'saved', savedAt: 1700000000000, durationMs: 2500, laps: data.stopwatch.laps }];
+    const longName = 'Un orar pentru învățare și pauze cu un nume lung și lizibil pe telefon';
+    data.planning.schedules = [{ id: 'long', name: longName, steps: [{ id: 'long-step', name: 'O acțiune cu un nume mai lung pentru a verifica afișarea pe telefon', durationMs: 300000 }] }];
     await seed(page, data); await page.goto('/');
     await expect(page.getByRole('button', { name: 'Continuă', exact: true })).toBeVisible();
     await expectTheme(page, dark);
-    for (const name of ['Timer', 'Istoric', 'Cronometru']) {
+    await expect(page.getByRole('tab')).toHaveCount(4);
+    for (const name of ['Timer', 'Planificare', 'Istoric', 'Cronometru']) {
       await page.getByRole('tab', { name, exact: true }).click();
+      await expect(page.getByRole('tab', { name, exact: true })).toHaveAttribute('aria-selected', 'true');
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     }
+    await page.getByRole('tab', { name: 'Planificare', exact: true }).click();
+    if (width === 320) await page.screenshot({ path: `previews/planning-${dark ? 'dark' : 'light'}-320.png`, fullPage: true, animations: 'disabled' });
+    await page.getByRole('button', { name: `Editează orarul ${longName}`, exact: true }).click();
+    const editor = page.getByRole('dialog', { name: 'Editează orarul', exact: true });
+    await expect(editor).toHaveCSS('background-color', dark ? 'rgb(20, 26, 21)' : 'rgb(246, 247, 242)');
+    await expect(editor.getByLabel('Nume orar', { exact: true })).toHaveValue(longName);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    if (width === 320) await page.screenshot({ path: `previews/planning-editor-${dark ? 'dark' : 'light'}-320.png`, fullPage: true, animations: 'disabled' });
+    await editor.getByRole('button', { name: 'Închide', exact: true }).click();
+    await expect(editor).not.toBeVisible();
     await page.getByRole('tab', { name: 'Istoric', exact: true }).click();
     await page.getByRole('button', { name: /^Sesiune / }).click();
     const details = page.getByRole('dialog', { name: 'Sesiunea ta.' });
@@ -78,7 +92,7 @@ for (const dark of [false, true]) for (const width of [320, 430, 1024]) {
     await expect(page.getByRole('dialog', { name: 'Ștergi sesiunea?' })).not.toBeVisible();
     await expect(details).not.toBeVisible();
     await settings(page);
-    await page.screenshot({ path: `previews/theme-${dark ? 'dark' : 'light'}-${width}.png`, fullPage: true });
+    await page.screenshot({ path: `previews/theme-${dark ? 'dark' : 'light'}-${width}.png`, fullPage: true, animations: 'disabled' });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
 }

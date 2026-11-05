@@ -4,11 +4,12 @@ import { useThemeStyles } from '../context/ThemeContext';
 import { fonts as f, Palette } from '../theme';
 
 export function TimerCompletionNotice() {
-  const { data, notice } = useCrono();
+  const { data, alerts } = useCrono();
   const styles = useThemeStyles(createStyles);
   if (data.timer.status !== 'completed') return null;
+  const error = alerts.state.request?.eventId === `timer:${data.timer.runId}` ? alerts.state.error : null;
   return <View style={styles.notice} accessibilityLabel="Temporizator finalizat" accessibilityLiveRegion="polite">
-    <Text style={styles.text}>{notice?.startsWith('Timpul a expirat.') ? notice : 'Timpul a expirat.'}</Text>
+    <Text style={styles.text}>{error ? `Timpul a expirat. ${error}` : 'Timpul a expirat.'}</Text>
   </View>;
 }
 
