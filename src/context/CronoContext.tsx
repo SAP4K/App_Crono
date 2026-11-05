@@ -1,13 +1,17 @@
 import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useState } from 'react';
-import { Platform } from 'react-native';
+import { AccessibilityInfo, Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useKeepAwake } from 'expo-keep-awake';
 import { useStopwatch } from '../hooks/useStopwatch';
+import { useTimerCompletion } from '../hooks/useTimerCompletion';
+import type { TimerControls } from '../hooks/timerCompletion';
+import { useTimerSound } from '../hooks/useTimerSound';
 
 type CronoValue = ReturnType<typeof useStopwatch> & {
   feedback: () => void;
   notice: string | null;
   notify: (message: string) => void;
+  timerControls: TimerControls;
 };
 
 const CronoContext = createContext<CronoValue | null>(null);
@@ -26,14 +30,23 @@ export function CronoProvider({ children }: PropsWithChildren) {
     }
   }, [stopwatch.data.preferences.haptics]);
   const notify = useCallback((message: string) => setNotice(message), []);
+  const notifyTimer = useCallback((message: string) => {
+    if (Platform.OS !== 'web') AccessibilityInfo.announceForAccessibility(message);
+    setNotice((previous) => {
+      if (message !== 'Timpul a expirat.') return message;
+      return previous?.startsWith('Timpul a expirat.') ? null : previous;
+    });
+  }, []);
+  const audio = useTimerSound(notifyTimer);
+  const timerControls = useTimerCompletion(stopwatch, stopwatch.data, audio, notifyTimer);
   useEffect(() => {
     if (!notice) return;
     const timeout = setTimeout(() => setNotice(null), 3500);
     return () => clearTimeout(timeout);
   }, [notice]);
 
-  return <CronoContext.Provider value={{ ...stopwatch, feedback, notice, notify }}>
-    {stopwatch.data.stopwatch.startedAt !== null && stopwatch.data.preferences.keepAwake && Platform.OS !== 'web' && <AwakeGuard />}
+  return <CronoContext.Provider value={{ ...stopwatch, feedback, notice, notify, timerControls }}>
+    {(stopwatch.data.stopwatch.startedAt !== null || stopwatch.data.timer.status === 'running') && stopwatch.data.preferences.keepAwake && Platform.OS !== 'web' && <AwakeGuard />}
     {children}
   </CronoContext.Provider>;
 }

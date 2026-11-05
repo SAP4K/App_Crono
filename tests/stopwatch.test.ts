@@ -108,3 +108,43 @@ test('lap statistics and share text reflect recorded values', () => {
 test('a backwards clock cannot produce a negative elapsed value', () => {
   assert.equal(elapsed(start(emptyStopwatch(), 2000), 1000), 0);
 });
+
+test('theme defaults and restoration preserve legacy stopwatch data independently', () => {
+  const data = saveSession({ ...initialData(), stopwatch: { accumulatedMs: 1000, startedAt: null, laps: [] } }, 2000);
+  const stopwatch = recordLap(start(emptyStopwatch(), 3000), 4000);
+  const legacy = { ...data, stopwatch, preferences: { haptics: false, keepAwake: false } };
+  const restored = restoreData(JSON.stringify(legacy), 5000);
+  assert.equal(initialData().preferences.theme, 'light');
+  assert.deepEqual(restored, { ...data, stopwatch, preferences: { haptics: false, keepAwake: false, theme: 'light', timerSound: true } });
+  for (const theme of ['light', 'dark'] as const) {
+    assert.equal(restoreData(JSON.stringify({ ...legacy, preferences: { ...legacy.preferences, theme } }), 5000).preferences.theme, theme);
+  }
+  for (const theme of [null, 5, {}, true, 'system', 'DARK']) {
+    const result = restoreData(JSON.stringify({ ...legacy, preferences: { ...legacy.preferences, theme } }), 5000);
+    assert.equal(result.preferences.theme, 'light');
+    assert.deepEqual(result.sessions, legacy.sessions);
+    assert.deepEqual(result.stopwatch, stopwatch);
+    assert.equal(result.preferences.haptics, false);
+  }
+});
+
+test('timer and sound restore independently without changing legacy sessions or stopwatch', () => {
+  const data = saveSession({ ...initialData(), stopwatch: { accumulatedMs: 1000, startedAt: null, laps: [] } }, 2000);
+  const legacy = { version: 1, stopwatch: start(emptyStopwatch(), 3000), sessions: data.sessions, preferences: { theme: 'dark', haptics: false, keepAwake: false } };
+  const restored = restoreData(JSON.stringify(legacy), 5000);
+  assert.deepEqual(restored.timer, initialData().timer);
+  assert.equal(restored.preferences.timerSound, true);
+  for (const timer of [null, {}, { ...restored.timer, status: 'running' }]) {
+    const result = restoreData(JSON.stringify({ ...legacy, timer, preferences: { ...legacy.preferences, timerSound: false } }), 5000);
+    assert.deepEqual(result.stopwatch, legacy.stopwatch);
+    assert.deepEqual(result.sessions, legacy.sessions);
+    assert.equal(result.preferences.theme, 'dark');
+    assert.equal(result.preferences.timerSound, false);
+    assert.equal(result.preferences.haptics, false);
+  }
+  const activeTimer = { ...restored.timer, status: 'running', deadlineAt: 4000, runId: 'overdue' };
+  const result = restoreData(JSON.stringify({ ...legacy, timer: activeTimer }), 5000);
+  assert.deepEqual(result.timer, activeTimer);
+  assert.deepEqual(saveSession({ ...result, stopwatch: { accumulatedMs: 1234, startedAt: null, laps: [] } }, 6000).timer, activeTimer);
+  assert.equal(restoreData(JSON.stringify({ ...legacy, preferences: { timerSound: 'false' } })).preferences.timerSound, true);
+});

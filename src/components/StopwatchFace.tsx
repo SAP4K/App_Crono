@@ -2,9 +2,12 @@ import { useEffect, useState } from 'react';
 import { AppState, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Svg, { Circle, Line } from 'react-native-svg';
 import { elapsed, formatTime, Stopwatch } from '../core/stopwatch';
-import { colors as c, fonts as f } from '../theme';
+import { fonts as f, Palette } from '../theme';
+import { useTheme, useThemeStyles } from '../context/ThemeContext';
 
 export function StopwatchFace({ stopwatch }: { stopwatch: Stopwatch }) {
+  const { colors: c } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const [now, setNow] = useState(Date.now);
   const { width, height, fontScale } = useWindowDimensions();
   const compact = height < 740;
@@ -44,7 +47,7 @@ export function StopwatchFace({ stopwatch }: { stopwatch: Stopwatch }) {
             const major = index % 5 === 0;
             const outer = center - 3;
             const inner = outer - (major ? 10 : 5);
-            return <Line key={index} x1={center + Math.cos(tickAngle) * inner} y1={center + Math.sin(tickAngle) * inner} x2={center + Math.cos(tickAngle) * outer} y2={center + Math.sin(tickAngle) * outer} stroke={major ? '#9DA690' : '#D6DCCB'} strokeWidth={major ? 2 : 1} strokeLinecap="round" />;
+            return <Line key={index} x1={center + Math.cos(tickAngle) * inner} y1={center + Math.sin(tickAngle) * inner} x2={center + Math.cos(tickAngle) * outer} y2={center + Math.sin(tickAngle) * outer} stroke={major ? c.tickMajor : c.tickMinor} strokeWidth={major ? 2 : 1} strokeLinecap="round" />;
           })}
           {progress > 0 && <Circle cx={center} cy={center} r={radius} fill="none" stroke={c.ink} strokeWidth="2.5" strokeDasharray={`${progress * 2 * Math.PI * radius} ${2 * Math.PI * radius}`} transform={`rotate(-90 ${center} ${center})`} strokeLinecap="round" />}
           <Circle cx={center + Math.cos(angle) * radius} cy={center + Math.sin(angle) * radius} r="6.5" fill={c.lime} stroke={c.ink} strokeWidth="2" />
@@ -69,7 +72,7 @@ export function StopwatchFace({ stopwatch }: { stopwatch: Stopwatch }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: Palette) => StyleSheet.create({
   container: { alignItems: 'center', paddingTop: 8 },
   dial: { alignItems: 'center', justifyContent: 'center' },
   readout: { alignItems: 'center', gap: 16 },
@@ -77,7 +80,7 @@ const styles = StyleSheet.create({
   digits: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', paddingHorizontal: 15 },
   time: { fontFamily: f.medium, color: c.ink, letterSpacing: -2.8, fontVariant: ['tabular-nums'] },
   fraction: { fontFamily: f.medium, color: c.muted, letterSpacing: -1, fontVariant: ['tabular-nums'] },
-  status: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 11, paddingVertical: 6, backgroundColor: '#ECEFE6', borderRadius: 20 },
+  status: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 11, paddingVertical: 6, backgroundColor: c.secondary, borderRadius: 20 },
   statusActive: { backgroundColor: c.limeSoft },
   dot: { width: 5, height: 5, borderRadius: 3 },
   statusText: { fontFamily: f.medium, color: c.muted, fontSize: 10 },

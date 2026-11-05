@@ -6,9 +6,12 @@ import { StopwatchFace } from '../components/StopwatchFace';
 import { LapList } from '../components/LapList';
 import { Icon } from '../components/Icon';
 import { ConfirmSheet } from '../components/Sheet';
-import { colors as c, fonts as f } from '../theme';
+import { fonts as f, Palette } from '../theme';
+import { useTheme, useThemeStyles } from '../context/ThemeContext';
 
 export default function StopwatchScreen() {
+  const { colors: c } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const { data, update, feedback, notify } = useCrono();
   const [resetDialog, setResetDialog] = useState(false);
   const compact = useWindowDimensions().height < 740;
@@ -38,7 +41,7 @@ export default function StopwatchScreen() {
         <Text style={[styles.secondaryText, secondaryDisabled && { color: c.subtle }]}>{running ? 'Tură' : 'Resetează'}</Text>
       </Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel={running ? 'Pauză' : hasTime ? 'Continuă' : 'Pornește'} onPress={toggleRunning} style={({ pressed }) => [styles.primary, pressed && styles.pressed]}>
-        <Icon name={running ? 'pause' : 'play'} size={19} color={c.lime} strokeWidth={1.4} />
+        <Icon name={running ? 'pause' : 'play'} size={19} color={c.actionIcon} strokeWidth={1.4} />
         <Text style={styles.primaryText}>{running ? 'Pauză' : hasTime ? 'Continuă' : 'Pornește'}</Text>
       </Pressable>
     </View>
@@ -49,25 +52,25 @@ export default function StopwatchScreen() {
   </ScrollView>;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: Palette) => StyleSheet.create({
   screen: { flex: 1 },
   content: { paddingHorizontal: 26, paddingBottom: 26 },
   eyebrow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 3, marginBottom: 11 },
-  dash: { width: 17, height: 2, backgroundColor: '#839D59', borderRadius: 1 },
-  eyebrowText: { fontFamily: f.semibold, fontSize: 8, color: '#7C8C67', letterSpacing: 1.7 },
+  dash: { width: 17, height: 2, backgroundColor: c.green, borderRadius: 1 },
+  eyebrowText: { fontFamily: f.semibold, fontSize: 8, color: c.green, letterSpacing: 1.7 },
   title: { fontFamily: f.bold, color: c.ink, fontSize: 32, letterSpacing: -1.5, marginBottom: 7 },
   subtitle: { fontFamily: f.regular, color: c.muted, fontSize: 12, marginBottom: 22 },
   actions: { flexDirection: 'row', gap: 12 },
-  primary: { flex: 1.32, flexDirection: 'row', gap: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: c.ink, minHeight: 61, paddingVertical: 19, borderRadius: 19 },
-  primaryText: { fontFamily: f.semibold, color: c.background, fontSize: 14 },
-  secondary: { flex: 1, flexDirection: 'row', gap: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: '#E8EDDDE6', minHeight: 61, paddingVertical: 19, borderRadius: 19 },
+  primary: { flex: 1.32, flexDirection: 'row', gap: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: c.action, minHeight: 61, paddingVertical: 19, borderRadius: 19 },
+  primaryText: { fontFamily: f.semibold, color: c.actionText, fontSize: 14 },
+  secondary: { flex: 1, flexDirection: 'row', gap: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: c.secondary, minHeight: 61, paddingVertical: 19, borderRadius: 19 },
   secondaryText: { fontFamily: f.semibold, color: c.ink, fontSize: 12 },
-  disabled: { backgroundColor: '#ECEFE5' },
+  disabled: { backgroundColor: c.disabled },
   pressed: { opacity: 0.72, transform: [{ scale: 0.98 }] },
   hint: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingTop: 3 },
-  hintDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: '#A4B788' },
-  hintText: { fontFamily: f.regular, color: '#8B947F', fontSize: 10 },
+  hintDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: c.subtle },
+  hintText: { fontFamily: f.regular, color: c.muted, fontSize: 10 },
   save: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 7, backgroundColor: c.limeSoft, borderRadius: 13 },
   saveText: { fontFamily: f.semibold, color: c.green, fontSize: 11 },
-  footer: { fontFamily: f.medium, fontSize: 7, color: '#A5AF97', letterSpacing: 1.7, textAlign: 'center', marginTop: 29 },
+  footer: { fontFamily: f.medium, fontSize: 7, color: c.muted, letterSpacing: 1.7, textAlign: 'center', marginTop: 29 },
 });

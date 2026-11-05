@@ -39,3 +39,70 @@ Docs: https://docs.expo.dev/eas/index.md
 - If `ios/` and `android/` directories do not exist, they are generated (Continuous Native Generation). Never create or edit them by hand — configure native behavior in `app.json` and config plugins.
 - Expo Go only includes its bundled native modules. After adding a library with native code, the app needs a development build: `npx expo run:ios|android` locally, or `eas build --profile development`.
 - Prefer recommended Expo modules over third-party libraries, and check your available skills before adding dependencies. Docs: https://docs.expo.dev/versions/latest/index.md
+
+## Project Overview
+
+CRONO is a Romanian-language stopwatch and countdown app for iOS and Android with a web preview. Read `.ai-factory/DESCRIPTION.md` for the verified stack, implemented behavior, persistence contract, and open technical findings.
+
+The app uses technical layers with shared pure stopwatch/countdown cores. Read `.ai-factory/ARCHITECTURE.md` and `.ai-factory/rules/base.md` before implementation.
+
+## Project Structure
+
+```text
+src/
+  app/          Expo Router routes and application shell
+  components/   Stopwatch/timer dials, completion notice, laps, sheets, and settings
+  context/      Shared state, saved theme, notices, and mobile feedback
+  hooks/        Persistence, global completion coordination, and native/web audio
+  core/         Pure stopwatch/countdown operations and stored-data validation
+  theme.ts      Semantic light/dark palettes and font-family constants
+tests/
+  stopwatch.test.ts     Node.js core logic tests
+  timer.test.ts         Countdown boundary/transition tests
+  timerCompletion.test.ts Completion/audio coordination tests
+  theme.test.ts         Palette contrast checks
+  e2e/                  Stopwatch, theme, and countdown browser scenarios
+assets/                 App icons, splash images, and original completion WAV
+.agents/skills/         Installed AI Factory workflows
+.ai-factory/            Project context and workflow configuration
+```
+
+## Key Entry Points
+
+| File | Purpose |
+|---|---|
+| `src/app/_layout.tsx` | Fonts, providers, navigation shell, settings, and notices |
+| `src/app/index.tsx` | Stopwatch route and user actions |
+| `src/app/timer.tsx` | Countdown editor and controls |
+| `src/app/history.tsx` | History, details, sharing, and deletion |
+| `src/core/stopwatch.ts` | Types, transitions, limits, validation, and formatting |
+| `src/core/timer.ts` | Pure countdown transitions, validation, and formatting |
+| `src/hooks/useStopwatch.ts` | Hydration, functional updates, and ordered writes |
+| `src/context/CronoContext.tsx` | Context API, global timer/audio ownership, haptics, wake lock, notices |
+| `src/context/ThemeContext.tsx` | Saved theme, navigation palette, native appearance |
+| `src/hooks/timerCompletion.ts` | Injectable completion coordinator and fresh-state audio guards |
+| `src/hooks/useTimerCompletion.ts` | Readiness and foreground lifecycle bridge |
+| `src/hooks/useTimerSound.ts`, `.web.ts` | Native managed playback and browser audio fallback |
+| `app.json` | Expo app identity, plugins, and native configuration |
+| `eas.json` | Development, preview, and production build profiles |
+| `playwright.config.ts` | Browser setup and web server on port 8091 |
+
+## Documentation and AI Context
+
+| File | Purpose |
+|---|---|
+| `README.md` | English setup, theme/timer usage, checks, and builds |
+| `AGENTS.md` | Repository map and authoritative Expo workflow requirements |
+| `.ai-factory/DESCRIPTION.md` | Project purpose, stack, data model, and known follow-ups |
+| `.ai-factory/ARCHITECTURE.md` | Layered architecture, dependencies, and data flow |
+| `.ai-factory/rules/base.md` | Naming, state, persistence, UI, and testing conventions |
+| `.ai-factory/config.yaml` | Languages, artifact paths, Git defaults, and workflow preferences |
+
+## Project Workflow
+
+- Use npm with the committed `package-lock.json`; tests that run TypeScript directly require Node.js 24 LTS or later.
+- Keep the application interface in Romanian and follow the configured language for generated documents.
+- Use `master` as the configured Git base branch. Work from the intended development or feature branch and preserve unrelated local edits.
+- Run shell operations separately when a later action depends on an earlier result, so failures can be inspected before continuing.
+- Use `npm test` for core logic changes and relevant Playwright scenarios for UI changes, alongside the required lint and typecheck.
+- Keep the pure core free of React, native APIs, and persistence imports. Send shared data changes through `useCrono().update`.

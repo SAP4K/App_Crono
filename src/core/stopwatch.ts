@@ -1,3 +1,6 @@
+import { initialTimer, restoreTimer } from './timer.ts';
+import type { TimerState } from './timer.ts';
+
 export type Lap = { number: number; elapsedMs: number; splitMs: number };
 
 export type Stopwatch = {
@@ -13,10 +16,12 @@ export type Session = {
   laps: Lap[];
 };
 
-export type Preferences = { haptics: boolean; keepAwake: boolean };
+export type ThemeMode = 'light' | 'dark';
+export type Preferences = { haptics: boolean; keepAwake: boolean; theme: ThemeMode; timerSound: boolean };
 export type AppData = {
   version: 1;
   stopwatch: Stopwatch;
+  timer: TimerState;
   sessions: Session[];
   preferences: Preferences;
 };
@@ -27,8 +32,9 @@ export const emptyStopwatch = (): Stopwatch => ({ accumulatedMs: 0, startedAt: n
 export const initialData = (): AppData => ({
   version: 1,
   stopwatch: emptyStopwatch(),
+  timer: initialTimer(),
   sessions: [],
-  preferences: { haptics: true, keepAwake: true },
+  preferences: { haptics: true, keepAwake: true, theme: 'light', timerSound: true },
 });
 
 // Store a timestamp, not interval ticks. Time spent outside the app still counts.
@@ -108,6 +114,7 @@ export function restoreData(raw: string | null, now = Date.now()): AppData {
   try {
     const value: unknown = JSON.parse(raw);
     if (!isRecord(value) || value.version !== 1) return fallback;
+    fallback.timer = restoreTimer(value.timer);
     const saved = value.stopwatch;
     if (isRecord(saved) && isTime(saved.accumulatedMs) && (saved.startedAt === null || isTime(saved.startedAt))) {
       const candidate = { accumulatedMs: saved.accumulatedMs, startedAt: saved.startedAt, laps: [] };
@@ -118,6 +125,8 @@ export function restoreData(raw: string | null, now = Date.now()): AppData {
     if (isRecord(value.preferences)) {
       if (typeof value.preferences.haptics === 'boolean') fallback.preferences.haptics = value.preferences.haptics;
       if (typeof value.preferences.keepAwake === 'boolean') fallback.preferences.keepAwake = value.preferences.keepAwake;
+      if (value.preferences.theme === 'light' || value.preferences.theme === 'dark') fallback.preferences.theme = value.preferences.theme;
+      if (typeof value.preferences.timerSound === 'boolean') fallback.preferences.timerSound = value.preferences.timerSound;
     }
     if (Array.isArray(value.sessions)) {
       fallback.sessions = value.sessions.filter((session): session is Session =>

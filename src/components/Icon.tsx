@@ -1,11 +1,17 @@
+import { useTheme } from '../context/ThemeContext';
 import Svg, { Circle, Path, Polyline, Rect } from 'react-native-svg';
 
-export type IconName = 'clock' | 'settings' | 'play' | 'pause' | 'flag' | 'reset' | 'history' | 'arrow' | 'save' | 'share' | 'trash' | 'close' | 'check' | 'chevron' | 'haptics' | 'screen';
+export type IconName = 'clock' | 'settings' | 'play' | 'pause' | 'flag' | 'reset' | 'history' | 'arrow' | 'save' | 'share' | 'trash' | 'close' | 'check' | 'chevron' | 'haptics' | 'screen' | 'moon' | 'timer' | 'sound';
 
-export function Icon({ name, size = 22, color = '#20231F', strokeWidth = 1.8 }: {
+export function Icon({ name, size = 22, color: suppliedColor, strokeWidth = 1.8 }: {
   name: IconName; size?: number; color?: string; strokeWidth?: number;
 }) {
+  const { colors } = useTheme();
+  const color = suppliedColor ?? colors.ink;
   const content = {
+    moon: <Path d="M20.8 13A9 9 0 0 1 11 3.2 9 9 0 1 0 20.8 13Z" />,
+    timer: <><Circle cx="12" cy="13" r="8" /><Path d="M9 2h6M12 2v3M12 8v5l3 2M18 5l2-2" /></>,
+    sound: <><Path d="m11 4-6 5H2v6h3l6 5ZM15 8a6 6 0 0 1 0 8M18 5a10 10 0 0 1 0 14" /></>,
     clock: <><Circle cx="12" cy="13" r="8" /><Path d="M12 9v4l2.5 1.5M9 2h6M12 2v3M18 5l2-2" /></>,
     settings: <><Path d="m9.5 3-.6 2.2-2 .9-2-.6-2.4 4 1.7 1.6v2l-1.7 1.6 2.4 4 2-.6 2 .9.6 2.1h5l.6-2.1 2-.9 2 .6 2.4-4-1.7-1.6v-2l1.7-1.6-2.4-4-2 .6-2-.9L14.5 3Z" /><Circle cx="12" cy="12" r="3" /></>,
     play: <Path d="m9 5 11 7-11 7Z" fill={color} strokeLinejoin="round" />,

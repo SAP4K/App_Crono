@@ -1,9 +1,12 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { formatTime, Lap, lapStats } from '../core/stopwatch';
-import { colors as c, fonts as f } from '../theme';
+import { fonts as f, Palette } from '../theme';
+import { useTheme, useThemeStyles } from '../context/ThemeContext';
 import { Icon } from './Icon';
 
 export function LapList({ laps }: { laps: Lap[] }) {
+  const { colors: c } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const stats = lapStats(laps);
   return (
     <View>
@@ -39,22 +42,22 @@ export function LapList({ laps }: { laps: Lap[] }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: Palette) => StyleSheet.create({
   heading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 29, marginBottom: 17 },
   titleGroup: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   title: { fontFamily: f.semibold, fontSize: 17, color: c.ink },
-  count: { backgroundColor: '#E8ECDF', minWidth: 24, height: 23, borderRadius: 8, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
-  countText: { fontFamily: f.semibold, fontSize: 11, color: '#6B765D' },
+  count: { backgroundColor: c.badge, minWidth: 24, height: 23, borderRadius: 8, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+  countText: { fontFamily: f.semibold, fontSize: 11, color: c.badgeText },
   bestHint: { fontFamily: f.regular, fontSize: 10, color: c.muted },
-  empty: { alignItems: 'center', backgroundColor: '#EFF1E9', borderRadius: 20, paddingVertical: 26, borderWidth: 1, borderColor: '#E8EBE0', borderStyle: 'dashed' },
+  empty: { alignItems: 'center', backgroundColor: c.empty, borderRadius: 20, paddingVertical: 26, borderWidth: 1, borderColor: c.border, borderStyle: 'dashed' },
   emptyIcon: { marginBottom: 10 },
-  emptyTitle: { fontFamily: f.medium, fontSize: 13, color: '#535D4B', marginBottom: 6 },
+  emptyTitle: { fontFamily: f.medium, fontSize: 13, color: c.ink, marginBottom: 6 },
   emptyText: { fontFamily: f.regular, fontSize: 11, color: c.muted, textAlign: 'center', lineHeight: 18, paddingHorizontal: 15 },
-  summary: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#EDF0E6', borderRadius: 15, paddingVertical: 15, marginBottom: 20 },
+  summary: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.summary, borderRadius: 15, paddingVertical: 15, marginBottom: 20 },
   stat: { flex: 1, paddingHorizontal: 15, gap: 7 },
   statLabel: { fontFamily: f.semibold, color: c.muted, fontSize: 8, letterSpacing: 1.1 },
   statValue: { fontFamily: f.semibold, color: c.ink, fontSize: 17, fontVariant: ['tabular-nums'] },
-  separator: { width: 1, height: 29, backgroundColor: '#D9DFCD' },
+  separator: { width: 1, height: 29, backgroundColor: c.border },
   columns: { flexDirection: 'row', paddingHorizontal: 14, marginBottom: 6 },
   columnNumber: { width: 59, fontFamily: f.semibold, fontSize: 8, letterSpacing: 1.2, color: c.muted },
   columnTime: { flex: 1, textAlign: 'right', fontFamily: f.semibold, fontSize: 8, letterSpacing: 1.2, color: c.muted },

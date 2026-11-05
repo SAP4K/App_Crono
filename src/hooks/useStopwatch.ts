@@ -36,11 +36,14 @@ export function useStopwatch() {
 
   const update = useCallback((action: (previous: AppData) => AppData) => {
     const next = action(current.current);
-    if (next === current.current) return;
+    if (next === current.current) return { changed: false, data: current.current };
     current.current = next;
     setData(next);
     persist(next);
+    return { changed: true, data: next };
   }, [persist]);
+
+  const getSnapshot = useCallback(() => current.current, []);
 
   useEffect(() => {
     if (!ready) return;
@@ -50,5 +53,5 @@ export function useStopwatch() {
     return () => subscription.remove();
   }, [persist, ready]);
 
-  return { data, update, ready, storageError, dismissStorageError: () => setStorageError(false) };
+  return { data, update, getSnapshot, ready, storageError, dismissStorageError: () => setStorageError(false) };
 }

@@ -6,7 +6,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "ro.appcrono.mobile",
@@ -31,12 +31,25 @@
     "plugins": [
       "expo-font",
       "expo-router",
-      ["expo-splash-screen", {
-        "image": "./assets/splash-icon.png",
-        "imageWidth": 160,
-        "resizeMode": "contain",
-        "backgroundColor": "#F6F7F2"
-      }]
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 160,
+          "resizeMode": "contain",
+          "backgroundColor": "#F6F7F2"
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "enableBackgroundRecording": false,
+          "enableBackgroundPlayback": false
+        }
+      ],
+      "expo-asset"
     ]
   }
 }
