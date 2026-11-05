@@ -1,5 +1,9 @@
 import { initialTimer, restoreTimer } from './timer.ts';
 import type { TimerState } from './timer.ts';
+import { initialPlanning, restorePlanning } from './planning.ts';
+import type { PlanningState } from './planning.ts';
+import { DEFAULT_ALERT_DURATION, DEFAULT_SOUND, restoreAlertDuration, restoreSoundId } from './sounds.ts';
+import type { AlertDuration, SoundId } from './sounds.ts';
 
 export type Lap = { number: number; elapsedMs: number; splitMs: number };
 
@@ -17,11 +21,12 @@ export type Session = {
 };
 
 export type ThemeMode = 'light' | 'dark';
-export type Preferences = { haptics: boolean; keepAwake: boolean; theme: ThemeMode; timerSound: boolean };
+export type Preferences = { haptics: boolean; keepAwake: boolean; theme: ThemeMode; timerSound: boolean; alertSoundId: SoundId; alertDurationSeconds: AlertDuration };
 export type AppData = {
   version: 1;
   stopwatch: Stopwatch;
   timer: TimerState;
+  planning: PlanningState;
   sessions: Session[];
   preferences: Preferences;
 };
@@ -33,8 +38,9 @@ export const initialData = (): AppData => ({
   version: 1,
   stopwatch: emptyStopwatch(),
   timer: initialTimer(),
+  planning: initialPlanning(),
   sessions: [],
-  preferences: { haptics: true, keepAwake: true, theme: 'light', timerSound: true },
+  preferences: { haptics: true, keepAwake: true, theme: 'light', timerSound: true, alertSoundId: DEFAULT_SOUND, alertDurationSeconds: DEFAULT_ALERT_DURATION },
 });
 
 // Store a timestamp, not interval ticks. Time spent outside the app still counts.
@@ -115,6 +121,7 @@ export function restoreData(raw: string | null, now = Date.now()): AppData {
     const value: unknown = JSON.parse(raw);
     if (!isRecord(value) || value.version !== 1) return fallback;
     fallback.timer = restoreTimer(value.timer);
+    fallback.planning = restorePlanning(value.planning);
     const saved = value.stopwatch;
     if (isRecord(saved) && isTime(saved.accumulatedMs) && (saved.startedAt === null || isTime(saved.startedAt))) {
       const candidate = { accumulatedMs: saved.accumulatedMs, startedAt: saved.startedAt, laps: [] };
@@ -123,6 +130,8 @@ export function restoreData(raw: string | null, now = Date.now()): AppData {
       }
     }
     if (isRecord(value.preferences)) {
+      fallback.preferences.alertSoundId = restoreSoundId(value.preferences.alertSoundId);
+      fallback.preferences.alertDurationSeconds = restoreAlertDuration(value.preferences.alertDurationSeconds);
       if (typeof value.preferences.haptics === 'boolean') fallback.preferences.haptics = value.preferences.haptics;
       if (typeof value.preferences.keepAwake === 'boolean') fallback.preferences.keepAwake = value.preferences.keepAwake;
       if (value.preferences.theme === 'light' || value.preferences.theme === 'dark') fallback.preferences.theme = value.preferences.theme;

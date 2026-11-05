@@ -2,7 +2,8 @@ import type { AppData } from '../core/stopwatch.ts';
 import { completeTimer, configureTimer, pauseTimer, remainingTime, resetTimer, resumeTimer, startTimer } from '../core/timer.ts';
 import type { TimerState } from '../core/timer.ts';
 
-export type TimerAudio = { play: (allowed: () => boolean) => Promise<void>; stop: () => void };
+export type TimerSoundEvent = { runId: string; dueAt: number };
+export type TimerAudio = { play: (allowed: () => boolean, event?: TimerSoundEvent) => Promise<void>; stop: () => void };
 type Adapters = TimerAudio & {
   getSnapshot: () => AppData;
   update: (action: (previous: AppData) => AppData) => { changed: boolean; data: AppData };
@@ -36,7 +37,7 @@ export function createTimerCoordinator(a: Adapters) {
     a.stop();
   }
 
-  function announce(timer: TimerState, soundAllowed: boolean) {
+  function announce(timer: TimerState, soundAllowed: boolean, dueAt: number) {
     if (!timer.runId || handled.has(timer.runId)) return;
     handled.add(timer.runId);
     // Only the most recent run can complete; keep deduplication bounded.
@@ -50,7 +51,7 @@ export function createTimerCoordinator(a: Adapters) {
       return !disposed && ticket === audioGeneration && a.isActive() && current.preferences.timerSound
         && current.timer.status === 'completed' && current.timer.runId === timer.runId;
     };
-    void a.play(allowed).catch((error) => {
+    void a.play(allowed, { runId: timer.runId, dueAt }).catch((error) => {
       if (!allowed()) return;
       console.warn('[timer] Completion sound unavailable.', error);
       a.notify('Timpul a expirat. Sunetul nu este disponibil acum.');
@@ -58,11 +59,12 @@ export function createTimerCoordinator(a: Adapters) {
   }
 
   function apply(transition: (timer: TimerState) => TimerState, soundAllowed: boolean) {
+    const dueAt = a.getSnapshot().timer.deadlineAt ?? a.now();
     const result = a.update((previous) => {
       const next = transition(previous.timer);
       return next === previous.timer ? previous : { ...previous, timer: next };
     });
-    if (result.changed && result.data.timer.status === 'completed') announce(result.data.timer, soundAllowed);
+    if (result.changed && result.data.timer.status === 'completed') announce(result.data.timer, soundAllowed, dueAt);
     return result;
   }
 

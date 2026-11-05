@@ -3,21 +3,23 @@ import { test } from 'node:test';
 import { initialData } from '../src/core/stopwatch.ts';
 import { startTimer } from '../src/core/timer.ts';
 import { createTimerCoordinator } from '../src/hooks/timerCompletion.ts';
+import type { TimerSoundEvent } from '../src/hooks/timerCompletion.ts';
 
 function fixture(options: { accept?: boolean; play?: (guard: () => boolean) => Promise<void> } = {}) {
   let data = initialData(); let now = 1000; let active = true; let played = 0; let stopped = 0; let id = 0;
   const callbacks: (() => void)[] = []; const guards: (() => boolean)[] = []; const notices: string[] = [];
+  const events: TimerSoundEvent[] = [];
   const coordinator = createTimerCoordinator({
     getSnapshot: () => data,
     update: (action) => { const next = options.accept === false ? data : action(data); const changed = next !== data; data = next; return { changed, data }; },
     isActive: () => active, now: () => now, createId: () => `run-${++id}`,
     notify: (message) => { notices.push(message); },
-    play: async (guard) => { guards.push(guard); if (options.play) await options.play(guard); else if (guard()) played++; },
+    play: async (guard, event) => { guards.push(guard); if (event) events.push(event); if (options.play) await options.play(guard); else if (guard()) played++; },
     stop: () => { stopped++; },
     schedule: (callback) => { callbacks.push(callback); return callbacks.length as unknown as ReturnType<typeof setTimeout>; },
     cancel: () => {},
   });
-  return { coordinator, callbacks, guards, notices,
+  return { coordinator, callbacks, guards, notices, events,
     get data() { return data; }, set data(value) { data = value; },
     set now(value: number) { now = value; }, set active(value: boolean) { active = value; },
     get played() { return played; }, get stopped() { return stopped; },
@@ -28,6 +30,7 @@ test('completion is route-independent and duplicate callbacks cannot replay audi
   const f = fixture(); f.coordinator.configure(1000); f.coordinator.start(); f.now = 2000;
   f.callbacks.at(-1)!(); f.coordinator.reconcile(); f.callbacks[0]();
   assert.equal(f.data.timer.status, 'completed'); assert.equal(f.played, 1); assert.equal(f.notices.length, 1);
+  assert.deepEqual(f.events, [{ runId: 'run-1', dueAt: 2000 }]);
   f.coordinator.reconcile('hydrate'); assert.equal(f.played, 1);
 });
 

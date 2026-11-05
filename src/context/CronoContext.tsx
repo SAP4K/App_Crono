@@ -1,17 +1,20 @@
-import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useState } from 'react';
+import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { AccessibilityInfo, Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useKeepAwake } from 'expo-keep-awake';
 import { useStopwatch } from '../hooks/useStopwatch';
 import { useTimerCompletion } from '../hooks/useTimerCompletion';
-import type { TimerControls } from '../hooks/timerCompletion';
-import { useTimerSound } from '../hooks/useTimerSound';
+import type { TimerAudio, TimerControls } from '../hooks/timerCompletion';
+import { useAlertPlayback } from '../hooks/useAlertPlayback';
+import { usePlanningRunner } from '../hooks/usePlanningRunner';
 
 type CronoValue = ReturnType<typeof useStopwatch> & {
   feedback: () => void;
   notice: string | null;
   notify: (message: string) => void;
   timerControls: TimerControls;
+  alerts: ReturnType<typeof useAlertPlayback>;
+  planning: ReturnType<typeof usePlanningRunner>;
 };
 
 const CronoContext = createContext<CronoValue | null>(null);
@@ -23,6 +26,9 @@ function AwakeGuard() {
 
 export function CronoProvider({ children }: PropsWithChildren) {
   const stopwatch = useStopwatch();
+  const alerts = useAlertPlayback(stopwatch.data.preferences);
+  const { controller } = alerts;
+  const { getSnapshot } = stopwatch;
   const [notice, setNotice] = useState<string | null>(null);
   const feedback = useCallback(() => {
     if (stopwatch.data.preferences.haptics && Platform.OS !== 'web') {
@@ -32,21 +38,29 @@ export function CronoProvider({ children }: PropsWithChildren) {
   const notify = useCallback((message: string) => setNotice(message), []);
   const notifyTimer = useCallback((message: string) => {
     if (Platform.OS !== 'web') AccessibilityInfo.announceForAccessibility(message);
-    setNotice((previous) => {
-      if (message !== 'Timpul a expirat.') return message;
-      return previous?.startsWith('Timpul a expirat.') ? null : previous;
-    });
   }, []);
-  const audio = useTimerSound(notifyTimer);
+  const audio = useMemo<TimerAudio>(() => ({
+    play: async (allowed, event) => {
+      if (!event) return;
+      const { preferences } = getSnapshot();
+      controller.request({ owner: 'timer', kind: 'timer-complete', eventId: `timer:${event.runId}`, dueAt: event.dueAt,
+        soundId: preferences.alertSoundId, durationSeconds: preferences.alertDurationSeconds, allowed });
+    },
+    stop: () => controller.cancelOwner('timer'),
+  }), [controller, getSnapshot]);
   const timerControls = useTimerCompletion(stopwatch, stopwatch.data, audio, notifyTimer);
+  const planning = usePlanningRunner(stopwatch, stopwatch.data, controller);
+  useEffect(() => {
+    if (alerts.state.error && Platform.OS !== 'web') AccessibilityInfo.announceForAccessibility(alerts.state.error);
+  }, [alerts.state.error]);
   useEffect(() => {
     if (!notice) return;
     const timeout = setTimeout(() => setNotice(null), 3500);
     return () => clearTimeout(timeout);
   }, [notice]);
 
-  return <CronoContext.Provider value={{ ...stopwatch, feedback, notice, notify, timerControls }}>
-    {(stopwatch.data.stopwatch.startedAt !== null || stopwatch.data.timer.status === 'running') && stopwatch.data.preferences.keepAwake && Platform.OS !== 'web' && <AwakeGuard />}
+  return <CronoContext.Provider value={{ ...stopwatch, feedback, notice, notify, timerControls, alerts, planning }}>
+    {(stopwatch.data.stopwatch.startedAt !== null || stopwatch.data.timer.status === 'running' || stopwatch.data.planning.run?.status === 'running') && stopwatch.data.preferences.keepAwake && Platform.OS !== 'web' && <AwakeGuard />}
     {children}
   </CronoContext.Provider>;
 }

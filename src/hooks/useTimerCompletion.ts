@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react';
-import { AppState, Platform } from 'react-native';
+import { isAppActive, subscribeAppActivity } from './appActivity';
 import { createTimerCoordinator, TimerAudio } from './timerCompletion';
 import type { AppData } from '../core/stopwatch';
 import type { useStopwatch } from './useStopwatch';
@@ -10,13 +10,9 @@ function createId() {
   return `${Date.now()}-${++runCounter}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-function isActive() {
-  return Platform.OS === 'web' ? document.visibilityState === 'visible' : AppState.currentState === 'active';
-}
-
 export function useTimerCompletion({ getSnapshot, update, ready }: Store, data: AppData, audio: TimerAudio, notify: (message: string) => void) {
   const coordinator = useMemo(() => createTimerCoordinator({
-    getSnapshot, update, ...audio, notify, isActive, now: Date.now,
+    getSnapshot, update, ...audio, notify, isActive: isAppActive, now: Date.now,
     createId,
     schedule: (callback, delay) => setTimeout(callback, delay), cancel: clearTimeout,
   }), [getSnapshot, update, audio, notify]);
@@ -26,12 +22,8 @@ export function useTimerCompletion({ getSnapshot, update, ready }: Store, data: 
     coordinator.activate();
     coordinator.reconcile('hydrate');
     const changed = () => coordinator.reconcile('foreground');
-    if (Platform.OS === 'web') {
-      document.addEventListener('visibilitychange', changed);
-      return () => { document.removeEventListener('visibilitychange', changed); coordinator.dispose(); };
-    }
-    const subscription = AppState.addEventListener('change', changed);
-    return () => { subscription.remove(); coordinator.dispose(); };
+    const unsubscribe = subscribeAppActivity(changed);
+    return () => { unsubscribe(); coordinator.dispose(); };
   }, [coordinator, ready]);
 
   useEffect(() => {

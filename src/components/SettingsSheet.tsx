@@ -1,21 +1,31 @@
-import { Platform, StyleSheet, Switch, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Platform, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { useCrono } from '../context/CronoContext';
 import { fonts as f, Palette } from '../theme';
 import { useTheme, useThemeStyles } from '../context/ThemeContext';
 import { Icon } from './Icon';
 import { Sheet } from './Sheet';
+import { ALERT_DURATIONS, SOUND_CHOICES } from '../core/sounds';
 
 export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const { colors: c } = useTheme();
   const styles = useThemeStyles(createStyles);
-  const { data, update, feedback } = useCrono();
+  const { data, update, feedback, alerts } = useCrono();
+  const [blockedPreviewEventId, setBlockedPreviewEventId] = useState<string | null>(null);
+  const { controller } = alerts;
+  const previewing = alerts.state.request?.owner === 'preview' && alerts.state.status !== 'idle';
+  const previewError = alerts.state.request?.owner === 'preview' ? alerts.state.error : null;
+  const previewNotice = alerts.state.status !== 'idle' && alerts.state.request?.owner !== 'preview'
+    && alerts.state.request?.eventId === blockedPreviewEventId ? 'O alertă este deja în redare.' : null;
+  useEffect(() => { if (!visible) controller.cancelOwner('preview'); }, [visible, controller]);
+  const close = () => { controller.cancelOwner('preview'); setBlockedPreviewEventId(null); onClose(); };
   // React Native Web has a separate active thumb prop; native Switch uses thumbColor for both states.
   const webThumb = Platform.OS === 'web' ? { activeThumbColor: c.surface } : {};
   const toggle = (key: 'haptics' | 'keepAwake' | 'timerSound', enabled: boolean) => {
     feedback();
     update((previous) => ({ ...previous, preferences: { ...previous.preferences, [key]: enabled } }));
   };
-  return <Sheet visible={visible} title="În stilul tău." onClose={onClose}>
+  return <Sheet visible={visible} title="În stilul tău." onClose={close}>
     <Text style={styles.subtitle}>Micile detalii fac diferența.</Text>
     <View style={styles.row}>
       <View style={styles.icon}><Icon name="moon" /></View>
@@ -27,8 +37,24 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
     </View>
     <View style={styles.row}>
       <View style={styles.icon}><Icon name="sound" /></View>
-      <View style={styles.copy}><Text style={styles.label}>Sunet temporizator</Text><Text style={styles.description}>La final, cât timp aplicația este deschisă.</Text></View>
-      <Switch {...webThumb} accessibilityLabel="Sunet temporizator" value={data.preferences.timerSound} onValueChange={(value) => toggle('timerSound', value)} trackColor={{ false: c.border, true: c.lime }} thumbColor={c.surface} ios_backgroundColor={c.border} />
+      <View style={styles.copy}><Text style={styles.label}>Alerte sonore</Text><Text style={styles.description}>Pentru timer și etapele orarelor, în aplicația deschisă.</Text></View>
+      <Switch {...webThumb} accessibilityLabel="Alerte sonore" value={data.preferences.timerSound} onValueChange={(value) => toggle('timerSound', value)} trackColor={{ false: c.border, true: c.lime }} thumbColor={c.surface} ios_backgroundColor={c.border} />
+    </View>
+    <View style={styles.soundOptions}>
+      <Text style={styles.label}>Sunet</Text>
+      <View style={styles.choices}>{SOUND_CHOICES.map((sound) => <Pressable key={sound.id} accessibilityRole="radio" accessibilityLabel={`Sunet ${sound.label}`} accessibilityState={{ checked: data.preferences.alertSoundId === sound.id }} aria-checked={data.preferences.alertSoundId === sound.id}
+        onPress={() => { feedback(); setBlockedPreviewEventId(null); update((previous) => previous.preferences.alertSoundId === sound.id ? previous : { ...previous, preferences: { ...previous.preferences, alertSoundId: sound.id } }); }}
+        style={[styles.choice, data.preferences.alertSoundId === sound.id && styles.chosen]}><Text style={styles.choiceText}>{sound.label}</Text></Pressable>)}</View>
+      <Text style={styles.label}>Durata sunetului</Text>
+      <View style={styles.choices}>{ALERT_DURATIONS.map((duration) => <Pressable key={duration} accessibilityRole="radio" accessibilityLabel={`Durata sunetului ${duration} secunde`} accessibilityState={{ checked: data.preferences.alertDurationSeconds === duration }} aria-checked={data.preferences.alertDurationSeconds === duration}
+        onPress={() => { feedback(); setBlockedPreviewEventId(null); update((previous) => previous.preferences.alertDurationSeconds === duration ? previous : { ...previous, preferences: { ...previous.preferences, alertDurationSeconds: duration } }); }}
+        style={[styles.choice, data.preferences.alertDurationSeconds === duration && styles.chosen]}><Text style={styles.choiceText}>{duration} s</Text></Pressable>)}</View>
+      <Pressable accessibilityRole="button" accessibilityLabel={previewing ? 'Oprește previzualizarea' : 'Ascultă sunetul'} onPress={() => {
+        feedback();
+        if (previewing) { controller.cancelOwner('preview'); setBlockedPreviewEventId(null); }
+        else setBlockedPreviewEventId(alerts.preview() ? null : controller.getState().request?.eventId ?? null);
+      }} style={styles.preview}><Icon name="sound" size={17} /><Text style={styles.choiceText}>{previewing ? 'Oprește previzualizarea' : 'Ascultă sunetul'}</Text></Pressable>
+      {(previewError || previewNotice) && <Text accessibilityLiveRegion="polite" style={styles.description}>{previewError || previewNotice}</Text>}
     </View>
     <View style={styles.row}>
       <View style={styles.icon}><Icon name="haptics" /></View>
@@ -37,7 +63,7 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
     </View>
     <View style={styles.row}>
       <View style={styles.icon}><Icon name="screen" /></View>
-      <View style={styles.copy}><Text style={styles.label}>Ecran mereu activ</Text><Text style={styles.description}>Cât timp cronometrul sau temporizatorul rulează.</Text></View>
+      <View style={styles.copy}><Text style={styles.label}>Ecran mereu activ</Text><Text style={styles.description}>Cât timp o activitate rulează.</Text></View>
       <Switch {...webThumb} accessibilityLabel="Ecran mereu activ" value={data.preferences.keepAwake} onValueChange={(value) => toggle('keepAwake', value)} trackColor={{ false: c.border, true: c.lime }} thumbColor={c.surface} ios_backgroundColor={c.border} />
     </View>
     {Platform.OS === 'web' && <Text style={styles.webNote}>Feedbackul tactil și ecranul mereu activ se aplică pe telefon. Tema se schimbă și în browser.</Text>}
@@ -47,6 +73,12 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
 
 const createStyles = (c: Palette) => StyleSheet.create({
   subtitle: { fontFamily: f.regular, color: c.muted, fontSize: 13, marginBottom: 27 },
+  soundOptions: { gap: 12, paddingVertical: 18, borderBottomWidth: 1, borderColor: c.border },
+  choices: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  choice: { borderWidth: 1, borderColor: c.border, borderRadius: 12, paddingHorizontal: 13, minHeight: 44, justifyContent: 'center', alignItems: 'center' },
+  chosen: { backgroundColor: c.selected, borderColor: c.green },
+  choiceText: { fontFamily: f.medium, color: c.ink, fontSize: 12 },
+  preview: { flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', minHeight: 46, borderRadius: 12, backgroundColor: c.secondary },
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 21, borderBottomWidth: 1, borderColor: c.border, gap: 12 },
   icon: { backgroundColor: c.iconSurface, width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   copy: { flex: 1, gap: 6 },

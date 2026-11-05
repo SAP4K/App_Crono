@@ -1,7 +1,7 @@
 import { useTheme } from '../context/ThemeContext';
 import Svg, { Circle, Path, Polyline, Rect } from 'react-native-svg';
 
-export type IconName = 'clock' | 'settings' | 'play' | 'pause' | 'flag' | 'reset' | 'history' | 'arrow' | 'save' | 'share' | 'trash' | 'close' | 'check' | 'chevron' | 'haptics' | 'screen' | 'moon' | 'timer' | 'sound';
+export type IconName = 'clock' | 'settings' | 'play' | 'pause' | 'flag' | 'reset' | 'history' | 'arrow' | 'save' | 'share' | 'trash' | 'close' | 'check' | 'chevron' | 'haptics' | 'screen' | 'moon' | 'timer' | 'sound' | 'planning';
 
 export function Icon({ name, size = 22, color: suppliedColor, strokeWidth = 1.8 }: {
   name: IconName; size?: number; color?: string; strokeWidth?: number;
@@ -9,6 +9,7 @@ export function Icon({ name, size = 22, color: suppliedColor, strokeWidth = 1.8 
   const { colors } = useTheme();
   const color = suppliedColor ?? colors.ink;
   const content = {
+    planning: <><Rect x="3" y="5" width="18" height="16" rx="2" /><Path d="M7 2v6M17 2v6M3 10h18M7 14h2M12 14h5M7 18h2M12 18h5" /></>,
     moon: <Path d="M20.8 13A9 9 0 0 1 11 3.2 9 9 0 1 0 20.8 13Z" />,
     timer: <><Circle cx="12" cy="13" r="8" /><Path d="M9 2h6M12 2v3M12 8v5l3 2M18 5l2-2" /></>,
     sound: <><Path d="m11 4-6 5H2v6h3l6 5ZM15 8a6 6 0 0 1 0 8M18 5a10 10 0 0 1 0 14" /></>,

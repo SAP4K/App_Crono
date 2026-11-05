@@ -1,6 +1,6 @@
 # CRONO
 
-A stopwatch and countdown app for **iOS and Android**, built with React Native, Expo SDK 57, and TypeScript. A web version is also available for previews.
+A stopwatch, countdown, and action schedule app for **iOS and Android**, built with React Native, Expo SDK 57, and TypeScript. A web version is also available for previews.
 
 ## Quick Start
 
@@ -28,30 +28,42 @@ When developing on Windows, you can run the app on a physical iPhone using Expo 
 - Save sessions, view details, share results, and delete sessions with confirmation.
 - Keep the latest 50 sessions, with up to 1,000 laps per session.
 - Run an independent countdown alongside the stopwatch, with pause/resume and a completion sound.
+- Save multiple action schedules and run one sequence automatically alongside both clocks.
+- Choose from four bundled sounds with 5, 15, or 30 seconds of playback, preview, and Stop controls.
 - Choose a light or dark theme and save that preference across launches.
-- Restore the active stopwatch, countdown, laps, and settings after closing and reopening the app.
+- Restore the active stopwatch, countdown, schedule, laps, and settings after closing and reopening the app.
 - Haptic feedback and screen wake lock on mobile, each with its own setting.
 - Romanian interface, bundled fonts, and no account or dedicated backend required.
 
 Tap **Pauză → Salvează sesiunea** (Pause → Save session) to keep your result and prepare a new stopwatch session. In **Istoric** (History), tap a session to view its details and share it. On the web, results are copied to the clipboard if the browser does not support native sharing.
 
-## Theme and Timer
+## Theme, Timer, and Sound
 
 Open the gear button (**Setări**) and enable **Mod întunecat** for dark mode. Light is the default. Your manual choice is saved and takes priority over the phone/browser appearance. Older saved data or an invalid theme preference falls back to light while retaining valid stopwatch/history data. The first interactive screen uses the restored theme; the native launch image appears before saved settings can load.
 
 Open **Timer** to configure **Ore / Minute / Secunde** (hours/minutes/seconds), then press **Pornește**. The default is five minutes; valid durations range from `00:00:01` to `23:59:59`. Pause/resume keeps the remaining time; reset requires confirmation while running or paused. Reset before editing an active duration. After completion, use **Repornește** to start again. Countdown runs do not create stopwatch history entries.
 
-**Sunet temporizator** in settings defaults on and is saved independently. Completion plays a short effect only while the app is open and active. If the timer expires in the background, while locked, or while closed, it shows the expired state silently on return. No background alarm or notification is scheduled. Completion remains visible even inside an open settings/details/confirmation dialog.
+In **Setări**, **Alerte sonore** controls automatic timer and schedule alerts and defaults on. Choose **Clasic**, **Clopoțel**, **Digital**, or **Gong** under **Sunet**, then **5 s**, **15 s**, or **30 s** under **Durata sunetului**. Clasic and 5 seconds are the defaults. The selected pattern loops for that duration after playback starts. **Ascultă sunetul** previews it even when automatic alerts are muted.
 
-The effect is an original generated three-tone PCM WAV bundled at `assets/audio/timer-complete.wav`; it needs no external media service. Native playback respects silent mode and mixes with other audio. Browsers can block automatic playback; a visible Romanian notice explains an unavailable sound, and the timer still completes. No microphone permission is requested.
+Use **Oprește sunetul**, available in the shell and open sheets, to silence playback without resetting an activity. Changing sound/duration or muting automatic alerts cancels current playback. Closing Settings stops its preview. A live alert replaces a preview; newer live deadlines replace older alerts. Exact ties prefer timer completion, then schedule completion, then an action boundary. Interrupted sounds are not queued.
+
+Sounds play only while the app is open and active. Background, locked, or closed expiry is reconciled silently on return; no alarm or notification is scheduled. Completion remains visible inside open sheets. All four original PCM WAV patterns are bundled in `assets/audio/`, including the retained `timer-complete.wav`. Native playback respects silent mode and mixes with other audio. Browser autoplay can be blocked; visible feedback explains unavailable sound while timing still completes. No microphone permission is requested.
+
+## Planning Example
+
+Open **Planificare**, next to Timer, and tap **Orar nou**. Name it “Studiu”, set the first action to “Lucru” for 25 minutes, then use **Adaugă etapă** for “Pauză” lasting 5 minutes. Move actions with the arrow buttons and tap **Salvează orarul**, then **Pornește**.
+
+Actions advance automatically, with the selected sound at each foreground boundary. The last action and schedule ending produce one final alert. **Pauză / Continuă / Resetează / Repornește** control the run; reset retains the saved schedule. Starting another schedule confirms replacement. Running or paused schedules are protected from editing/deletion; other schedules remain editable. Closing an edited draft asks before discarding it.
+
+Save up to 20 schedules, each with 1–50 ordered actions. Names allow 80 trimmed characters; each action lasts `00:00:01`–`23:59:59`. One schedule can run or pause at a time, independently of stopwatch and timer. Schedule runs do not add stopwatch history entries. These are duration sequences, without calendar or recurring scheduling.
 
 ## How Time Is Measured
 
 The stopwatch calculates the difference between timestamps instead of accumulating interval ticks. Time spent in the background or with the phone locked is therefore included when you return. The display refreshes approximately every 32 ms; this does not guarantee measurement accuracy. Manually changing the device clock may affect the current session.
 
-The countdown uses an absolute deadline, with a local display refresh every 200 ms. Positive fractions round up to the next displayed second. Pausing freezes the exact remaining milliseconds. Device clock changes can affect the countdown too.
+The countdown and schedule use absolute deadlines, with local foreground display refreshes every 200 ms. Schedule deadlines remain anchored to preceding actions; a delayed callback catches up without replaying every missed sound. Positive fractions round up to the next displayed second. Pausing freezes the exact remaining milliseconds. Device clock changes can affect both activities too.
 
-Data is stored locally using AsyncStorage. Uninstalling the app or clearing browser data removes the history. Haptic feedback and screen wake lock settings apply only to mobile devices. With **Ecran mereu activ** enabled, the screen stays awake in the foreground while either clock runs.
+Data is stored locally using AsyncStorage. Version 1 and `@crono/app-v1` are retained: older data defaults to empty schedules, Clasic, and 5 seconds while preserving valid clocks, history, theme, and false preferences. A running schedule saves a snapshot of its actions. Uninstalling the app or clearing browser data removes local data. Haptic feedback and screen wake lock apply only to mobile. With **Ecran mereu activ** enabled, one wake guard covers any running stopwatch, timer, or schedule.
 
 ## Checks
 
@@ -100,9 +112,9 @@ Source: [lee-to/ai-factory](https://github.com/lee-to/ai-factory).
 
 ## Verification Status
 
-The feature validation passed 31 core/coordinator/contrast tests and 20 browser scenarios, plus lint, typecheck, all-platform export, and all 21 Expo Doctor checks. Browser scenarios cover saved themes, legacy data, both clocks, scheduled completion in dialogs, muted/blocked playback, background return, and decoding the shipped effect. The final browser run used the exported web build on port 8091 because development-server bundle responses were slow on the validation host.
+Validation on November 5, 2026 passed 51 core/coordinator/contrast tests and all 39 browser scenarios, plus lint, typecheck, and Android/iOS/web export. The full browser suite used the development server on port 8091 with its default timeouts and no retries. It covers saved themes/sounds/schedules, legacy data, independent activities, modal completion/Stop, mute/blocked/stale playback, silent catch-up, and decoding all four shipped effects. All 12 sound/duration combinations have controller-level boundary coverage. The earlier baseline also passed all 21 Expo Doctor checks; no dependencies changed in this feature.
 
-Exporting JavaScript/Hermes bundles for Android and iOS does not replace physical-phone testing. Audible output, silent mode/audio routing, native wake lock, cold-launch appearance/status/navigation bars, and locked/background transitions remain unverified on devices. No signed APK/IPA builds or app store releases have been produced.
+Exporting JavaScript/Hermes bundles for Android and iOS does not replace physical-phone testing. Audible choices/durations and Stop, silent mode/audio routing, schedule keyboard behavior, native wake lock, cold-launch appearance/status/navigation bars, and locked/background transitions remain pending on devices. No device was connected for this validation. No signed APK/IPA builds or app store releases have been produced.
 
 During installation, `npm audit` reported vulnerabilities in transitive Expo dependencies and development tools, including `decode-uri-component` and `zod`. Available compatible updates were applied; no migrations to other major SDK versions were forced. The audit must be reassessed before a public release.
 
@@ -110,10 +122,19 @@ During installation, `npm audit` reported vulnerabilities in transitive Expo dep
 
 ```text
 src/app/          Screens and Expo Router navigation
-src/components/   Stopwatch/timer dials, completion feedback, laps, sheets, and settings
+src/components/   Dials, schedule editor/run card, shared alerts, laps, sheets, and settings
 src/context/      Shared state, theme, haptic feedback, and screen wake lock
-src/core/         Pure stopwatch/countdown logic and data validation
-src/hooks/        Serialized persistence, completion coordination, and platform audio
+src/core/         Pure stopwatch/countdown/schedule logic, sound catalog, and validation
+src/hooks/        Serialized persistence, global timing runners, and shared platform audio
+src/audio/        Static bundled sound source map
 tests/            Logic and UI tests
-assets/           Original completion sound, icons, and splash screen
+assets/           Four original sound patterns, icons, and splash screen
 ```
+
+## Documentation
+
+| Document | Contents |
+|---|---|
+| [Repository map](AGENTS.md) | Entry points and authoritative Expo workflow |
+| [Project description](.ai-factory/DESCRIPTION.md) | Stack, persistence, and known follow-ups |
+| [Architecture](.ai-factory/ARCHITECTURE.md) | Modules, timing, playback, and data flow |

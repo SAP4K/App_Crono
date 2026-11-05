@@ -13,7 +13,7 @@ import { Inter_800ExtraBold } from '@expo-google-fonts/inter/800ExtraBold';
 import { CronoProvider, useCrono } from '../context/CronoContext';
 import { Icon, IconName } from '../components/Icon';
 import { SettingsSheet } from '../components/SettingsSheet';
-import { TimerCompletionNotice } from '../components/TimerCompletionNotice';
+import { TimingNotices } from '../components/TimingNotices';
 import { fonts as f, Palette } from '../theme';
 import { ThemeProvider, useTheme, useThemeStyles } from '../context/ThemeContext';
 
@@ -44,6 +44,7 @@ type TabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>
 const tabItems: Record<string, { title: string; icon: IconName }> = {
   index: { title: 'Cronometru', icon: 'clock' },
   timer: { title: 'Timer', icon: 'timer' },
+  planning: { title: 'Planificare', icon: 'planning' },
   history: { title: 'Istoric', icon: 'history' },
 };
 
@@ -58,8 +59,8 @@ function TabBar({ state, navigation }: TabBarProps) {
       const history = route.name === 'history';
       const item = tabItems[route.name];
       if (!item) return null;
-      const running = route.name === 'timer' ? data.timer.status === 'running' : route.name === 'index' && data.stopwatch.startedAt !== null;
-      return <Pressable key={route.key} accessibilityRole="tab" accessibilityLabel={item.title} accessibilityState={{ selected }} onPress={() => {
+      const running = route.name === 'timer' ? data.timer.status === 'running' : route.name === 'planning' ? data.planning.run?.status === 'running' : route.name === 'index' && data.stopwatch.startedAt !== null;
+      return <Pressable key={route.key} accessibilityRole="tab" accessibilityLabel={item.title} accessibilityState={{ selected }} aria-selected={selected} onPress={() => {
         const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
         if (!selected && !event.defaultPrevented) { feedback(); navigation.navigate(route.name, route.params); }
       }} style={({ pressed }) => [styles.tab, selected && styles.selectedTab, pressed && { opacity: 0.6 }]}>
@@ -86,10 +87,11 @@ function AppShell() {
       <Pressable accessibilityLabel="Setări" accessibilityRole="button" onPress={() => { feedback(); setSettings(true); }} style={({ pressed }) => [styles.settings, pressed && { opacity: 0.55 }]}><Icon name="settings" size={19} /></Pressable>
     </View>
     {storageError && <Pressable onPress={dismissStorageError} accessibilityRole="button" accessibilityLabel="Închide avertizarea de salvare" style={styles.warning}><Text style={styles.warningText}>Salvarea locală nu este disponibilă. Datele se pot pierde la închidere.</Text><Icon name="close" size={15} color={c.danger} /></Pressable>}
-    <TimerCompletionNotice />
+    <TimingNotices />
     <Tabs initialRouteName="index" backBehavior="initialRoute" tabBar={(props) => <TabBar {...props} />} screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: c.background }, animation: 'none' }}>
       <Tabs.Screen name="index" options={{ title: 'Cronometru' }} />
       <Tabs.Screen name="timer" options={{ title: 'Timer' }} />
+      <Tabs.Screen name="planning" options={{ title: 'Planificare' }} />
       <Tabs.Screen name="history" options={{ title: 'Istoric' }} />
     </Tabs>
     <SettingsSheet visible={settings} onClose={() => setSettings(false)} />

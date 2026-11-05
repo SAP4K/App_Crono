@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "stopwatch": {
+    "accumulatedMs": 1250,
+    "startedAt": null,
+    "laps": [{ "number": 1, "elapsedMs": 1000, "splitMs": 1000 }]
+  },
+  "timer": {
+    "status": "completed",
+    "durationMs": 1000,
+    "remainingMs": 0,
+    "deadlineAt": null,
+    "runId": "legacy-completed"
+  },
+  "sessions": [{
+    "id": "legacy-session",
+    "savedAt": 1762250400000,
+    "durationMs": 2500,
+    "laps": [{ "number": 1, "elapsedMs": 1000, "splitMs": 1000 }, { "number": 2, "elapsedMs": 2200, "splitMs": 1200 }]
+  }],
+  "preferences": { "haptics": false, "keepAwake": false, "theme": "dark", "timerSound": false }
+}
