@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useTheme, useThemeStyles } from '../context/ThemeContext';
 import { MAX_NAME_LENGTH } from '../core/planning';
-import { fonts as f, Palette } from '../theme';
+import { buttonPressedStyle, fonts as f, Palette } from '../theme';
 import { Icon } from './Icon';
 
 export type StepDraft = { id: string; name: string; hours: string; minutes: string; seconds: string };
@@ -14,9 +14,9 @@ export function ScheduleStepRow({ value, index, count, onChange, onMove, onRemov
   return <View style={styles.row}>
     <View style={styles.heading}><Text style={styles.label}>Etapa {index + 1}</Text>
       <View style={styles.controls}>
-        <Pressable accessibilityRole="button" accessibilityLabel={`Mută etapa ${index + 1} mai sus`} disabled={index === 0} onPress={() => onMove(-1)} style={[styles.control, index === 0 && styles.disabled]}><Text style={styles.arrow}>↑</Text></Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel={`Mută etapa ${index + 1} mai jos`} disabled={index === count - 1} onPress={() => onMove(1)} style={[styles.control, index === count - 1 && styles.disabled]}><Text style={styles.arrow}>↓</Text></Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel={`Șterge etapa ${index + 1}`} onPress={onRemove} style={styles.control}><Icon name="trash" size={17} color={c.danger} /></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Mută etapa ${index + 1} mai sus`} disabled={index === 0} onPress={() => onMove(-1)} style={({ pressed }) => [styles.control, pressed && index !== 0 && buttonPressedStyle, index === 0 && styles.disabled]}><Text style={styles.arrow}>↑</Text></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Mută etapa ${index + 1} mai jos`} disabled={index === count - 1} onPress={() => onMove(1)} style={({ pressed }) => [styles.control, pressed && index !== count - 1 && buttonPressedStyle, index === count - 1 && styles.disabled]}><Text style={styles.arrow}>↓</Text></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Șterge etapa ${index + 1}`} onPress={onRemove} style={({ pressed }) => [styles.control, pressed && buttonPressedStyle]}><Icon name="trash" size={17} color={c.danger} /></Pressable>
       </View>
     </View>
     <TextInput accessibilityLabel={`Nume etapa ${index + 1}`} value={value.name} maxLength={MAX_NAME_LENGTH} onChangeText={(name) => onChange({ name })} placeholder="Numele acțiunii" placeholderTextColor={c.muted} style={styles.input} selectionColor={c.green} />

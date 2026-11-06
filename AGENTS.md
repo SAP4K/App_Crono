@@ -105,7 +105,7 @@ assets/                 App icons, splash images, and four original WAV patterns
 
 | File | Purpose |
 |---|---|
-| `README.md` | English setup, themes, sounds, schedules, validation, and builds |
+| `README.md` | Setup, themes, sounds, schedules, button feedback, validation, builds |
 | `AGENTS.md` | Repository map and authoritative Expo workflow requirements |
 | `.ai-factory/DESCRIPTION.md` | Project purpose, stack, data model, and known follow-ups |
 | `.ai-factory/ARCHITECTURE.md` | Layered architecture, dependencies, and data flow |

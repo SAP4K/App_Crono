@@ -32,6 +32,8 @@ export const darkPalette: Palette = {
 
 export const palettes = { light: lightPalette, dark: darkPalette };
 
+export const buttonPressedStyle = { opacity: 0.72, transform: [{ scale: 0.98 }] };
+
 export const fonts = {
   regular: 'Inter_400Regular',
   medium: 'Inter_500Medium',

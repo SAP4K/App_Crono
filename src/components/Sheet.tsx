@@ -1,7 +1,7 @@
 import { PropsWithChildren } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { fonts as f, Palette } from '../theme';
+import { buttonPressedStyle, fonts as f, Palette } from '../theme';
 import { useThemeStyles } from '../context/ThemeContext';
 import { Icon } from './Icon';
 import { TimingNotices } from './TimingNotices';
@@ -34,7 +34,7 @@ export function ConfirmSheet({ visible, title, description, confirmLabel, onClos
   return <Sheet visible={visible} title={title} onClose={onClose}>
     <Text style={styles.description}>{description}</Text>
     <Pressable accessibilityRole="button" onPress={onConfirm} style={({ pressed }) => [styles.confirm, pressed && { opacity: 0.75 }]}><Text style={styles.confirmText}>{confirmLabel}</Text></Pressable>
-    <Pressable accessibilityRole="button" onPress={onClose} style={styles.cancel}><Text style={styles.cancelText}>Renunță</Text></Pressable>
+    <Pressable accessibilityRole="button" onPress={onClose} style={({ pressed }) => [styles.cancel, pressed && buttonPressedStyle]}><Text style={styles.cancelText}>Renunță</Text></Pressable>
   </Sheet>;
 }
 

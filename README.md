@@ -53,7 +53,7 @@ Sounds play only while the app is open and active. Background, locked, or closed
 
 ## Planning Example
 
-Open **Planificare**, next to Timer, and tap **Orar nou**. Name it “Studiu”, set the first action to “Lucru” for 25 minutes, then use **Adaugă etapă** for “Pauză” lasting 5 minutes. Move actions with the arrow buttons and tap **Salvează orarul**, then **Pornește**.
+Open **Planificare**, next to Timer, and tap **Orar nou**. Name it “Studiu”, set the first action to “Lucru” for 25 minutes, then use **Adaugă etapă** for “Pauză” lasting 5 minutes. Move actions with the arrow buttons and tap **Salvează orarul**, then **Pornește**. Planning controls fade and shrink slightly while pressed.
 
 Actions advance automatically, with the selected sound at each foreground boundary. The last action and schedule ending produce one final alert. **Pauză / Continuă / Resetează / Repornește** control the run; reset retains the saved schedule. Starting another schedule confirms replacement. Running or paused schedules are protected from editing/deletion; other schedules remain editable. Closing an edited draft asks before discarding it.
 
@@ -114,7 +114,7 @@ Source: [lee-to/ai-factory](https://github.com/lee-to/ai-factory).
 
 ## Verification Status
 
-Latest checks on November 5, 2026 passed lint, typecheck, all 51 core/coordinator/contrast tests, fresh Android/iOS/web exports, and all 60 browser scenarios in one full run (10.5 minutes). Timeouts stayed at 45 seconds with no retries.
+Planning button checks on November 6, 2026 passed lint, typecheck, all 51 core/coordinator/contrast tests, and 44 targeted browser scenarios: eight new interaction cases and 36 planning/theme/real-timer regressions. Light/dark screenshots were inspected at 320/390px. The previous full run on November 5 passed all 60 then-existing browser scenarios (10.5 minutes) and fresh Android/iOS/web exports; the full suite and exports were not repeated for this style change. Tests retain 45-second limits and no retries.
 
 Four regressions using real browser timers first reproduced `Illegal invocation` during preview playback, failed audio loading, countdown pause, and schedule pause. All four pass after wrapping `clearTimeout` in the three hook adapters. The new tests use Chrome's actual timers and media player; preview tests serve the committed Classic WAV bytes directly to isolate local Metro asset-transfer latency, including an explicit failed-load/retry case. Existing checks still fetch and decode all four effects from the development server. Fake-clock tests retain deterministic duration and race coverage.
 
@@ -122,7 +122,7 @@ An earlier verification run passed 55/56 browser scenarios because repeated comp
 
 Coverage includes both palettes at 320/390/430/1024px, saved/legacy preferences, pending/playing alerts during theme changes, independent activities, modal completion/Stop, mute/blocked/stale playback, silent catch-up, and decoding all four effects. Each palette checks 31 foreground/surface contrast pairs; all 12 sound/duration combinations retain controller boundary coverage. Representative screenshots were visually inspected. The earlier baseline passed all 21 Expo Doctor checks; this theme refresh adds no dependencies.
 
-Exporting JavaScript/Hermes bundles for Android and iOS does not replace physical-phone testing. Audible choices/durations and Stop, silent mode/audio routing, schedule keyboard behavior, native wake lock, cold-launch appearance/status/navigation bars, and locked/background transitions remain pending on devices. No device was connected for this validation. No signed APK/IPA builds or app store releases have been produced.
+Exporting JavaScript/Hermes bundles for Android and iOS does not replace physical-phone testing. Audible choices/durations and Stop, silent mode/audio routing, schedule keyboard behavior, press gestures/haptics, native wake lock, cold-launch appearance/status/navigation bars, and locked/background transitions remain pending on devices. No device was connected for this validation. No signed APK/IPA builds or app store releases have been produced.
 
 During installation, `npm audit` reported vulnerabilities in transitive Expo dependencies and development tools, including `decode-uri-component` and `zod`. Available compatible updates were applied; no migrations to other major SDK versions were forced. The audit must be reassessed before a public release.
 
