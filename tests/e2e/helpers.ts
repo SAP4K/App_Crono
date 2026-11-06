@@ -61,5 +61,5 @@ export async function settings(page: Page) {
 }
 
 export async function expectTheme(page: Page, dark: boolean) {
-  await expect(page.locator('body')).toHaveCSS('background-color', dark ? 'rgb(13, 18, 14)' : 'rgb(232, 236, 221)');
+  await expect(page.locator('body')).toHaveCSS('background-color', dark ? 'rgb(2, 6, 23)' : 'rgb(226, 232, 240)');
 }

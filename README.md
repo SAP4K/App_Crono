@@ -30,7 +30,7 @@ When developing on Windows, you can run the app on a physical iPhone using Expo 
 - Run an independent countdown alongside the stopwatch, with pause/resume and a completion sound.
 - Save multiple action schedules and run one sequence automatically alongside both clocks.
 - Choose from four bundled sounds with 5, 15, or 30 seconds of playback, preview, and Stop controls.
-- Choose a light or dark theme and save that preference across launches.
+- Choose white/blue light or navy/blue dark mode and save that preference across launches.
 - Restore the active stopwatch, countdown, schedule, laps, and settings after closing and reopening the app.
 - Haptic feedback and screen wake lock on mobile, each with its own setting.
 - Romanian interface, bundled fonts, and no account or dedicated backend required.
@@ -39,7 +39,9 @@ Tap **Pauză → Salvează sesiunea** (Pause → Save session) to keep your resu
 
 ## Theme, Timer, and Sound
 
-Open the gear button (**Setări**) and enable **Mod întunecat** for dark mode. Light is the default. Your manual choice is saved and takes priority over the phone/browser appearance. Older saved data or an invalid theme preference falls back to light while retaining valid stopwatch/history data. The first interactive screen uses the restored theme; the native launch image appears before saved settings can load.
+Light mode uses white backgrounds and blue accents; dark mode uses navy backgrounds and lighter blue accents across the four tabs, controls, and sheets. Open the gear button (**Setări**) and enable **Mod întunecat** for dark mode. Light is the default. Your manual choice is saved and takes priority over the phone/browser appearance.
+
+Older saved data or an invalid theme preference falls back to light while retaining valid stopwatch/history data. Changing the theme preserves active clocks, schedules, and alert playback. The first interactive screen uses the restored theme; the native launch image appears before saved settings can load. Launcher icons, favicon, and splash artwork retain their existing branding.
 
 Open **Timer** to configure **Ore / Minute / Secunde** (hours/minutes/seconds), then press **Pornește**. The default is five minutes; valid durations range from `00:00:01` to `23:59:59`. Pause/resume keeps the remaining time; reset requires confirmation while running or paused. Reset before editing an active duration. After completion, use **Repornește** to start again. Countdown runs do not create stopwatch history entries.
 
@@ -112,7 +114,13 @@ Source: [lee-to/ai-factory](https://github.com/lee-to/ai-factory).
 
 ## Verification Status
 
-Validation on November 5, 2026 passed 51 core/coordinator/contrast tests and all 39 browser scenarios, plus lint, typecheck, and Android/iOS/web export. The full browser suite used the development server on port 8091 with its default timeouts and no retries. It covers saved themes/sounds/schedules, legacy data, independent activities, modal completion/Stop, mute/blocked/stale playback, silent catch-up, and decoding all four shipped effects. All 12 sound/duration combinations have controller-level boundary coverage. The earlier baseline also passed all 21 Expo Doctor checks; no dependencies changed in this feature.
+Latest checks on November 5, 2026 passed lint, typecheck, all 51 core/coordinator/contrast tests, fresh Android/iOS/web exports, and all 60 browser scenarios in one full run (10.5 minutes). Timeouts stayed at 45 seconds with no retries.
+
+Four regressions using real browser timers first reproduced `Illegal invocation` during preview playback, failed audio loading, countdown pause, and schedule pause. All four pass after wrapping `clearTimeout` in the three hook adapters. The new tests use Chrome's actual timers and media player; preview tests serve the committed Classic WAV bytes directly to isolate local Metro asset-transfer latency, including an explicit failed-load/retry case. Existing checks still fetch and decode all four effects from the development server. Fake-clock tests retain deterministic duration and race coverage.
+
+An earlier verification run passed 55/56 browser scenarios because repeated compressed Metro bundle loads exhausted the stopwatch journey's time limit; a 90-second diagnostic also timed out. Playwright now requests uncompressed responses from the local development server on port 8091. This affects test traffic only and resolves that verification failure.
+
+Coverage includes both palettes at 320/390/430/1024px, saved/legacy preferences, pending/playing alerts during theme changes, independent activities, modal completion/Stop, mute/blocked/stale playback, silent catch-up, and decoding all four effects. Each palette checks 31 foreground/surface contrast pairs; all 12 sound/duration combinations retain controller boundary coverage. Representative screenshots were visually inspected. The earlier baseline passed all 21 Expo Doctor checks; this theme refresh adds no dependencies.
 
 Exporting JavaScript/Hermes bundles for Android and iOS does not replace physical-phone testing. Audible choices/durations and Stop, silent mode/audio routing, schedule keyboard behavior, native wake lock, cold-launch appearance/status/navigation bars, and locked/background transitions remain pending on devices. No device was connected for this validation. No signed APK/IPA builds or app store releases have been produced.
 

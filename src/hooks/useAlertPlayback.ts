@@ -10,7 +10,7 @@ export function useAlertPlayback(preferences: Preferences) {
   const transport = useAlertSound();
   const [state, setState] = useState(idleAlert);
   const controller = useMemo(() => createAlertPlayback({ transport, isActive: isAppActive,
-    schedule: (callback, delay) => setTimeout(callback, delay), cancel: clearTimeout, changed: setState,
+    schedule: (callback, delay) => setTimeout(callback, delay), cancel: (handle) => clearTimeout(handle), changed: setState,
     warn: () => console.warn('[audio] Sound playback unavailable.'),
   }), [transport]);
   useEffect(() => {

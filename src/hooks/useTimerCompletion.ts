@@ -14,7 +14,7 @@ export function useTimerCompletion({ getSnapshot, update, ready }: Store, data: 
   const coordinator = useMemo(() => createTimerCoordinator({
     getSnapshot, update, ...audio, notify, isActive: isAppActive, now: Date.now,
     createId,
-    schedule: (callback, delay) => setTimeout(callback, delay), cancel: clearTimeout,
+    schedule: (callback, delay) => setTimeout(callback, delay), cancel: (handle) => clearTimeout(handle),
   }), [getSnapshot, update, audio, notify]);
 
   useEffect(() => {
