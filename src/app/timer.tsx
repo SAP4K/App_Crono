@@ -16,7 +16,7 @@ function durationFields(duration: number) {
 
 export default function TimerScreen() {
   const { messages: m } = useI18n();
-  const { data, timerControls, feedback } = useCrono();
+  const { data, timerControls, feedback, getSnapshot, notifications } = useCrono();
   const { colors: c } = useTheme();
   const styles = useThemeStyles(createStyles);
   const timer = data.timer;
@@ -48,9 +48,12 @@ export default function TimerScreen() {
       <Pressable accessibilityRole="button" accessibilityLabel={m.resetTimer} disabled={timer.status === 'idle'} onPress={() => { if (running || paused) { feedback(); setConfirmReset(true); } else reset(); }} style={({ pressed }) => [styles.reset, timer.status === 'idle' && styles.disabled, pressed && styles.pressed]}><Icon name="reset" size={20} /><Text style={styles.resetText}>{m.reset}</Text></Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel={actionLabel} disabled={editable && duration === null} onPress={() => {
         feedback();
+        const previous = getSnapshot().timer;
         if (running) timerControls.pause();
         else if (paused) timerControls.resume();
         else if (duration !== null) { timerControls.configure(duration); timerControls.start(); }
+        const current = getSnapshot().timer;
+        if (current !== previous && current.status === 'running') void notifications.controller.requestPermission();
       }} style={({ pressed }) => [styles.primary, editable && duration === null && styles.disabled, pressed && styles.pressed]}>
         <Icon name={running ? 'pause' : 'play'} size={19} color={c.actionIcon} /><Text style={styles.primaryText}>{running ? m.pause : paused ? m.resume : timer.status === 'completed' ? m.restart : m.start}</Text>
       </Pressable>

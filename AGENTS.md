@@ -44,7 +44,7 @@ Docs: https://docs.expo.dev/eas/index.md
 
 CRONO is a Romanian/English/Russian stopwatch, countdown, and action schedule app for iOS and Android with a web preview. Read `.ai-factory/DESCRIPTION.md` for the verified stack, implemented behavior, persistence contract, and open technical findings.
 
-The app uses technical layers with shared pure stopwatch/countdown/schedule cores and one alert playback owner. Read `.ai-factory/ARCHITECTURE.md` and `.ai-factory/rules/base.md` before implementation.
+The app uses technical layers with shared pure stopwatch/countdown/schedule cores, one alert playback owner, and a separate OS notification owner. Read `.ai-factory/ARCHITECTURE.md` and `.ai-factory/rules/base.md` before implementation.
 
 ## Project Structure
 
@@ -53,10 +53,10 @@ src/
   app/          Expo Router routes and application shell
   components/   Dials, schedule editor/run card, timing notices, laps, sheets, and settings
   context/      Shared state, saved theme, notices, and mobile feedback
-  hooks/        Persistence, global timing runners, shared playback, and native/web audio
-  core/         Pure timing/schedule operations, language/sound registries, notices, validation
+  hooks/        Persistence, timing/playback owners, OS notifications, native/web adapters
+  core/         Pure timing/schedule operations, notification projection, registries, validation
   i18n/         Typed catalogs, plural/date formatting, and localized sharing
-  audio/        Static bundled sound source map
+  audio/        Bundled playback sources and native notification sound names
   theme.ts      Semantic light/dark palettes and font-family constants
 tests/
   language.test.ts      Language defaults, validation, and legacy preservation
@@ -69,9 +69,12 @@ tests/
   planning.test.ts      Schedule CRUD, restoration, and execution transitions
   alertPlayback.test.ts Duration, priority, cancellation, and stale callback tests
   planningRunner.test.ts Global planning lifecycle and boundary coordination
+  notifications.test.ts Future projection, payloads, content, permissions, web fallback
+  notificationCoordinator.test.ts Native reconciliation, failures, hydration and races
+  notificationResponses.test.ts Buffered, validated and deduplicated tap navigation
   fixtures/             Literal legacy version-1 saved data
-  e2e/                  Stopwatch, theme, countdown, sound, and planning scenarios
-assets/                 App icons, splash images, and four original WAV patterns
+  e2e/                  Stopwatch, theme, countdown, sound, planning, notification compatibility
+assets/                 App icons, splash images, and four original WAV patterns plus a native Classic copy
 .agents/skills/         Installed AI Factory workflows
 .ai-factory/            Project context and workflow configuration
 ```
@@ -89,7 +92,7 @@ assets/                 App icons, splash images, and four original WAV patterns
 | `src/core/timer.ts` | Pure countdown transitions, validation, and formatting |
 | `src/core/planning.ts` | Schedule bounds, CRUD, snapshot restoration, and cumulative deadlines |
 | `src/core/sounds.ts`, `src/audio/sources.ts` | Pure sound preferences and separate asset map |
-| `src/hooks/useStopwatch.ts` | Hydration, functional updates, and ordered writes |
+| `src/hooks/useStopwatch.ts` | Hydration outcome, accepted-update subscriptions, functional updates, ordered writes |
 | `src/context/CronoContext.tsx` | Shared state, timer/planning runners, one audio owner, haptics, wake lock |
 | `src/context/ThemeContext.tsx` | Saved theme, navigation palette, native appearance |
 | `src/hooks/timerCompletion.ts` | Injectable completion coordinator and fresh-state audio guards |
@@ -97,6 +100,11 @@ assets/                 App icons, splash images, and four original WAV patterns
 | `src/hooks/planningRunner.ts`, `usePlanningRunner.ts` | Global schedule execution, accepted updates, and silent catch-up |
 | `src/hooks/alertPlayback.ts`, `useAlertPlayback.ts` | Shared duration limits, priority, previews, and event-scoped failures |
 | `src/hooks/useAlertSound.ts`, `.web.ts` | Source-bound native/web players with explicit cleanup |
+| `src/core/notifications.ts`, `src/i18n/notificationContent.ts` | Future event projection/payload validation and localized OS content |
+| `src/hooks/notificationCoordinator.ts`, `useSystemNotifications.ts` | One serialized OS request owner, hydration guard and accepted-update bridge |
+| `src/hooks/systemNotifications.ts`, `.web.ts`, `notificationTypes.ts` | Native date/channel/permission adapter and native-free web fallback |
+| `src/hooks/notificationResponses.ts`, `useNotificationNavigation.ts` | Validated, buffered notification taps through Expo Router |
+| `src/audio/notificationSounds.ts`, `src/components/SystemNotificationNotice.tsx` | Native sound names/channels and separate failure/retry feedback |
 | `src/hooks/appActivity.ts` | Shared foreground checks and lifecycle subscription |
 | `src/components/ScheduleEditorSheet.tsx`, `ScheduleStepRow.tsx` | Controlled virtualized action editor with explicit save/discard |
 | `src/components/PlanningRunCard.tsx`, `TimingNotices.tsx` | Run controls and shared feedback/Stop in shell and sheets |
@@ -110,7 +118,7 @@ assets/                 App icons, splash images, and four original WAV patterns
 
 | File | Purpose |
 |---|---|
-| `README.md` | Setup, languages, themes, sounds, schedules, validation, builds |
+| `README.md` | Setup, languages, themes, schedules, notifications, checks, builds |
 | `AGENTS.md` | Repository map and authoritative Expo workflow requirements |
 | `.ai-factory/DESCRIPTION.md` | Project purpose, stack, data model, and known follow-ups |
 | `.ai-factory/ARCHITECTURE.md` | Layered architecture, dependencies, and data flow |

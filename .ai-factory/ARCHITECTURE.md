@@ -2,7 +2,7 @@
 
 ## Overview
 
-CRONO is a single Expo application organized by technical responsibility. Screens and reusable UI consume shared state through React Context. A persistence hook owns hydration and ordered writes. Pure TypeScript functions define independent stopwatch/countdown/schedule operations, language/sound preferences, semantic notice codes, and stored-data validation.
+CRONO is a single Expo application organized by technical responsibility. Screens and reusable UI consume shared state through React Context. A persistence hook owns hydration and ordered writes. Pure TypeScript functions define independent stopwatch/countdown/schedule operations, language/sound preferences, semantic notice codes, future notification projection/payload validation, and stored-data validation.
 
 This document adapts Layered Architecture to the existing mobile codebase. The pure core is shared by presentation and state management; accessing that core for calculations or formatting is part of the current design. Persistence remains behind the shared state API.
 
@@ -33,6 +33,7 @@ src/
 │   ├── ScheduleStepRow.tsx   # Controlled action name/duration/reorder fields
 │   ├── PlanningNotice.tsx    # Current boundary/final event feedback
 │   ├── TimingNotices.tsx    # Shared timer/planning notices and playback Stop
+│   ├── SystemNotificationNotice.tsx # Independent native failure/retry feedback
 │   ├── LapList.tsx           # Lap rows and statistics
 │   ├── Sheet.tsx             # Modal and confirmation primitives
 │   ├── SettingsSheet.tsx     # User preferences
@@ -41,7 +42,7 @@ src/
 │   ├── CronoContext.tsx      # Shared state, global runners/audio, mobile feedback
 │   └── ThemeContext.tsx      # Saved palette and platform appearance
 ├── hooks/
-│   ├── useStopwatch.ts       # Local storage and state updates
+│   ├── useStopwatch.ts       # Hydration outcome, accepted updates, ordered storage
 │   ├── useI18n.ts            # Saved language projection and shared-state setter
 │   ├── timerCompletion.ts    # Framework-free injected completion coordinator
 │   ├── useTimerCompletion.ts # Global readiness/lifecycle adapter
@@ -51,21 +52,30 @@ src/
 │   ├── useAlertPlayback.ts   # One shared playback lifecycle and preview
 │   ├── useAlertSound.ts      # Explicit native player creation/release
 │   ├── useAlertSound.web.ts  # Source-bound browser media promise/errors
+│   ├── notificationCoordinator.ts # Serialized future OS request reconciliation
+│   ├── useSystemNotifications.ts # One notification owner and lifecycle bridge
+│   ├── notificationTypes.ts # Native-free platform contract and capability policy
+│   ├── systemNotifications.ts / .web.ts # Native adapter and unsupported web fallback
+│   ├── notificationResponses.ts # Validated/deduplicated/buffered tap handling
+│   ├── useNotificationNavigation.ts # Router-ready navigation without run mutations
 │   ├── appActivity.ts        # Shared foreground lifecycle adapter
 │   └── createTimingId.ts     # Runtime IDs outside pure transitions
 ├── i18n/
 │   ├── types.ts              # Widened catalog contract
 │   ├── ro.ts / en.ts / ru.ts  # Stable bundled translated copy/functions
 │   ├── index.ts              # Catalog selection with Romanian fallback
+│   ├── notificationContent.ts # Localized OS title/body and content fingerprint
 │   ├── plurals.ts            # Cached Intl plural phrases
 │   └── formatters.ts         # Locale dates/times and session sharing
 ├── audio/
-│   └── sources.ts            # Static sound asset requires, outside the core
+│   ├── sources.ts            # Static sound asset requires, outside the core
+│   └── notificationSounds.ts # Native resource names and stable channel IDs
 ├── core/
 │   ├── stopwatch.ts          # App data, stopwatch, history, validation
 │   ├── timer.ts              # Pure countdown model and validation
 │   ├── planning.ts           # Schedule CRUD, snapshots, cumulative transitions
 │   ├── language.ts           # Supported IDs/autonyms/locales and default
+│   ├── notifications.ts     # Bounded future events and owned payload validation
 │   ├── notices.ts            # Semantic transient toast/completion/audio codes
 │   └── sounds.ts             # Pure sound/duration catalog and validation
 └── theme.ts                 # Shared visual tokens
@@ -80,9 +90,12 @@ tests/
 ├── planning.test.ts          # Template/run validation and pure transitions
 ├── alertPlayback.test.ts     # All choices, timing, priority, and cancellation
 ├── planningRunner.test.ts    # Global execution and lifecycle coordination
+├── notifications.test.ts     # Projection, payloads, content, permissions, web policy
+├── notificationCoordinator.test.ts # Injected inventory, async races and failures
+├── notificationResponses.test.ts # Buffered, validated tap navigation
 ├── fixtures/                 # Literal pre-planning version-1 saved data
-└── e2e/                     # Stopwatch, theme, timer, sounds, and planning
-assets/audio/                # Retained Classic WAV plus bell/digital/gong
+└── e2e/                     # Stopwatch, theme, timer, sounds, planning, and notification compatibility
+assets/audio/                # Original four WAVs and a byte-identical Android-safe Classic copy
 ```
 
 ## Dependency Rules
@@ -91,8 +104,8 @@ assets/audio/                # Retained Classic WAV plus bell/digital/gong
 |---|---|
 | `src/app/` | Compose UI, use context actions, call pure core helpers, and define Expo Router navigation |
 | `src/components/` | Render UI using props, theme, pure core helpers, and shared context when needed |
-| `src/context/` | Compose persistence, global timing runners, shared audio, notices, mobile feedback, and a derived theme provider |
-| `src/hooks/` | Manage state, lifecycle, persistence, timing coordinators, playback arbitration, and platform audio adapters |
+| `src/context/` | Compose persistence, global timing runners, shared audio, one OS notification owner, notices, mobile feedback, and a derived theme provider |
+| `src/hooks/` | Manage state, lifecycle, persistence, timing coordinators, playback arbitration, serialized OS scheduling, and platform audio/notification adapters |
 | `src/i18n/` | Framework-free catalogs and Intl presentation helpers; may import pure core types/formatting, never owns state/storage |
 | `src/core/` | Use JavaScript/TypeScript primitives and other pure core functions |
 | `src/audio/` | Map pure sound IDs to static bundled assets; consumed by platform transports |
@@ -120,6 +133,10 @@ flowchart TD
     Completion --> Hook
     Completion --> Playback["One alert playback controller"]
     Context --> Playback
+    Context --> Notifications["One OS notification coordinator"]
+    Hook -->|Accepted updates| Notifications
+    Notifications --> Core
+    Notifications --> Native["Native notification adapter / unsupported web fallback"]
     Playback --> Audio["Source-bound native/web transports"]
     Audio --> Assets["Static bundled sound map"]
     UI --> Theme["Derived ThemeContext"]
@@ -130,17 +147,17 @@ flowchart TD
 
 ### Startup
 
-`_layout.tsx` composes fonts, safe areas, `CronoProvider`, then `ThemeProvider`. Crono owns one `useStopwatch` instance, timer/planning coordinators, and one shared audio controller. Storage hydration passes JSON through `restoreData`. Interactive tabs wait for both fonts and storage; native splash release also follows those gates. The native launch image precedes saved-data hydration and does not promise the saved theme.
+`_layout.tsx` composes fonts, safe areas, `CronoProvider`, then `ThemeProvider`. Crono owns one `useStopwatch` instance, timer/planning coordinators, one shared audio controller, and one system notification coordinator. Storage hydration passes JSON through `restoreData`. Interactive tabs wait for both fonts and storage; native splash release also follows those gates. The native launch image precedes saved-data hydration and does not promise the saved theme.
 
-The current error path also becomes ready after a failed read. Its potential to overwrite existing data is an open defect recorded in [DESCRIPTION.md](DESCRIPTION.md), not a guarantee of safe recovery.
+The current error path also becomes ready after a failed read. Its potential to overwrite existing data is an open defect recorded in [DESCRIPTION.md](DESCRIPTION.md), not a guarantee of safe recovery. A separate loading/loaded/failed hydration outcome prevents notification inventory mutation and feature-specific preference writes after a failed read; dismissing the storage banner does not change that outcome.
 
 ### User Actions and Persistence
 
-Screens call `update(previous => next)` through `useCrono`. Core functions compute stopwatch transitions; the hook retains the latest state in a ref, updates React state, and queues its serialized snapshot. The write queue preserves action order. Lifecycle events request another snapshot when the app leaves the active state.
+Screens call `update(previous => next)` through `useCrono`. Core functions compute stopwatch transitions; the hook retains the latest state in a ref, updates React state, and queues its serialized snapshot. The write queue preserves action order. Lifecycle events request another snapshot when the app leaves the active state. Stable subscribers run outside updater functions immediately after effective accepted updates, using the current ref; no-op updates and display ticks do not notify them.
 
 Countdown actions use `useCrono().timerControls`; planning execution uses `useCrono().planning.controls`. Both coordinators apply pure transitions through that same `update` API. Its `{ changed, data }` result allows side effects only after an accepted update; `getSnapshot()` supplies fresh state for asynchronous guards. Template CRUD also uses shared functional updates. No additional storage owner is created.
 
-Version 1 and the storage key remain unchanged. Optional independently restored fields include timer, language, theme, sound ID/duration, and `{ schedules, run }` planning data. The legacy `timerSound` flag controls automatic alerts for both timer and planning. Missing new fields default independently while preserving valid clocks/history and false preferences. Schedule restoration filters invalid templates separately from rejecting an incoherent run snapshot.
+Version 1 and the storage key remain unchanged. Optional independently restored fields include timer, language, theme, sound ID/duration, the default-on `systemNotifications` boolean, and `{ schedules, run }` planning data. The legacy `timerSound` flag controls automatic alerts for both timer and planning. Missing new fields default independently while preserving valid clocks/history and false preferences. Schedule restoration filters invalid templates separately from rejecting an incoherent run snapshot.
 
 A schedule run snapshots its source ID/name/ordered actions. A running or paused source template is protected, while other templates remain editable. Starting another schedule requires confirmed atomic replacement; reset clears only the run. Boundaries use run/index identities and cumulative deadlines. Limits are 20 templates, 50 actions each, 80-character trimmed names, and one second to 23:59:59 per action. These bounds do not resolve the existing oversized-history storage finding.
 
@@ -162,9 +179,25 @@ Native audio uses SDK 57 `createAudioPlayer` for each accepted source and explic
 
 `ThemeContext` projects saved preferences into stable semantic palettes and cached styles, supplies the navigation theme, and synchronizes native Appearance/SystemUI and status-bar contrast. It has no independent persistence and does not key/remount routes or clock owners.
 
-`useI18n` derives stable module catalogs from the saved `language` preference and applies effective changes through the existing functional update API. Romanian is the manual default; no device locale is detected. The framework-free translation layer owns plural/date/share presentation; `sessionText` lives here rather than in the pure timing core. Catalogs use stable sound IDs and preserve user-entered schedule/action names. Toast, timer-completion and audio-failure values are semantic codes, translated when rendered or announced with a fresh snapshot. Language does not enter controller creation/cancellation dependencies, refresh notice lifetimes, or key/remount routes or controlled inputs. Web document language follows selection; native speech voice remains an OS concern.
+`useI18n` derives stable module catalogs from the saved `language` preference and applies effective changes through the existing functional update API. Romanian is the manual default; no device locale is detected. The framework-free translation layer owns plural/date/share presentation; `sessionText` lives here rather than in the pure timing core. Catalogs use stable sound IDs and preserve user-entered schedule/action names. Toast, timer-completion and audio-failure values are semantic codes, translated when rendered or announced with a fresh snapshot. Language does not recreate timing/playback controllers, refresh foreground notice lifetimes, or key/remount routes or controlled inputs. It updates future system-notification content through the separate notification owner. Web document language follows selection; native speech voice remains an OS concern.
 
 `CronoContext` owns transient notices and platform-guarded haptics and a single screen wake guard for the OR of running stopwatch, timer, and schedule states. Sharing remains in the history route, with separate mobile and browser paths. Keep mobile-only behavior and browser fallbacks explicit.
+
+### System Notifications
+
+`core/notifications` projects one future timer completion and cumulative remaining schedule boundaries from accepted snapshots, with one final event. It filters elapsed deadlines and has no React, platform, storage or translation dependency. `notificationContent` adds selected-language text and the selected one-shot sound/channel outside the pure core, preserving user names.
+
+`notificationCoordinator` is an injected side-effect owner, not a timing runner or a second store. `useSystemNotifications` subscribes to accepted timer/run and relevant preference updates; successful hydration and foreground return also reconcile. One serialized worker re-reads fresh state, reuses identical requests, and cancels only validated owned requests. Unique physical registration IDs are separate from semantic event/deadline/content identity.
+
+Deferred stale registrations are cancelled by exact ID; cancellation failure blocks that owner's replacement and remains visible until a relevant change or explicit retry. Delivered/elapsed metadata is consumed in a bounded session set to avoid replay, including clock rollback. Failed hydration never enumerates/removes valid native inventory.
+
+The native adapter registers SDK-57 date requests, four versioned sound channels plus silent on Android, and one-shot bundled sound names. A static foreground handler suppresses system banner/list/sound/badge while in-app completion/playback remains unchanged. Future requests stay armed on backgrounding and ordinary cleanup.
+
+Permission is transient, refreshed on foreground, and requested only from accepted user start/resume/restart, enable or explicit permission gestures. Saved opt-in remains independent of denied/limited OS authorization. No push token/server, background JS worker, recording or background audio is used. The web adapter imports no native notification/intent module and reports unsupported; Expo Go/missing native resources report unavailable.
+
+Android exact-alarm special access has a Settings shortcut with app-settings fallback. SDK scheduling can fall back when access is missing; successful registration does not prove access or punctual/audible delivery. Channels and OS settings remain user-controlled. `timerSound` off selects silent visual notifications; 5/15/30-second loops remain in-app only. Failures use a separate retry notice in shell/sheets without replacing timing/audio/session feedback.
+
+Responses are captured before the shell mounts and buffered until successful hydration, fonts and root navigation are ready. Valid owned default-action metadata maps only to `/timer` or `/planning`; arbitrary URLs/actions are ignored. Initial/live responses are deduplicated and handled initial responses consumed. Stale-run taps only navigate, and open drafts/confirmations are retained. Physical delivery, sound, OS policies and cold-launch behavior require a rebuilt native binary/device; browser tests, exports and CNG configuration checks do not prove them.
 
 ## Key Principles
 

@@ -11,7 +11,7 @@ import { ConfirmSheet } from './Sheet';
 
 export function PlanningRunCard() {
   const { messages: m } = useI18n();
-  const { data, planning, feedback } = useCrono(); const styles = useThemeStyles(createStyles);
+  const { data, planning, feedback, getSnapshot, notifications } = useCrono(); const styles = useThemeStyles(createStyles);
   const run = data.planning.run;
   const [now, setNow] = useState(Date.now); const [confirmReset, setConfirmReset] = useState(false);
   useEffect(() => {
@@ -46,9 +46,12 @@ export function PlanningRunCard() {
       <Pressable accessibilityRole="button" accessibilityLabel={m.resetSchedule} onPress={() => { if (run.status === 'completed') reset(); else { feedback(); setConfirmReset(true); } }} style={({ pressed }) => [styles.secondary, pressed && buttonPressedStyle]}><Text style={styles.secondaryText}>{m.reset}</Text></Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel={actionLabel} disabled={restartDisabled} onPress={() => {
         feedback();
+        const previous = getSnapshot().planning.run;
         if (run.status === 'running') planning.controls.pause();
         else if (run.status === 'paused') planning.controls.resume();
         else planning.controls.start(run.scheduleId);
+        const current = getSnapshot().planning.run;
+        if (current !== previous && current?.status === 'running') void notifications.controller.requestPermission();
       }} style={({ pressed }) => [styles.primary, pressed && !restartDisabled && buttonPressedStyle, restartDisabled && styles.disabled]}><Text style={styles.primaryText}>{run.status === 'running' ? m.pause : run.status === 'paused' ? m.resume : m.restart}</Text></Pressable>
     </View>
     <ConfirmSheet visible={confirmReset} title={m.resetScheduleTitle} description={m.resetScheduleHelp} confirmLabel={m.resetSchedule} onClose={() => setConfirmReset(false)} onConfirm={reset} />

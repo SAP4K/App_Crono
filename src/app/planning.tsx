@@ -14,7 +14,7 @@ import { buttonPressedStyle, fonts as f, Palette } from '../theme';
 
 export default function PlanningScreen() {
   const { messages: m } = useI18n();
-  const { data, update, feedback, notify, planning } = useCrono(); const styles = useThemeStyles(createStyles);
+  const { data, update, feedback, notify, planning, notifications } = useCrono(); const styles = useThemeStyles(createStyles);
   const [editor, setEditor] = useState<{ schedule: Schedule; isNew: boolean } | null>(null);
   const [deleting, setDeleting] = useState<Schedule | null>(null);
   const [replacing, setReplacing] = useState<Schedule | null>(null);
@@ -23,6 +23,7 @@ export default function PlanningScreen() {
     feedback();
     if (data.planning.run && data.planning.run.status !== 'completed') setReplacing(schedule);
     else if (!planning.controls.start(schedule.id)) notify('scheduleUnavailable');
+    else void notifications.controller.requestPermission();
   };
   const save = (schedule: Schedule): boolean => {
     const result = update((previous) => {
@@ -62,7 +63,11 @@ export default function PlanningScreen() {
       feedback(); update((previous) => { const planning = deleteSchedule(previous.planning, deleting.id); return planning === previous.planning ? previous : { ...previous, planning }; }); setDeleting(null);
     }} />
     <ConfirmSheet visible={replacing !== null} title={m.replaceScheduleTitle} description={m.replaceScheduleHelp} confirmLabel={m.replaceScheduleConfirm} onClose={() => setReplacing(null)} onConfirm={() => {
-      if (replacing) { feedback(); if (!planning.controls.start(replacing.id, true)) notify('scheduleUnavailable'); }
+      if (replacing) {
+        feedback();
+        if (!planning.controls.start(replacing.id, true)) notify('scheduleUnavailable');
+        else void notifications.controller.requestPermission();
+      }
       setReplacing(null);
     }} />
   </View>;
