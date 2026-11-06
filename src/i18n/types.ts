@@ -1,6 +1,28 @@
 import type { SoundId } from '../core/sounds.ts';
 
 export type Messages = {
+  systemNotifications: string;
+  notificationsHelp: string;
+  notificationsWeb: string;
+  notificationsSoundHelp: string;
+  notificationPermissionUnknown: string;
+  notificationPermissionGranted: string;
+  notificationPermissionLimited: string;
+  notificationPermissionDenied: string;
+  notificationUnavailable: string;
+  notificationStorageUnavailable: string;
+  notificationSchedulePending: string;
+  notificationScheduleFailed: string;
+  notificationPermissionRequest: string;
+  notificationOpenSettings: string;
+  notificationExactSettings: string;
+  notificationExactHelp: string;
+  notificationRetry: string;
+  notificationTimerTitle: string;
+  notificationPlanningTitle: string;
+  notificationSoundDurationHelp: string;
+  notificationDisabled: string;
+
   start: string;
   language: string;
   lapCount: (count: number) => string;

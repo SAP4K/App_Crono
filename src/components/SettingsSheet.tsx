@@ -13,9 +13,15 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
   const { language, messages: m, setLanguage } = useI18n();
   const { colors: c } = useTheme();
   const styles = useThemeStyles(createStyles);
-  const { data, update, feedback, alerts } = useCrono();
+  const { data, update, feedback, alerts, notifications, hydrationStatus } = useCrono();
   const [blockedPreviewEventId, setBlockedPreviewEventId] = useState<string | null>(null);
   const { controller } = alerts;
+  const capability = notifications.state.capability;
+  const notificationAvailable = notifications.supported && capability.status !== 'unavailable' && capability.status !== 'unsupported';
+  const canManageNotifications = hydrationStatus === 'loaded' && notificationAvailable;
+  const notificationStatus = { unknown: m.notificationPermissionUnknown, granted: m.notificationPermissionGranted,
+    limited: m.notificationPermissionLimited, denied: m.notificationPermissionDenied,
+    unavailable: m.notificationUnavailable, unsupported: m.notificationsWeb }[capability.status];
   const previewing = alerts.state.request?.owner === 'preview' && alerts.state.status !== 'idle';
   const previewError = alerts.state.request?.owner === 'preview' && alerts.state.error ? m.soundUnavailable : null;
   const previewNotice = alerts.state.status !== 'idle' && alerts.state.request?.owner !== 'preview'
@@ -56,6 +62,7 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
         onPress={() => { feedback(); setBlockedPreviewEventId(null); update((previous) => previous.preferences.alertSoundId === sound.id ? previous : { ...previous, preferences: { ...previous.preferences, alertSoundId: sound.id } }); }}
         style={[styles.choice, data.preferences.alertSoundId === sound.id && styles.chosen]}><Text style={styles.choiceText}>{m.sounds[sound.id]}</Text></Pressable>)}</View>
       <Text style={styles.label}>{m.soundDuration}</Text>
+      <Text style={styles.description}>{m.notificationSoundDurationHelp}</Text>
       <View style={styles.choices}>{ALERT_DURATIONS.map((duration) => <Pressable key={duration} accessibilityRole="radio" accessibilityLabel={m.soundLength(duration)} accessibilityState={{ checked: data.preferences.alertDurationSeconds === duration }} aria-checked={data.preferences.alertDurationSeconds === duration}
         onPress={() => { feedback(); setBlockedPreviewEventId(null); update((previous) => previous.preferences.alertDurationSeconds === duration ? previous : { ...previous, preferences: { ...previous.preferences, alertDurationSeconds: duration } }); }}
         style={[styles.choice, data.preferences.alertDurationSeconds === duration && styles.chosen]}><Text style={styles.choiceText}>{duration} s</Text></Pressable>)}</View>
@@ -71,6 +78,36 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
       <View style={styles.copy}><Text style={styles.label}>{m.haptics}</Text><Text style={styles.description}>{m.hapticsHelp}</Text></View>
       <Switch {...webThumb} accessibilityLabel={m.haptics} value={data.preferences.haptics} onValueChange={(value) => toggle('haptics', value)} trackColor={{ false: c.border, true: c.lime }} thumbColor={c.surface} ios_backgroundColor={c.border} />
     </View>
+    <View style={styles.soundOptions}>
+      <View style={styles.notificationRow}>
+        <View style={styles.copy}><Text style={styles.label}>{m.systemNotifications}</Text><Text style={styles.description}>{m.notificationsHelp}</Text></View>
+        <View style={styles.notificationSwitch}><Switch {...webThumb} hitSlop={{ top: 12, bottom: 12, left: 2, right: 2 }} accessibilityLabel={m.systemNotifications}
+          disabled={!canManageNotifications} value={data.preferences.systemNotifications} onValueChange={(enabled) => {
+            if (!canManageNotifications) return;
+            const result = update((previous) => previous.preferences.systemNotifications === enabled ? previous
+              : { ...previous, preferences: { ...previous.preferences, systemNotifications: enabled } });
+            if (!result.changed) return;
+            feedback();
+            if (enabled) void notifications.controller.requestPermission(true);
+          }} trackColor={{ false: c.border, true: c.lime }} thumbColor={c.surface} ios_backgroundColor={c.border} /></View>
+      </View>
+      <Text style={styles.description} accessibilityLiveRegion="polite">{hydrationStatus !== 'loaded' ? m.notificationStorageUnavailable
+        : !notifications.supported ? m.notificationsWeb : !notificationAvailable ? m.notificationUnavailable
+          : !data.preferences.systemNotifications ? m.notificationDisabled : notifications.state.status === 'pending'
+            ? m.notificationSchedulePending : notificationStatus}</Text>
+      {canManageNotifications && <>
+        <Text style={styles.description}>{m.notificationsSoundHelp}</Text>
+        <View style={styles.choices}>
+          {data.preferences.systemNotifications && capability.canAsk && <Pressable accessibilityRole="button"
+            onPress={() => { feedback(); void notifications.controller.requestPermission(true); }} style={({ pressed }) => [styles.choice, pressed && { opacity: 0.65 }]}><Text style={styles.choiceText}>{m.notificationPermissionRequest}</Text></Pressable>}
+          <Pressable accessibilityRole="button" onPress={() => { feedback(); notifications.openSettings(); }} style={({ pressed }) => [styles.choice, pressed && { opacity: 0.65 }]}><Text style={styles.choiceText}>{m.notificationOpenSettings}</Text></Pressable>
+        </View>
+        {notifications.exactAlarmSettings && data.preferences.systemNotifications && <>
+          <Text style={styles.description}>{m.notificationExactHelp}</Text>
+          <Pressable accessibilityRole="button" onPress={() => { feedback(); notifications.openSettings(true); }} style={({ pressed }) => [styles.choice, pressed && { opacity: 0.65 }]}><Text style={styles.choiceText}>{m.notificationExactSettings}</Text></Pressable>
+        </>}
+      </>}
+    </View>
     <View style={styles.row}>
       <View style={styles.icon}><Icon name="screen" /></View>
       <View style={styles.copy}><Text style={styles.label}>{m.keepAwake}</Text><Text style={styles.description}>{m.keepAwakeHelp}</Text></View>
@@ -85,6 +122,8 @@ const createStyles = (c: Palette) => StyleSheet.create({
   subtitle: { fontFamily: f.regular, color: c.muted, fontSize: 13, marginBottom: 27 },
   soundOptions: { gap: 12, paddingVertical: 18, borderBottomWidth: 1, borderColor: c.border },
   choices: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  notificationRow: { flexDirection: 'row', gap: 12, alignItems: 'center' },
+  notificationSwitch: { minHeight: 44, justifyContent: 'center' },
   choice: { borderWidth: 1, borderColor: c.border, borderRadius: 12, paddingHorizontal: 13, minHeight: 44, justifyContent: 'center', alignItems: 'center' },
   chosen: { backgroundColor: c.selected, borderColor: c.green },
   choiceText: { fontFamily: f.medium, color: c.ink, fontSize: 12 },

@@ -23,7 +23,7 @@ export type Session = {
 };
 
 export type ThemeMode = 'light' | 'dark';
-export type Preferences = { language: AppLanguage; haptics: boolean; keepAwake: boolean; theme: ThemeMode; timerSound: boolean; alertSoundId: SoundId; alertDurationSeconds: AlertDuration };
+export type Preferences = { systemNotifications: boolean; language: AppLanguage; haptics: boolean; keepAwake: boolean; theme: ThemeMode; timerSound: boolean; alertSoundId: SoundId; alertDurationSeconds: AlertDuration };
 export type AppData = {
   version: 1;
   stopwatch: Stopwatch;
@@ -42,7 +42,7 @@ export const initialData = (): AppData => ({
   timer: initialTimer(),
   planning: initialPlanning(),
   sessions: [],
-  preferences: { language: DEFAULT_LANGUAGE, haptics: true, keepAwake: true, theme: 'light', timerSound: true, alertSoundId: DEFAULT_SOUND, alertDurationSeconds: DEFAULT_ALERT_DURATION },
+  preferences: { systemNotifications: true, language: DEFAULT_LANGUAGE, haptics: true, keepAwake: true, theme: 'light', timerSound: true, alertSoundId: DEFAULT_SOUND, alertDurationSeconds: DEFAULT_ALERT_DURATION },
 });
 
 // Store a timestamp, not interval ticks. Time spent outside the app still counts.
@@ -133,6 +133,7 @@ export function restoreData(raw: string | null, now = Date.now()): AppData {
     }
     if (isRecord(value.preferences)) {
       fallback.preferences.language = restoreLanguage(value.preferences.language);
+      if (typeof value.preferences.systemNotifications === 'boolean') fallback.preferences.systemNotifications = value.preferences.systemNotifications;
       fallback.preferences.alertSoundId = restoreSoundId(value.preferences.alertSoundId);
       fallback.preferences.alertDurationSeconds = restoreAlertDuration(value.preferences.alertDurationSeconds);
       if (typeof value.preferences.haptics === 'boolean') fallback.preferences.haptics = value.preferences.haptics;

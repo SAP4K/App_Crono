@@ -21,6 +21,7 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "package": "ro.appcrono.mobile",
+      "permissions": ["android.permission.SCHEDULE_EXACT_ALARM"],
       "predictiveBackGestureEnabled": true
     },
     "web": {
@@ -49,7 +50,19 @@
           "enableBackgroundPlayback": false
         }
       ],
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-notifications",
+        {
+          "sounds": [
+            "./assets/audio/notification_classic.wav",
+            "./assets/audio/bell.wav",
+            "./assets/audio/digital.wav",
+            "./assets/audio/gong.wav"
+          ],
+          "enableBackgroundRemoteNotifications": false
+        }
+      ]
     ]
   }
 }

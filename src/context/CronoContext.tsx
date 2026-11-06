@@ -9,6 +9,7 @@ import { useTimerCompletion } from '../hooks/useTimerCompletion';
 import type { TimerAudio, TimerControls } from '../hooks/timerCompletion';
 import { useAlertPlayback } from '../hooks/useAlertPlayback';
 import { usePlanningRunner } from '../hooks/usePlanningRunner';
+import { useSystemNotifications } from '../hooks/useSystemNotifications';
 
 type CronoValue = ReturnType<typeof useStopwatch> & {
   feedback: () => void;
@@ -17,6 +18,7 @@ type CronoValue = ReturnType<typeof useStopwatch> & {
   timerControls: TimerControls;
   alerts: ReturnType<typeof useAlertPlayback>;
   planning: ReturnType<typeof usePlanningRunner>;
+  notifications: ReturnType<typeof useSystemNotifications>;
 };
 
 const CronoContext = createContext<CronoValue | null>(null);
@@ -53,6 +55,7 @@ export function CronoProvider({ children }: PropsWithChildren) {
   }), [controller, getSnapshot]);
   const timerControls = useTimerCompletion(stopwatch, stopwatch.data, audio, notifyTimer);
   const planning = usePlanningRunner(stopwatch, stopwatch.data, controller);
+  const notifications = useSystemNotifications(stopwatch);
   useEffect(() => {
     if (alerts.state.error && Platform.OS !== 'web') AccessibilityInfo.announceForAccessibility(getMessages(getSnapshot().preferences.language).soundUnavailable);
   }, [alerts.state.error, getSnapshot]);
@@ -62,7 +65,7 @@ export function CronoProvider({ children }: PropsWithChildren) {
     return () => clearTimeout(timeout);
   }, [notice]);
 
-  return <CronoContext.Provider value={{ ...stopwatch, feedback, notice, notify, timerControls, alerts, planning }}>
+  return <CronoContext.Provider value={{ ...stopwatch, feedback, notice, notify, timerControls, alerts, planning, notifications }}>
     {(stopwatch.data.stopwatch.startedAt !== null || stopwatch.data.timer.status === 'running' || stopwatch.data.planning.run?.status === 'running') && stopwatch.data.preferences.keepAwake && Platform.OS !== 'web' && <AwakeGuard />}
     {children}
   </CronoContext.Provider>;

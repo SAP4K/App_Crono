@@ -1,3 +1,4 @@
+import { useNotificationNavigation } from '../hooks/useNotificationNavigation';
 import { useI18n } from '../hooks/useI18n';
 import { ComponentProps, useEffect, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
@@ -79,6 +80,7 @@ function TabBar({ state, navigation }: TabBarProps) {
 }
 
 function AppShell() {
+  useNotificationNavigation();
   const { messages: m } = useI18n();
   const { colors: c } = useTheme();
   const styles = useThemeStyles(createStyles);

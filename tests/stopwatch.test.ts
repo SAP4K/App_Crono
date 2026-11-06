@@ -158,7 +158,7 @@ test('literal pre-planning v1 data retains all clocks, history, theme and false 
   assert.deepEqual(restored.stopwatch, legacy.stopwatch);
   assert.deepEqual(restored.timer, legacy.timer);
   assert.deepEqual(restored.sessions, legacy.sessions);
-  assert.deepEqual(restored.preferences, { ...legacy.preferences, language: 'ro', alertSoundId: 'classic', alertDurationSeconds: 5 });
+  assert.deepEqual(restored.preferences, { ...legacy.preferences, systemNotifications: true, language: 'ro', alertSoundId: 'classic', alertDurationSeconds: 5 });
   assert.deepEqual(restored.planning, { schedules: [], run: null });
   const valid = { id: 'sequence', name: 'Orar', steps: [{ id: 'step', name: 'Respiră', durationMs: 1000 }] };
   const mixed = restoreData(JSON.stringify({ ...legacy, planning: { schedules: [valid, {}], run: {} }, preferences: { ...legacy.preferences, alertSoundId: 'gong', alertDurationSeconds: '30' } }));
@@ -167,4 +167,18 @@ test('literal pre-planning v1 data retains all clocks, history, theme and false 
   assert.equal(mixed.preferences.alertDurationSeconds, 5);
   assert.equal(mixed.preferences.timerSound, false);
   assert.deepEqual(restoreData(JSON.stringify(mixed)), mixed);
+});
+
+test('system notification opt-in restores independently and preserves the literal legacy data', () => {
+  const raw = readFileSync(new URL('./fixtures/app-v1-before-planning.json', import.meta.url), 'utf8');
+  const legacy = JSON.parse(raw);
+  for (const value of [undefined, null, false, true, 'false', 0]) {
+    const restored = restoreData(JSON.stringify({ ...legacy, preferences: { ...legacy.preferences, systemNotifications: value } }));
+    assert.equal(restored.preferences.systemNotifications, typeof value === 'boolean' ? value : true);
+    assert.deepEqual(restored.stopwatch, legacy.stopwatch);
+    assert.deepEqual(restored.timer, legacy.timer);
+    assert.deepEqual(restored.sessions, legacy.sessions);
+    assert.equal(restored.preferences.haptics, false);
+    assert.deepEqual(restoreData(JSON.stringify(restored)), restored);
+  }
 });

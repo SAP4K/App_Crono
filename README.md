@@ -18,7 +18,7 @@ npm run web       # preview in the browser
 npm run android   # open on an Android emulator that is already configured
 ```
 
-When developing on Windows, you can run the app on a physical iPhone using Expo Go. The iOS Simulator and local iOS builds require macOS and Xcode.
+When developing on Windows, you can preview the interface on a physical iPhone using Expo Go. CRONO system notifications and custom native sounds require a rebuilt app; Expo Go is shown as unavailable for this feature. The iOS Simulator and local iOS builds require macOS and Xcode.
 
 ## Features
 
@@ -27,7 +27,8 @@ When developing on Windows, you can run the app on a physical iPhone using Expo 
 - Individual lap durations and cumulative times, with the fastest laps highlighted and average lap times displayed.
 - Save the latest 50 sessions with up to 1,000 laps each, view details, share results, and delete with confirmation.
 - Run an independent countdown with pause/resume and a completion sound; save multiple action schedules and run one sequence automatically alongside both clocks.
-- Choose from four bundled sounds with 5, 15, or 30 seconds of playback, preview, and Stop controls.
+- Choose from four bundled sounds with 5, 15, or 30 seconds of in-app playback, preview, and Stop controls.
+- Schedule native timer/action/final notifications for Home and locked screens, with saved enablement and OS permission controls.
 - Choose white/blue light or navy/blue dark mode and save that preference across launches.
 - Restore the active stopwatch, countdown, schedule, laps, and settings after closing and reopening the app.
 - Haptic feedback and screen wake lock on mobile, each with its own setting.
@@ -49,7 +50,19 @@ In **Setări**, **Alerte sonore** controls automatic timer and schedule alerts a
 
 Use **Oprește sunetul**, available in the shell and open sheets, to silence playback without resetting an activity. Changing sound/duration or muting automatic alerts cancels current playback. Closing Settings stops its preview. A live alert replaces a preview; newer live deadlines replace older alerts. Exact ties prefer timer completion, then schedule completion, then an action boundary. Interrupted sounds are not queued.
 
-Sounds play only while the app is open and active. Background, locked, or closed expiry is reconciled silently on return; no alarm or notification is scheduled. Completion remains visible inside open sheets. All four original PCM WAV patterns are bundled in `assets/audio/`, including the retained `timer-complete.wav`. Native playback respects silent mode and mixes with other audio. Browser autoplay can be blocked; visible feedback explains unavailable sound while timing still completes. No microphone permission is requested.
+Looping playback runs while the app is open and active. Overdue timing catches up without replaying in-app sound on return; system notifications are scheduled separately as described below. Completion remains visible inside open sheets. All four original PCM WAV patterns are bundled in `assets/audio/`, including the retained `timer-complete.wav`. Native playback respects silent mode and mixes with other audio. Browser autoplay can be blocked; visible feedback explains unavailable sound while timing still completes. No microphone permission is requested.
+
+## System Notifications
+
+In a rebuilt Android/iOS app, open **Setări → Notificări de sistem** (Settings → System notifications). The saved choice defaults on, including older data; OS permission is separate. Starting/resuming/restarting a timer or schedule, enabling this setting, or pressing the permission button can request authorization. Opening the app or Settings never prompts automatically, and timing starts without waiting for permission.
+
+Future timer completion and remaining schedule boundaries are registered with the OS in advance. The last action produces one schedule-complete notification. Pause/reset, replacement, disabling notifications, or changes to language/sound update the relevant future requests. Timer and planning remain independent. Tapping a recognized notification opens Timer or Planning without starting/resetting a run; an existing editor or confirmation remains open.
+
+The selected sound plays **once** in a system notification. **Alerte sonore** off keeps visual notifications but makes them silent. The 5/15/30-second setting and **Oprește sunetul** apply to playback inside the app. System notification sounds and vibration follow OS/channel settings, independently from button haptics. Foreground system presentation is suppressed so the existing in-app feedback remains the only foreground alert.
+
+Settings shows denied/limited authorization and provides an OS settings shortcut. Android 12+ also offers **Alarme și mementouri** (Alarms & reminders); without exact-alarm access, delivery may be delayed. Focus, silent mode, channel restrictions, power saving, force-stop and other OS policies can affect presentation, sound or timing. Scheduling success is not proof of punctual delivery. Failed native operations show a separate Retry notice in the shell and sheets. Notification management stays disabled after an initial storage-read failure.
+
+Web retains in-app notices/audio and shows a disabled system-notification switch with an explanation. This feature uses local notifications, with no push server or device token. A new native build is required after the plugin/resource changes; an update to JavaScript alone is insufficient. Physical Home/lock delivery, audibility, taps and reboot/OS-policy behavior remain pending device validation; see [Verification Status](#verification-status).
 
 ## Planning Example
 
@@ -65,7 +78,7 @@ The stopwatch calculates the difference between timestamps instead of accumulati
 
 The countdown and schedule use absolute deadlines, with local foreground display refreshes every 200 ms. Schedule deadlines remain anchored to preceding actions; a delayed callback catches up without replaying every missed sound. Positive fractions round up to the next displayed second. Pausing freezes the exact remaining milliseconds. Device clock changes can affect both activities too.
 
-Data is stored locally using AsyncStorage. Version 1 and `@crono/app-v1` are retained: older data defaults to Romanian, empty schedules, Clasic, and 5 seconds while preserving valid clocks, history, theme, and false preferences. A running schedule saves a snapshot of its actions. Uninstalling the app or clearing browser data removes local data. Haptic feedback and screen wake lock apply only to mobile. With **Ecran mereu activ** enabled, one wake guard covers any running stopwatch, timer, or schedule.
+Data is stored locally using AsyncStorage. Version 1 and `@crono/app-v1` are retained: older data defaults to Romanian, empty schedules, Clasic, 5 seconds, and system notifications enabled while preserving valid clocks, history, theme, and false preferences. A running schedule saves a snapshot of its actions. Uninstalling the app or clearing browser data removes local data. Haptic feedback and screen wake lock apply only to mobile. With **Ecran mereu activ** enabled, one wake guard covers any running stopwatch, timer, or schedule.
 
 ## Checks
 
@@ -95,9 +108,9 @@ npm run build:ios
 
 Cloud builds require an Expo account and signing configuration. iOS distribution requires an Apple Developer account and app registration. Creating the source code and running local checks do not publish the app to stores.
 
-Expo Go can preview the interface, but native appearance/audio plugin changes require a rebuilt development or preview app for reliable verification. The playback-only configuration disables microphone/recording permissions and background playback.
+Expo Go can preview the interface, but native appearance/audio/notification plugin changes require a rebuilt development or preview app. Use the existing preview profile for a standalone Android test APK. The development-client profile additionally requires SDK-compatible `expo-dev-client`, which is not currently installed. The playback-only configuration disables microphone/recording permissions and background playback.
 
-Official documentation: [Expo Go and setup](https://docs.expo.dev/tutorial/create-your-first-app/), [Expo SDK 57](https://docs.expo.dev/versions/v57.0.0/), [Android/iOS builds](https://docs.expo.dev/build/introduction/).
+Official documentation: [Expo Go and setup](https://docs.expo.dev/tutorial/create-your-first-app/), [Expo SDK 57](https://docs.expo.dev/versions/v57.0.0/), [Android/iOS builds](https://docs.expo.dev/build/introduction/), [SDK 57 notifications](https://docs.expo.dev/versions/v57.0.0/sdk/notifications/).
 
 ## AI Factory
 
@@ -114,15 +127,17 @@ Source: [lee-to/ai-factory](https://github.com/lee-to/ai-factory).
 
 ## Verification Status
 
-Multilingual checks on November 6, 2026 passed lint, typecheck, all 59 Node tests and all 95 browser scenarios in one complete run (4.6 minutes). Fresh Android/iOS/web exports also passed. Earlier Planning button checks passed lint, typecheck, all 51 core/coordinator/contrast tests, and 44 targeted browser scenarios: eight new interaction cases and 36 planning/theme/real-timer regressions. Light/dark screenshots were inspected at 320/390px. The previous full run on November 5 passed all 60 then-existing browser scenarios (10.5 minutes) and fresh Android/iOS/web exports; the full suite and exports were not repeated for this style change. Tests retain 45-second limits and no retries.
+Notification implementation checks on November 6, 2026 passed lint/typecheck, all **89 Node tests**, all **104 browser scenarios** in one full run (4.7 minutes), fresh Android/iOS/web exports, the SDK compatibility check, and **21/21 Expo Doctor checks**. Five existing Expo packages were aligned to recommended SDK-57 patches through `npx expo install --fix`. Isolated Android CNG verified the exact-alarm permission and byte-identical copies of all four notification resources; iOS config introspection confirmed no microphone or background audio/remote-notification mode. These checks do not establish native delivery.
+
+Earlier multilingual checks on November 6, 2026 passed lint, typecheck, all 59 Node tests and all 95 browser scenarios in one complete run (4.6 minutes). Fresh Android/iOS/web exports also passed. Earlier Planning button checks passed lint, typecheck, all 51 core/coordinator/contrast tests, and 44 targeted browser scenarios: eight new interaction cases and 36 planning/theme/real-timer regressions. Light/dark screenshots were inspected at 320/390px. The previous full run on November 5 passed all 60 then-existing browser scenarios (10.5 minutes) and fresh Android/iOS/web exports; the full suite and exports were not repeated for this style change. Tests retain 45-second limits and no retries.
 
 Four regressions using real browser timers first reproduced `Illegal invocation` during preview playback, failed audio loading, countdown pause, and schedule pause. All four pass after wrapping `clearTimeout` in the three hook adapters. The new tests use Chrome's actual timers and media player; preview tests serve the committed Classic WAV bytes directly to isolate local Metro asset-transfer latency, including an explicit failed-load/retry case. Existing checks still fetch and decode all four effects from the development server. Fake-clock tests retain deterministic duration and race coverage.
 
 An earlier verification run passed 55/56 browser scenarios because repeated compressed Metro bundle loads exhausted the stopwatch journey's time limit; a 90-second diagnostic also timed out. Playwright now requests uncompressed responses from the local development server on port 8091. This affects test traffic only and resolves that verification failure.
 
-Coverage includes both palettes at 320/390/430/1024px, saved/legacy preferences, pending/playing alerts during theme changes, independent activities, modal completion/Stop, mute/blocked/stale playback, silent catch-up, and decoding all four effects. Each palette checks 31 foreground/surface contrast pairs; all 12 sound/duration combinations retain controller boundary coverage. Representative screenshots were visually inspected. The earlier baseline passed all 21 Expo Doctor checks; this theme refresh adds no dependencies.
+Coverage includes both palettes at 320/390/430/1024px, saved/legacy preferences, pending/playing alerts during theme changes, independent activities, modal completion/Stop, mute/blocked/stale playback, silent catch-up, and decoding all four effects. Each palette checks 31 foreground/surface contrast pairs; all 12 sound/duration combinations retain controller boundary coverage. Representative screenshots were visually inspected. The earlier baseline passed all 21 Expo Doctor checks; that historical theme refresh added no dependencies.
 
-Exporting JavaScript/Hermes bundles for Android and iOS does not replace physical-phone testing. Audible choices/durations and Stop, silent mode/audio routing, schedule keyboard behavior, press gestures/haptics, native wake lock, cold-launch appearance/status/navigation bars, and locked/background transitions remain pending on devices. Cyrillic/diacritic rendering, large text, translated VoiceOver/TalkBack announcements, selected-language relaunch, and independent native-speaker review also remain pending. No device was connected for this validation. No signed APK/IPA builds or app store releases have been produced.
+Exporting JavaScript/Hermes bundles for Android and iOS does not replace physical-phone testing. Audible choices/durations and Stop, silent mode/audio routing, schedule keyboard behavior, press gestures/haptics, native wake lock, cold-launch appearance/status/navigation bars, and locked/background transitions remain pending on devices. Cyrillic/diacritic rendering, large text, translated VoiceOver/TalkBack announcements, selected-language relaunch, and independent native-speaker review also remain pending. System notifications also need physical Android/iOS checks for permission denial/revocation, Home/lock delivery, foreground suppression, all sounds/mute, pause/resume/reset/replacement cancellation, cold/warm/stale taps, retained drafts, Android exact access/Doze/channel/reboot behavior and iOS Focus/silent/lock-screen settings. No device was connected for this validation. No signed APK/IPA builds or app store releases have been produced.
 
 During installation, `npm audit` reported vulnerabilities in transitive Expo dependencies and development tools, including `decode-uri-component` and `zod`. Available compatible updates were applied; no migrations to other major SDK versions were forced. The audit must be reassessed before a public release.
 
@@ -132,12 +147,12 @@ During installation, `npm audit` reported vulnerabilities in transitive Expo dep
 src/app/          Screens and Expo Router navigation
 src/components/   Dials, schedule editor/run card, shared alerts, laps, sheets, and settings
 src/context/      Shared state, theme, haptic feedback, and screen wake lock
-src/core/         Pure timing, language/sound registries, semantic notices, and validation
+src/core/         Pure timing, notification projection, language/sound registries, notices, validation
 src/i18n/         Typed Romanian/English/Russian catalogs, plurals, dates, and sharing
-src/hooks/        Serialized persistence, global timing runners, and shared platform audio
-src/audio/        Static bundled sound source map
+src/hooks/        Persistence, timing/audio owners, notification scheduling, and platform adapters
+src/audio/        Bundled playback map and native notification sound names
 tests/            Logic and UI tests
-assets/           Four original sound patterns, icons, and splash screen
+assets/           Four original sound patterns, a native Classic copy, icons, and splash screen
 ```
 
 ## Documentation
