@@ -17,7 +17,7 @@ CRONO is a local stopwatch, countdown, and action schedule app for iOS and Andro
 - Select Clasic, Clopoțel, Digital, or Gong with 5/15/30-second looping playback, manual preview, and Stop controls. Defaults are Clasic and five seconds; the retained automatic-alert switch applies to timer and schedule boundaries.
 - Play foreground action/final alerts, with one final event for the last action. Reconcile overdue timing silently on return/relaunch, without background alarms or notifications.
 - Restore active timing state, schedule snapshots/templates, laps, history, and preferences from local storage.
-- Save manual light/dark selection (light default), sound ID/duration, automatic alerts, mobile haptic feedback, and screen wake lock preferences independently.
+- Save manual white/blue light or navy/blue dark selection (light default), sound ID/duration, automatic alerts, mobile haptic feedback, and screen wake lock preferences independently.
 - Adapt the interface to compact screens, safe areas, and a constrained desktop preview width.
 
 ## Technology Stack
@@ -118,7 +118,13 @@ Time is derived from `Date.now()` timestamps and accumulated paused time. Backgr
 | `npm run export` | Export JavaScript/assets for all platforms |
 | `npx expo-doctor` | Diagnose Expo dependency and configuration issues |
 
-Feature checks on 2026-11-05: 51 Node tests, all 39 Playwright scenarios against the development server on port 8091 (default timeouts, no retries), lint/typecheck, and Android/iOS/web export pass. All 12 sound/duration combinations have controller boundary coverage; browser checks observe playback calls and decode all four actual assets. The earlier baseline passed dependency compatibility and 21 Expo Doctor checks; dependencies and playback-only app configuration are unchanged. Physical-phone audible duration/Stop, silent mode/routing, keyboard, appearance, wake lock, and locked/background return remain pending because no native device/runtime is available. Signed builds remain unverified.
+Latest theme-refresh checks on 2026-11-05: 51 Node tests, lint/typecheck, and all 56 Playwright scenarios pass in one full browser run (7.6 minutes) against the development server on port 8091. The unchanged stopwatch journey passes in 21.7 seconds; 45-second timeouts and no retries are retained. Android/iOS/web export passed before the test-configuration fix, which does not change application code.
+
+The preceding verification run passed 55/56 browser scenarios: repeated compressed Metro bundle loads exhausted the stopwatch journey's time limit, including a 90-second diagnostic. Playwright now requests uncompressed responses from the local server, resolving that verification failure without changing assertions or application behavior.
+
+Both palettes cover 320/390/430/1024px, saved/legacy preferences, concurrent clocks, and pending/playing audio through theme changes; representative screenshots were inspected. Each palette checks 31 foreground/surface contrast pairs. All 12 sound/duration combinations retain controller coverage; browser checks observe playback calls and decode all four actual assets.
+
+The earlier baseline passed dependency compatibility and 21 Expo Doctor checks; dependencies and playback-only app configuration are unchanged. Physical-phone audible duration/Stop, silent mode/routing, keyboard, appearance, wake lock, and locked/background return remain pending because no native device/runtime is available. Signed builds remain unverified.
 
 Install app dependencies through `npx expo install <package>` to resolve SDK-compatible versions. Follow [AGENTS.md](../AGENTS.md) for versioned documentation requirements and EAS commands. Browser tests and successful exports do not establish physical-device behavior or signed-build readiness.
 
@@ -142,6 +148,6 @@ Plan fixes separately and verify the relevant behavior before changing storage f
 - Installed workflow skills: `../.agents/skills/` (33 existing AI Factory skills).
 - Communication and generated artifact languages: English, as configured.
 - Git base branch: `master`; new full/ultra plans may create branches using `feature/`.
-- Latest implementation plan: `plans/feature-sound-settings-schedules.md`; the earlier dark-mode/timer plan remains at `plans/feature-dark-mode-preference.md`. No roadmap or research artifact is present.
+- Latest implementation plan: `plans/feature-white-blue-theme.md`; earlier completed implementations remain at `plans/feature-sound-settings-schedules.md` and `plans/feature-dark-mode-preference.md`. No roadmap or research artifact is present.
 
 The connected GitHub app is available in the current agent session. No repository-level MCP server configuration is present. Reuse host-provided integrations when available; additional servers should address a concrete project need.

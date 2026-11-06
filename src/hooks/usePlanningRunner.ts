@@ -21,7 +21,7 @@ export function usePlanningRunner({ getSnapshot, update, ready }: Store, data: A
   }, []);
   const controls = useMemo(() => createPlanningRunner({ getSnapshot, update, alerts, notify, isActive: isAppActive,
     now: Date.now, createId: createRunId,
-    schedule: (callback, delay) => setTimeout(callback, delay), cancel: clearTimeout,
+    schedule: (callback, delay) => setTimeout(callback, delay), cancel: (handle) => clearTimeout(handle),
   }), [getSnapshot, update, alerts, notify]);
   useEffect(() => {
     if (!ready) return;

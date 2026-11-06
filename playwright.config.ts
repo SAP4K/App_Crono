@@ -8,6 +8,8 @@ export default defineConfig({
   reporter: 'list',
   use: {
     baseURL: 'http://localhost:8091',
+    // Avoid Metro's costly bundle compression on loopback during functional tests.
+    extraHTTPHeaders: { 'Accept-Encoding': 'identity' },
     ...devices['iPhone 13'],
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 2,

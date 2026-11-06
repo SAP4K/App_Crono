@@ -17,6 +17,12 @@ for (const [mode, c] of Object.entries(palettes)) {
       [c.muted, c.secondary], [c.green, c.limeSoft], [c.danger, c.dangerSoft],
       [c.actionText, c.action], [c.onAccent, c.lime], [c.lime, c.featured],
       [c.featuredMuted, c.featured], [c.toastText, c.toast], [c.badgeText, c.badge],
+      [c.ink, c.selected], [c.ink, c.secondary], [c.ink, c.limeSoft],
+      [c.ink, c.empty], [c.muted, c.empty], [c.muted, c.limeSoft],
+      [c.muted, c.selected], [c.muted, c.summary], [c.green, c.background],
+      [c.green, c.surface], [c.green, c.summary], [c.green, c.selected],
+      [c.green, c.badge], [c.ink, c.iconSurface], [c.lime, c.toast],
+      [c.actionIcon, c.action], [c.danger, c.background], [c.danger, c.surface],
     ];
     for (const [foreground, background] of pairs) {
       const values = [luminance(foreground), luminance(background)].sort((a, b) => b - a);
