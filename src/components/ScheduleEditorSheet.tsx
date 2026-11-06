@@ -5,7 +5,7 @@ import type { Schedule } from '../core/planning';
 import { formatRemaining, parseDuration } from '../core/timer';
 import { useTheme, useThemeStyles } from '../context/ThemeContext';
 import { createTimingId } from '../hooks/createTimingId';
-import { fonts as f, Palette } from '../theme';
+import { buttonPressedStyle, fonts as f, Palette } from '../theme';
 import { Sheet } from './Sheet';
 import { ScheduleStepRow } from './ScheduleStepRow';
 import type { StepDraft } from './ScheduleStepRow';
@@ -29,6 +29,7 @@ export function ScheduleEditorSheet({ schedule, isNew, onClose, onSave }: {
     id: step.id, name: step.name, durationMs: parseDuration(step.hours, step.minutes, step.seconds) ?? 0,
   })) });
   const total = candidate?.steps.reduce((sum, step) => sum + step.durationMs, 0) ?? 0;
+  const stepLimit = draft.steps.length >= MAX_STEPS;
   const close = () => { if (discard) setDiscard(false); else if (dirty) setDiscard(true); else onClose(); };
   const move = (index: number, direction: number) => setDraft((previous) => {
     const next = index + direction;
@@ -39,20 +40,20 @@ export function ScheduleEditorSheet({ schedule, isNew, onClose, onSave }: {
   return <Sheet visible title={discard ? 'Renunți la modificări?' : isNew ? 'Orar nou' : 'Editează orarul'} onClose={close} scrollable={false}>
     {discard ? <View style={styles.discard}>
       <Text style={styles.help}>Modificările nesalvate se vor pierde.</Text>
-      <Pressable accessibilityRole="button" onPress={onClose} style={styles.secondary}><Text style={styles.danger}>Renunță la modificări</Text></Pressable>
-      <Pressable accessibilityRole="button" onPress={() => setDiscard(false)} style={styles.primary}><Text style={styles.primaryText}>Continuă editarea</Text></Pressable>
+      <Pressable accessibilityRole="button" onPress={onClose} style={({ pressed }) => [styles.secondary, pressed && buttonPressedStyle]}><Text style={styles.danger}>Renunță la modificări</Text></Pressable>
+      <Pressable accessibilityRole="button" onPress={() => setDiscard(false)} style={({ pressed }) => [styles.primary, pressed && buttonPressedStyle]}><Text style={styles.primaryText}>Continuă editarea</Text></Pressable>
     </View> : <>
       <TextInput accessibilityLabel="Nume orar" placeholder="De exemplu, Studiu" placeholderTextColor={c.muted} value={draft.name} maxLength={MAX_NAME_LENGTH} onChangeText={(name) => setDraft((previous) => ({ ...previous, name }))} style={styles.name} selectionColor={c.green} />
       <Text style={styles.help}>{draft.steps.length}/{MAX_STEPS} etape · {candidate ? `Total ${formatRemaining(total)}` : 'Adaugă un nume și durate între 00:00:01 și 23:59:59.'}</Text>
       <FlatList data={draft.steps} keyExtractor={(step) => step.id} keyboardShouldPersistTaps="handled" initialNumToRender={4} style={styles.list} renderItem={({ item, index }) => <ScheduleStepRow value={item} index={index} count={draft.steps.length}
         onChange={(changes) => setDraft((previous) => ({ ...previous, steps: previous.steps.map((step) => step.id === item.id ? { ...step, ...changes } : step) }))}
         onMove={(direction) => move(index, direction)} onRemove={() => setDraft((previous) => ({ ...previous, steps: previous.steps.filter((step) => step.id !== item.id) }))} />}
-        ListFooterComponent={<Pressable accessibilityRole="button" disabled={draft.steps.length >= MAX_STEPS} onPress={() => {
+        ListFooterComponent={<Pressable accessibilityRole="button" disabled={stepLimit} onPress={() => {
           const step: StepDraft = { id: createTimingId(), name: `Etapa ${draft.steps.length + 1}`, hours: '00', minutes: '05', seconds: '00' };
           setDraft((previous) => ({ ...previous, steps: [...previous.steps, step] }));
-        }} style={[styles.secondary, draft.steps.length >= MAX_STEPS && styles.disabled]}><Text style={styles.secondaryText}>Adaugă etapă</Text></Pressable>} />
+        }} style={({ pressed }) => [styles.secondary, pressed && !stepLimit && buttonPressedStyle, stepLimit && styles.disabled]}><Text style={styles.secondaryText}>Adaugă etapă</Text></Pressable>} />
       {saveError && <Text accessibilityLiveRegion="polite" style={styles.danger}>Orarul nu poate fi salvat acum. Verifică dacă este activ sau ai atins limita.</Text>}
-      <Pressable accessibilityRole="button" disabled={!candidate} onPress={() => { if (candidate) { if (onSave(candidate)) onClose(); else setSaveError(true); } }} style={[styles.primary, !candidate && styles.disabled]}><Text style={styles.primaryText}>Salvează orarul</Text></Pressable>
+      <Pressable accessibilityRole="button" disabled={!candidate} onPress={() => { if (candidate) { if (onSave(candidate)) onClose(); else setSaveError(true); } }} style={({ pressed }) => [styles.primary, pressed && !!candidate && buttonPressedStyle, !candidate && styles.disabled]}><Text style={styles.primaryText}>Salvează orarul</Text></Pressable>
     </>}
   </Sheet>;
 }

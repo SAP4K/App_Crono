@@ -5,7 +5,7 @@ import { useThemeStyles } from '../context/ThemeContext';
 import { scheduleRemaining } from '../core/planning';
 import { formatRemaining } from '../core/timer';
 import { isAppActive, subscribeAppActivity } from '../hooks/appActivity';
-import { fonts as f, Palette } from '../theme';
+import { buttonPressedStyle, fonts as f, Palette } from '../theme';
 import { ConfirmSheet } from './Sheet';
 
 export function PlanningRunCard() {
@@ -30,6 +30,7 @@ export function PlanningRunCard() {
   const total = run.steps.reduce((sum, step) => sum + step.durationMs, 0);
   const progress = Math.round(100 * (1 - (remaining + future) / total));
   const canRestart = data.planning.schedules.some((item) => item.id === run.scheduleId);
+  const restartDisabled = run.status === 'completed' && !canRestart;
   const reset = () => { feedback(); planning.controls.reset(); setConfirmReset(false); };
   const actionLabel = run.status === 'running' ? 'Pauză orar' : run.status === 'paused' ? 'Continuă orarul' : 'Repornește orarul';
   return <View style={styles.card} accessibilityLabel="Progres orar">
@@ -40,13 +41,13 @@ export function PlanningRunCard() {
     <View accessibilityRole="progressbar" accessibilityLabel="Progresul orarului" accessibilityValue={{ min: 0, max: 100, now: progress }} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} style={styles.track}><View style={[styles.fill, { width: `${progress}%` }]} /></View>
     {run.status !== 'completed' && <Text style={styles.next}>{run.steps[run.stepIndex + 1] ? `Urmează: ${run.steps[run.stepIndex + 1].name}` : 'Ultima etapă'}</Text>}
     <View style={styles.actions}>
-      <Pressable accessibilityRole="button" accessibilityLabel="Resetează orarul" onPress={() => { if (run.status === 'completed') reset(); else { feedback(); setConfirmReset(true); } }} style={styles.secondary}><Text style={styles.secondaryText}>Resetează</Text></Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel={actionLabel} disabled={run.status === 'completed' && !canRestart} onPress={() => {
+      <Pressable accessibilityRole="button" accessibilityLabel="Resetează orarul" onPress={() => { if (run.status === 'completed') reset(); else { feedback(); setConfirmReset(true); } }} style={({ pressed }) => [styles.secondary, pressed && buttonPressedStyle]}><Text style={styles.secondaryText}>Resetează</Text></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel={actionLabel} disabled={restartDisabled} onPress={() => {
         feedback();
         if (run.status === 'running') planning.controls.pause();
         else if (run.status === 'paused') planning.controls.resume();
         else planning.controls.start(run.scheduleId);
-      }} style={[styles.primary, run.status === 'completed' && !canRestart && styles.disabled]}><Text style={styles.primaryText}>{run.status === 'running' ? 'Pauză' : run.status === 'paused' ? 'Continuă' : 'Repornește'}</Text></Pressable>
+      }} style={({ pressed }) => [styles.primary, pressed && !restartDisabled && buttonPressedStyle, restartDisabled && styles.disabled]}><Text style={styles.primaryText}>{run.status === 'running' ? 'Pauză' : run.status === 'paused' ? 'Continuă' : 'Repornește'}</Text></Pressable>
     </View>
     <ConfirmSheet visible={confirmReset} title="Resetezi orarul?" description="Orarul curent se oprește. Etapele salvate rămân disponibile." confirmLabel="Resetează orarul" onClose={() => setConfirmReset(false)} onConfirm={reset} />
   </View>;

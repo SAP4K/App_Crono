@@ -148,6 +148,6 @@ Plan fixes separately and verify the relevant behavior before changing storage f
 - Installed workflow skills: `../.agents/skills/` (33 existing AI Factory skills).
 - Communication and generated artifact languages: English, as configured.
 - Git base branch: `master`; new full/ultra plans may create branches using `feature/`.
-- Latest implementation plan: `plans/feature-white-blue-theme.md`; earlier completed implementations remain at `plans/feature-sound-settings-schedules.md` and `plans/feature-dark-mode-preference.md`. No roadmap or research artifact is present.
+- Latest implementation plan: `plans/feature-planning-button-feedback.md`; earlier completed implementations remain at `plans/feature-white-blue-theme.md`, `plans/feature-sound-settings-schedules.md`, and `plans/feature-dark-mode-preference.md`. No roadmap or research artifact is present.
 
 The connected GitHub app is available in the current agent session. No repository-level MCP server configuration is present. Reuse host-provided integrations when available; additional servers should address a concrete project need.

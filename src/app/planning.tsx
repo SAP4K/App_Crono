@@ -9,13 +9,14 @@ import { ScheduleEditorSheet } from '../components/ScheduleEditorSheet';
 import { ConfirmSheet } from '../components/Sheet';
 import { createTimingId } from '../hooks/createTimingId';
 import { PlanningRunCard } from '../components/PlanningRunCard';
-import { fonts as f, Palette } from '../theme';
+import { buttonPressedStyle, fonts as f, Palette } from '../theme';
 
 export default function PlanningScreen() {
   const { data, update, feedback, notify, planning } = useCrono(); const styles = useThemeStyles(createStyles);
   const [editor, setEditor] = useState<{ schedule: Schedule; isNew: boolean } | null>(null);
   const [deleting, setDeleting] = useState<Schedule | null>(null);
   const [replacing, setReplacing] = useState<Schedule | null>(null);
+  const scheduleLimit = data.planning.schedules.length >= MAX_SCHEDULES;
   const start = (schedule: Schedule) => {
     feedback();
     if (data.planning.run && data.planning.run.status !== 'completed') setReplacing(schedule);
@@ -34,9 +35,9 @@ export default function PlanningScreen() {
   return <View style={styles.content}>
     <Text accessibilityRole="header" style={styles.title}>Planificare</Text>
     <Text style={styles.subtitle}>Mai multe etape. Un ritm ales de tine.</Text>
-    <Pressable accessibilityRole="button" disabled={data.planning.schedules.length >= MAX_SCHEDULES} onPress={() => {
+    <Pressable accessibilityRole="button" disabled={scheduleLimit} onPress={() => {
       feedback(); setEditor({ isNew: true, schedule: { id: createTimingId(), name: '', steps: [{ id: createTimingId(), name: 'Etapa 1', durationMs: 300000 }] } });
-    }} style={[styles.primary, data.planning.schedules.length >= MAX_SCHEDULES && styles.disabled]}><Text style={styles.primaryText}>Orar nou</Text></Pressable>
+    }} style={({ pressed }) => [styles.primary, pressed && !scheduleLimit && buttonPressedStyle, scheduleLimit && styles.disabled]}><Text style={styles.primaryText}>Orar nou</Text></Pressable>
     <Text style={styles.limit}>{data.planning.schedules.length}/{MAX_SCHEDULES} orare salvate · un singur orar activ</Text>
     <FlatList data={data.planning.schedules} keyExtractor={(item) => item.id} contentContainerStyle={styles.list} ListHeaderComponent={<PlanningRunCard />}
       ListEmptyComponent={<Text style={styles.empty}>Creează un orar cu acțiuni și durate, apoi urmează etapele pe rând.</Text>}
@@ -47,9 +48,9 @@ export default function PlanningScreen() {
           <Text style={styles.subtitle}>{item.steps.length} etape · {formatRemaining(item.steps.reduce((sum, step) => sum + step.durationMs, 0))}</Text>
           {protectedTemplate && <Text style={styles.limit}>Oprește orarul înainte să îl modifici.</Text>}
           <View style={styles.actions}>
-            <Pressable accessibilityRole="button" accessibilityLabel={`Pornește orarul ${item.name}`} disabled={protectedTemplate} onPress={() => start(item)} style={[styles.secondary, protectedTemplate && styles.disabled]}><Text style={styles.secondaryText}>Pornește</Text></Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel={`Editează orarul ${item.name}`} disabled={protectedTemplate} onPress={() => { feedback(); setEditor({ schedule: item, isNew: false }); }} style={[styles.secondary, protectedTemplate && styles.disabled]}><Text style={styles.secondaryText}>Editează</Text></Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel={`Șterge orarul ${item.name}`} disabled={protectedTemplate} onPress={() => { feedback(); setDeleting(item); }} style={[styles.secondary, protectedTemplate && styles.disabled]}><Text style={styles.danger}>Șterge</Text></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Pornește orarul ${item.name}`} disabled={protectedTemplate} onPress={() => start(item)} style={({ pressed }) => [styles.secondary, pressed && !protectedTemplate && buttonPressedStyle, protectedTemplate && styles.disabled]}><Text style={styles.secondaryText}>Pornește</Text></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Editează orarul ${item.name}`} disabled={protectedTemplate} onPress={() => { feedback(); setEditor({ schedule: item, isNew: false }); }} style={({ pressed }) => [styles.secondary, pressed && !protectedTemplate && buttonPressedStyle, protectedTemplate && styles.disabled]}><Text style={styles.secondaryText}>Editează</Text></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Șterge orarul ${item.name}`} disabled={protectedTemplate} onPress={() => { feedback(); setDeleting(item); }} style={({ pressed }) => [styles.secondary, pressed && !protectedTemplate && buttonPressedStyle, protectedTemplate && styles.disabled]}><Text style={styles.danger}>Șterge</Text></Pressable>
           </View>
         </View>;
       }} />

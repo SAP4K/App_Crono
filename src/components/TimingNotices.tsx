@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useCrono } from '../context/CronoContext';
 import { useThemeStyles } from '../context/ThemeContext';
-import { fonts as f, Palette } from '../theme';
+import { buttonPressedStyle, fonts as f, Palette } from '../theme';
 import { TimerCompletionNotice } from './TimerCompletionNotice';
 import { PlanningNotice } from './PlanningNotice';
 
@@ -14,7 +14,7 @@ export function TimingNotices() {
     <PlanningNotice />
     {playing && <View style={styles.playback}>
       <Text style={styles.label}>{owner === 'timer' ? 'Sunet timer' : owner === 'planning' ? 'Sunet planificare' : 'Previzualizare sunet'}</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel="Oprește sunetul" onPress={() => { feedback(); alerts.controller.stop(); }} style={styles.stop}><Text style={styles.stopText}>Oprește sunetul</Text></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel="Oprește sunetul" onPress={() => { feedback(); alerts.controller.stop(); }} style={({ pressed }) => [styles.stop, pressed && buttonPressedStyle]}><Text style={styles.stopText}>Oprește sunetul</Text></Pressable>
     </View>}
   </>;
 }
