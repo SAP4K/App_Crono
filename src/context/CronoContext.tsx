@@ -1,3 +1,5 @@
+import type { ToastNotice, TimerNotice } from '../core/notices';
+import { getMessages } from '../i18n';
 import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { AccessibilityInfo, Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
@@ -10,8 +12,8 @@ import { usePlanningRunner } from '../hooks/usePlanningRunner';
 
 type CronoValue = ReturnType<typeof useStopwatch> & {
   feedback: () => void;
-  notice: string | null;
-  notify: (message: string) => void;
+  notice: ToastNotice | null;
+  notify: (message: ToastNotice) => void;
   timerControls: TimerControls;
   alerts: ReturnType<typeof useAlertPlayback>;
   planning: ReturnType<typeof usePlanningRunner>;
@@ -29,16 +31,17 @@ export function CronoProvider({ children }: PropsWithChildren) {
   const alerts = useAlertPlayback(stopwatch.data.preferences);
   const { controller } = alerts;
   const { getSnapshot } = stopwatch;
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<ToastNotice | null>(null);
   const feedback = useCallback(() => {
     if (stopwatch.data.preferences.haptics && Platform.OS !== 'web') {
       void Haptics.selectionAsync().catch(() => undefined);
     }
   }, [stopwatch.data.preferences.haptics]);
-  const notify = useCallback((message: string) => setNotice(message), []);
-  const notifyTimer = useCallback((message: string) => {
-    if (Platform.OS !== 'web') AccessibilityInfo.announceForAccessibility(message);
-  }, []);
+  const notify = useCallback((message: ToastNotice) => setNotice(message), []);
+  const notifyTimer = useCallback((message: TimerNotice) => {
+    const m = getMessages(getSnapshot().preferences.language);
+    if (Platform.OS !== 'web') AccessibilityInfo.announceForAccessibility(message === 'timer-complete' ? m.timerComplete : `${m.timerComplete} ${m.soundUnavailable}`);
+  }, [getSnapshot]);
   const audio = useMemo<TimerAudio>(() => ({
     play: async (allowed, event) => {
       if (!event) return;
@@ -51,8 +54,8 @@ export function CronoProvider({ children }: PropsWithChildren) {
   const timerControls = useTimerCompletion(stopwatch, stopwatch.data, audio, notifyTimer);
   const planning = usePlanningRunner(stopwatch, stopwatch.data, controller);
   useEffect(() => {
-    if (alerts.state.error && Platform.OS !== 'web') AccessibilityInfo.announceForAccessibility(alerts.state.error);
-  }, [alerts.state.error]);
+    if (alerts.state.error && Platform.OS !== 'web') AccessibilityInfo.announceForAccessibility(getMessages(getSnapshot().preferences.language).soundUnavailable);
+  }, [alerts.state.error, getSnapshot]);
   useEffect(() => {
     if (!notice) return;
     const timeout = setTimeout(() => setNotice(null), 3500);

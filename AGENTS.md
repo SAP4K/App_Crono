@@ -42,7 +42,7 @@ Docs: https://docs.expo.dev/eas/index.md
 
 ## Project Overview
 
-CRONO is a Romanian-language stopwatch, countdown, and action schedule app for iOS and Android with a web preview. Read `.ai-factory/DESCRIPTION.md` for the verified stack, implemented behavior, persistence contract, and open technical findings.
+CRONO is a Romanian/English/Russian stopwatch, countdown, and action schedule app for iOS and Android with a web preview. Read `.ai-factory/DESCRIPTION.md` for the verified stack, implemented behavior, persistence contract, and open technical findings.
 
 The app uses technical layers with shared pure stopwatch/countdown/schedule cores and one alert playback owner. Read `.ai-factory/ARCHITECTURE.md` and `.ai-factory/rules/base.md` before implementation.
 
@@ -54,10 +54,13 @@ src/
   components/   Dials, schedule editor/run card, timing notices, laps, sheets, and settings
   context/      Shared state, saved theme, notices, and mobile feedback
   hooks/        Persistence, global timing runners, shared playback, and native/web audio
-  core/         Pure timing/schedule operations, sound catalog, and stored-data validation
+  core/         Pure timing/schedule operations, language/sound registries, notices, validation
+  i18n/         Typed catalogs, plural/date formatting, and localized sharing
   audio/        Static bundled sound source map
   theme.ts      Semantic light/dark palettes and font-family constants
 tests/
+  language.test.ts      Language defaults, validation, and legacy preservation
+  i18n.test.ts          Catalog parity, plurals, locale dates, and shared results
   stopwatch.test.ts     Node.js core logic tests
   timer.test.ts         Countdown boundary/transition tests
   timerCompletion.test.ts Completion/audio coordination tests
@@ -97,6 +100,8 @@ assets/                 App icons, splash images, and four original WAV patterns
 | `src/hooks/appActivity.ts` | Shared foreground checks and lifecycle subscription |
 | `src/components/ScheduleEditorSheet.tsx`, `ScheduleStepRow.tsx` | Controlled virtualized action editor with explicit save/discard |
 | `src/components/PlanningRunCard.tsx`, `TimingNotices.tsx` | Run controls and shared feedback/Stop in shell and sheets |
+| `src/core/language.ts`, `src/i18n/`, `src/hooks/useI18n.ts` | Saved language, catalogs, formatting, and shared-state selection |
+| `src/core/notices.ts` | Semantic transient toast/completion/audio codes |
 | `app.json` | Expo app identity, plugins, and native configuration |
 | `eas.json` | Development, preview, and production build profiles |
 | `playwright.config.ts` | Browser setup and web server on port 8091 |
@@ -105,7 +110,7 @@ assets/                 App icons, splash images, and four original WAV patterns
 
 | File | Purpose |
 |---|---|
-| `README.md` | Setup, themes, sounds, schedules, button feedback, validation, builds |
+| `README.md` | Setup, languages, themes, sounds, schedules, validation, builds |
 | `AGENTS.md` | Repository map and authoritative Expo workflow requirements |
 | `.ai-factory/DESCRIPTION.md` | Project purpose, stack, data model, and known follow-ups |
 | `.ai-factory/ARCHITECTURE.md` | Layered architecture, dependencies, and data flow |
@@ -115,8 +120,12 @@ assets/                 App icons, splash images, and four original WAV patterns
 ## Project Workflow
 
 - Use npm with the committed `package-lock.json`; tests that run TypeScript directly require Node.js 24 LTS or later.
-- Keep the application interface in Romanian and follow the configured language for generated documents.
+- Keep Romanian as the default interface language; localize app copy through the typed catalogs. Follow the configured language for generated documents.
 - Use `master` as the configured Git base branch. Work from the intended development or feature branch and preserve unrelated local edits.
 - Run shell operations separately when a later action depends on an earlier result, so failures can be inspected before continuing.
 - Use `npm test` for core logic changes and relevant Playwright scenarios for UI changes, alongside the required lint and typecheck.
 - Keep the pure core free of React, native APIs, and persistence imports. Send shared data changes through `useCrono().update`.
+
+## Adding a Language
+
+Add the ID, autonym and locale in `src/core/language.ts`, then provide a complete `Messages` catalog in `src/i18n/` and register it in `src/i18n/index.ts`. Keep timing/core modules free of translation imports and route saved selection through `useI18n` / `useCrono().update`. Extend plural/date, persistence and browser-flow tests; check bundled font glyphs and compact layouts in both themes, and record unavailable native accessibility checks as pending. Preserve saved user text and semantic event identities.

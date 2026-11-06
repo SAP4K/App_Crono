@@ -1,3 +1,4 @@
+import { useI18n } from '../hooks/useI18n';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useCrono } from '../context/CronoContext';
@@ -14,6 +15,7 @@ function durationFields(duration: number) {
 }
 
 export default function TimerScreen() {
+  const { messages: m } = useI18n();
   const { data, timerControls, feedback } = useCrono();
   const { colors: c } = useTheme();
   const styles = useThemeStyles(createStyles);
@@ -24,7 +26,7 @@ export default function TimerScreen() {
   const duration = parseDuration(fields[0], fields[1], fields[2]);
   const running = timer.status === 'running';
   const paused = timer.status === 'paused';
-  const actionLabel = running ? 'Pauză temporizator' : paused ? 'Continuă temporizatorul' : timer.status === 'completed' ? 'Repornește temporizatorul' : 'Pornește temporizatorul';
+  const actionLabel = running ? m.pauseTimer : paused ? m.resumeTimer : timer.status === 'completed' ? m.restartTimer : m.startTimer;
   const commitDuration = () => {
     if (duration !== null && editable && duration !== timer.durationMs) timerControls.configure(duration);
   };
@@ -32,29 +34,29 @@ export default function TimerScreen() {
     feedback(); timerControls.reset(); setFields(durationFields(timer.durationMs)); setConfirmReset(false);
   };
   return <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-    <Text accessibilityRole="header" style={styles.title}>Temporizator</Text>
-    <Text style={styles.subtitle}>Alege durata. Fă loc unui singur lucru.</Text>
+    <Text accessibilityRole="header" style={styles.title}>{m.timerTitle}</Text>
+    <Text style={styles.subtitle}>{m.timerSubtitle}</Text>
     <TimerFace timer={timer} />
     <View style={styles.fields}>
-      {['Ore', 'Minute', 'Secunde'].map((label, index) => <View key={label} style={styles.field}>
+      {m.timeUnits.map((label, index) => <View key={index} style={styles.field}>
         <TextInput accessibilityLabel={label} value={fields[index]} editable={editable} keyboardType="number-pad" maxLength={2} selectTextOnFocus onChangeText={(value) => setFields((previous) => previous.map((part, i) => i === index ? value : part))} onBlur={commitDuration} style={[styles.input, !editable && styles.disabled]} selectionColor={c.green} />
         <Text style={styles.fieldLabel}>{label}</Text>
       </View>)}
     </View>
-    <Text style={styles.help}>{duration === null ? 'Introdu o durată între 00:00:01 și 23:59:59.' : 'Sunetul activat se aude la final cât timp aplicația este deschisă.'}</Text>
+    <Text style={styles.help}>{duration === null ? m.durationInvalid : m.timerSoundHelp}</Text>
     <View style={styles.actions}>
-      <Pressable accessibilityRole="button" accessibilityLabel="Resetează temporizatorul" disabled={timer.status === 'idle'} onPress={() => { if (running || paused) { feedback(); setConfirmReset(true); } else reset(); }} style={({ pressed }) => [styles.reset, timer.status === 'idle' && styles.disabled, pressed && styles.pressed]}><Icon name="reset" size={20} /><Text style={styles.resetText}>Resetează</Text></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel={m.resetTimer} disabled={timer.status === 'idle'} onPress={() => { if (running || paused) { feedback(); setConfirmReset(true); } else reset(); }} style={({ pressed }) => [styles.reset, timer.status === 'idle' && styles.disabled, pressed && styles.pressed]}><Icon name="reset" size={20} /><Text style={styles.resetText}>{m.reset}</Text></Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel={actionLabel} disabled={editable && duration === null} onPress={() => {
         feedback();
         if (running) timerControls.pause();
         else if (paused) timerControls.resume();
         else if (duration !== null) { timerControls.configure(duration); timerControls.start(); }
       }} style={({ pressed }) => [styles.primary, editable && duration === null && styles.disabled, pressed && styles.pressed]}>
-        <Icon name={running ? 'pause' : 'play'} size={19} color={c.actionIcon} /><Text style={styles.primaryText}>{running ? 'Pauză' : paused ? 'Continuă' : timer.status === 'completed' ? 'Repornește' : 'Pornește'}</Text>
+        <Icon name={running ? 'pause' : 'play'} size={19} color={c.actionIcon} /><Text style={styles.primaryText}>{running ? m.pause : paused ? m.resume : timer.status === 'completed' ? m.restart : m.start}</Text>
       </Pressable>
     </View>
-    <Text style={styles.note}>Cronometrul și temporizatorul funcționează independent.</Text>
-    <ConfirmSheet visible={confirmReset} title="Resetezi temporizatorul?" description="Numărătoarea curentă se oprește. Durata aleasă rămâne salvată." confirmLabel="Resetează temporizatorul" onClose={() => setConfirmReset(false)} onConfirm={reset} />
+    <Text style={styles.note}>{m.timerIndependent}</Text>
+    <ConfirmSheet visible={confirmReset} title={m.resetTimerTitle} description={m.resetTimerHelp} confirmLabel={m.resetTimer} onClose={() => setConfirmReset(false)} onConfirm={reset} />
   </ScrollView>;
 }
 

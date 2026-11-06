@@ -4,6 +4,8 @@ import { initialPlanning, restorePlanning } from './planning.ts';
 import type { PlanningState } from './planning.ts';
 import { DEFAULT_ALERT_DURATION, DEFAULT_SOUND, restoreAlertDuration, restoreSoundId } from './sounds.ts';
 import type { AlertDuration, SoundId } from './sounds.ts';
+import { DEFAULT_LANGUAGE, restoreLanguage } from './language.ts';
+import type { AppLanguage } from './language.ts';
 
 export type Lap = { number: number; elapsedMs: number; splitMs: number };
 
@@ -21,7 +23,7 @@ export type Session = {
 };
 
 export type ThemeMode = 'light' | 'dark';
-export type Preferences = { haptics: boolean; keepAwake: boolean; theme: ThemeMode; timerSound: boolean; alertSoundId: SoundId; alertDurationSeconds: AlertDuration };
+export type Preferences = { language: AppLanguage; haptics: boolean; keepAwake: boolean; theme: ThemeMode; timerSound: boolean; alertSoundId: SoundId; alertDurationSeconds: AlertDuration };
 export type AppData = {
   version: 1;
   stopwatch: Stopwatch;
@@ -40,7 +42,7 @@ export const initialData = (): AppData => ({
   timer: initialTimer(),
   planning: initialPlanning(),
   sessions: [],
-  preferences: { haptics: true, keepAwake: true, theme: 'light', timerSound: true, alertSoundId: DEFAULT_SOUND, alertDurationSeconds: DEFAULT_ALERT_DURATION },
+  preferences: { language: DEFAULT_LANGUAGE, haptics: true, keepAwake: true, theme: 'light', timerSound: true, alertSoundId: DEFAULT_SOUND, alertDurationSeconds: DEFAULT_ALERT_DURATION },
 });
 
 // Store a timestamp, not interval ticks. Time spent outside the app still counts.
@@ -130,6 +132,7 @@ export function restoreData(raw: string | null, now = Date.now()): AppData {
       }
     }
     if (isRecord(value.preferences)) {
+      fallback.preferences.language = restoreLanguage(value.preferences.language);
       fallback.preferences.alertSoundId = restoreSoundId(value.preferences.alertSoundId);
       fallback.preferences.alertDurationSeconds = restoreAlertDuration(value.preferences.alertDurationSeconds);
       if (typeof value.preferences.haptics === 'boolean') fallback.preferences.haptics = value.preferences.haptics;
@@ -148,13 +151,4 @@ export function restoreData(raw: string | null, now = Date.now()): AppData {
   } catch {
     return fallback;
   }
-}
-
-export function sessionText(session: Session): string {
-  const date = new Date(session.savedAt).toLocaleString('ro-RO');
-  return [
-    `CRONO · ${date}`,
-    `Timp total: ${formatTime(session.durationMs)}`,
-    ...session.laps.map((lap) => `Tura ${lap.number}: ${formatTime(lap.splitMs)} · Total ${formatTime(lap.elapsedMs)}`),
-  ].join('\n');
 }

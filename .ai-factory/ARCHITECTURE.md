@@ -2,7 +2,7 @@
 
 ## Overview
 
-CRONO is a single Expo application organized by technical responsibility. Screens and reusable UI consume shared state through React Context. A persistence hook owns hydration and ordered writes. Pure TypeScript functions define independent stopwatch/countdown/schedule operations, sound preferences, and stored-data validation.
+CRONO is a single Expo application organized by technical responsibility. Screens and reusable UI consume shared state through React Context. A persistence hook owns hydration and ordered writes. Pure TypeScript functions define independent stopwatch/countdown/schedule operations, language/sound preferences, semantic notice codes, and stored-data validation.
 
 This document adapts Layered Architecture to the existing mobile codebase. The pure core is shared by presentation and state management; accessing that core for calculations or formatting is part of the current design. Persistence remains behind the shared state API.
 
@@ -42,6 +42,7 @@ src/
 │   └── ThemeContext.tsx      # Saved palette and platform appearance
 ├── hooks/
 │   ├── useStopwatch.ts       # Local storage and state updates
+│   ├── useI18n.ts            # Saved language projection and shared-state setter
 │   ├── timerCompletion.ts    # Framework-free injected completion coordinator
 │   ├── useTimerCompletion.ts # Global readiness/lifecycle adapter
 │   ├── planningRunner.ts     # Injected schedule coordinator and controls
@@ -52,15 +53,25 @@ src/
 │   ├── useAlertSound.web.ts  # Source-bound browser media promise/errors
 │   ├── appActivity.ts        # Shared foreground lifecycle adapter
 │   └── createTimingId.ts     # Runtime IDs outside pure transitions
+├── i18n/
+│   ├── types.ts              # Widened catalog contract
+│   ├── ro.ts / en.ts / ru.ts  # Stable bundled translated copy/functions
+│   ├── index.ts              # Catalog selection with Romanian fallback
+│   ├── plurals.ts            # Cached Intl plural phrases
+│   └── formatters.ts         # Locale dates/times and session sharing
 ├── audio/
 │   └── sources.ts            # Static sound asset requires, outside the core
 ├── core/
 │   ├── stopwatch.ts          # App data, stopwatch, history, validation
 │   ├── timer.ts              # Pure countdown model and validation
 │   ├── planning.ts           # Schedule CRUD, snapshots, cumulative transitions
+│   ├── language.ts           # Supported IDs/autonyms/locales and default
+│   ├── notices.ts            # Semantic transient toast/completion/audio codes
 │   └── sounds.ts             # Pure sound/duration catalog and validation
 └── theme.ts                 # Shared visual tokens
 tests/
+├── language.test.ts          # Defaults and independently restored preference
+├── i18n.test.ts              # Catalogs, plural boundaries, dates and sharing
 ├── stopwatch.test.ts         # Core logic tests
 ├── timer.test.ts             # Countdown boundaries/transitions
 ├── timerCompletion.test.ts   # Coordination, cancellation, and audio races
@@ -82,13 +93,14 @@ assets/audio/                # Retained Classic WAV plus bell/digital/gong
 | `src/components/` | Render UI using props, theme, pure core helpers, and shared context when needed |
 | `src/context/` | Compose persistence, global timing runners, shared audio, notices, mobile feedback, and a derived theme provider |
 | `src/hooks/` | Manage state, lifecycle, persistence, timing coordinators, playback arbitration, and platform audio adapters |
+| `src/i18n/` | Framework-free catalogs and Intl presentation helpers; may import pure core types/formatting, never owns state/storage |
 | `src/core/` | Use JavaScript/TypeScript primitives and other pure core functions |
 | `src/audio/` | Map pure sound IDs to static bundled assets; consumed by platform transports |
 | `src/theme.ts` | Export visual constants without depending on application modules |
 
 - Keep platform/storage dependencies outside the pure core.
 - Keep reads and writes to local storage in the persistence layer; UI actions use the shared `update` API.
-- Keep dependencies directed toward shared lower-level functionality. Core modules do not import hooks, context, components, or routes.
+- Keep dependencies directed toward shared lower-level functionality. Core modules do not import translation/presentation, hooks, context, components, or routes.
 - Keep reusable modules outside `src/app/`; components and hooks do not import screen implementations.
 - Use the existing relative import style. Additional abstraction layers should solve a concrete problem before being introduced.
 
@@ -128,7 +140,7 @@ Screens call `update(previous => next)` through `useCrono`. Core functions compu
 
 Countdown actions use `useCrono().timerControls`; planning execution uses `useCrono().planning.controls`. Both coordinators apply pure transitions through that same `update` API. Its `{ changed, data }` result allows side effects only after an accepted update; `getSnapshot()` supplies fresh state for asynchronous guards. Template CRUD also uses shared functional updates. No additional storage owner is created.
 
-Version 1 and the storage key remain unchanged. Optional independently restored fields include timer, theme, sound ID/duration, and `{ schedules, run }` planning data. The legacy `timerSound` flag controls automatic alerts for both timer and planning. Missing new fields default independently while preserving valid clocks/history and false preferences. Schedule restoration filters invalid templates separately from rejecting an incoherent run snapshot.
+Version 1 and the storage key remain unchanged. Optional independently restored fields include timer, language, theme, sound ID/duration, and `{ schedules, run }` planning data. The legacy `timerSound` flag controls automatic alerts for both timer and planning. Missing new fields default independently while preserving valid clocks/history and false preferences. Schedule restoration filters invalid templates separately from rejecting an incoherent run snapshot.
 
 A schedule run snapshots its source ID/name/ordered actions. A running or paused source template is protected, while other templates remain editable. Starting another schedule requires confirmed atomic replacement; reset clears only the run. Boundaries use run/index identities and cumulative deadlines. Limits are 20 templates, 50 actions each, 80-character trimmed names, and one second to 23:59:59 per action. These bounds do not resolve the existing oversized-history storage finding.
 
@@ -149,6 +161,8 @@ Native audio uses SDK 57 `createAudioPlayer` for each accepted source and explic
 `TimingNotices` composes timer completion, planning boundary/final feedback, and Stop in both shell and active sheets without closing them. Audio failures are scoped to the matching event/run, separate from generic session-save notices. A new event clears obsolete audio feedback. The schedule editor uses controlled drafts, explicit save/discard, and one keyboard-aware FlatList through Sheet's non-scrolling mode.
 
 `ThemeContext` projects saved preferences into stable semantic palettes and cached styles, supplies the navigation theme, and synchronizes native Appearance/SystemUI and status-bar contrast. It has no independent persistence and does not key/remount routes or clock owners.
+
+`useI18n` derives stable module catalogs from the saved `language` preference and applies effective changes through the existing functional update API. Romanian is the manual default; no device locale is detected. The framework-free translation layer owns plural/date/share presentation; `sessionText` lives here rather than in the pure timing core. Catalogs use stable sound IDs and preserve user-entered schedule/action names. Toast, timer-completion and audio-failure values are semantic codes, translated when rendered or announced with a fresh snapshot. Language does not enter controller creation/cancellation dependencies, refresh notice lifetimes, or key/remount routes or controlled inputs. Web document language follows selection; native speech voice remains an OS concern.
 
 `CronoContext` owns transient notices and platform-guarded haptics and a single screen wake guard for the OR of running stopwatch, timer, and schedule states. Sharing remains in the history route, with separate mobile and browser paths. Keep mobile-only behavior and browser fallbacks explicit.
 

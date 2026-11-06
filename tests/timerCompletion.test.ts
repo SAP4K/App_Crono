@@ -83,7 +83,7 @@ test('asynchronous preparation cannot play after mute, reset or unmount', async 
     else if (cancel === 'reset') f.coordinator.reset();
     else f.coordinator.dispose();
     prepared(); await Promise.resolve(); await Promise.resolve();
-    assert.equal(played, 0); assert.deepEqual(f.notices, ['Timpul a expirat.']);
+    assert.equal(played, 0); assert.deepEqual(f.notices, ['timer-complete']);
   }
 });
 
@@ -95,7 +95,7 @@ test('failed audio setup leaves completion visible and allows a later run', asyn
   f.coordinator.configure(1000); f.coordinator.start(); f.now = 2000; f.coordinator.reconcile('deadline');
   await Promise.resolve(); await Promise.resolve();
   assert.equal(f.data.timer.status, 'completed'); assert.equal(warnings.length, 1);
-  assert.equal(f.notices.at(-1), 'Timpul a expirat. Sunetul nu este disponibil acum.');
+  assert.equal(f.notices.at(-1), 'timer-sound-unavailable');
   f.coordinator.start(); f.now = 3000; f.coordinator.reconcile('deadline');
   await Promise.resolve(); assert.equal(attempts, 2);
 });

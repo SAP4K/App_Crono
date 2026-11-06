@@ -144,7 +144,7 @@ test('literal legacy-v1 data survives settings, real Classic playback, completio
   await page.clock.runFor(1000); await expect.poll(() => playCount(page)).toBe(2);
   const result = await stored(page);
   expect(result.stopwatch).toEqual(legacy.stopwatch); expect(result.sessions).toEqual(legacy.sessions);
-  expect(result.preferences).toEqual({ ...legacy.preferences, timerSound: true, alertSoundId: 'classic', alertDurationSeconds: 5 });
+  expect(result.preferences).toEqual({ ...legacy.preferences, language: 'ro', timerSound: true, alertSoundId: 'classic', alertDurationSeconds: 5 });
   await page.reload(); await expect(page.getByLabel('Temporizator finalizat', { exact: true })).toBeVisible();
   expect(await playCount(page)).toBe(0);
 });

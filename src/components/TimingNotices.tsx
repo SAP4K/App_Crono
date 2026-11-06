@@ -1,3 +1,4 @@
+import { useI18n } from '../hooks/useI18n';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useCrono } from '../context/CronoContext';
 import { useThemeStyles } from '../context/ThemeContext';
@@ -6,6 +7,7 @@ import { TimerCompletionNotice } from './TimerCompletionNotice';
 import { PlanningNotice } from './PlanningNotice';
 
 export function TimingNotices() {
+  const { messages: m } = useI18n();
   const { alerts, feedback } = useCrono(); const styles = useThemeStyles(createStyles);
   const playing = alerts.state.status !== 'idle';
   const owner = alerts.state.request?.owner;
@@ -13,8 +15,8 @@ export function TimingNotices() {
     <TimerCompletionNotice />
     <PlanningNotice />
     {playing && <View style={styles.playback}>
-      <Text style={styles.label}>{owner === 'timer' ? 'Sunet timer' : owner === 'planning' ? 'Sunet planificare' : 'Previzualizare sunet'}</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel="Oprește sunetul" onPress={() => { feedback(); alerts.controller.stop(); }} style={({ pressed }) => [styles.stop, pressed && buttonPressedStyle]}><Text style={styles.stopText}>Oprește sunetul</Text></Pressable>
+      <Text style={styles.label}>{owner === 'timer' ? m.timerSound : owner === 'planning' ? m.planningSound : m.previewSound}</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel={m.stopSound} onPress={() => { feedback(); alerts.controller.stop(); }} style={({ pressed }) => [styles.stop, pressed && buttonPressedStyle]}><Text style={styles.stopText}>{m.stopSound}</Text></Pressable>
     </View>}
   </>;
 }

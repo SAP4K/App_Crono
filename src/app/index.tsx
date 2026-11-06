@@ -1,3 +1,4 @@
+import { useI18n } from '../hooks/useI18n';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useCrono } from '../context/CronoContext';
@@ -10,6 +11,7 @@ import { fonts as f, Palette } from '../theme';
 import { useTheme, useThemeStyles } from '../context/ThemeContext';
 
 export default function StopwatchScreen() {
+  const { messages: m } = useI18n();
   const { colors: c } = useTheme();
   const styles = useThemeStyles(createStyles);
   const { data, update, feedback, notify } = useCrono();
@@ -31,24 +33,24 @@ export default function StopwatchScreen() {
     else setResetDialog(true);
   };
   return <ScrollView style={styles.screen} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-    <View style={styles.eyebrow}><View style={styles.dash} /><Text style={styles.eyebrowText}>UN MOMENT PENTRU TINE</Text></View>
-    <Text accessibilityRole="header" style={styles.title}>În ritmul tău.</Text>
-    <Text style={[styles.subtitle, compact && { marginBottom: 8 }]}>Fiecare secundă, sub control.</Text>
+    <View style={styles.eyebrow}><View style={styles.dash} /><Text style={styles.eyebrowText}>{m.stopwatchEyebrow}</Text></View>
+    <Text accessibilityRole="header" style={styles.title}>{m.stopwatchTitle}</Text>
+    <Text style={[styles.subtitle, compact && { marginBottom: 8 }]}>{m.stopwatchSubtitle}</Text>
     <StopwatchFace stopwatch={stopwatch} />
     <View style={styles.actions}>
-      <Pressable accessibilityRole="button" accessibilityLabel={running ? 'Înregistrează o tură' : 'Resetează cronometrul'} accessibilityState={{ disabled: secondaryDisabled }} disabled={secondaryDisabled} onPress={secondaryAction} style={({ pressed }) => [styles.secondary, secondaryDisabled && styles.disabled, pressed && styles.pressed]}>
+      <Pressable accessibilityRole="button" accessibilityLabel={running ? m.recordLap : m.resetStopwatch} accessibilityState={{ disabled: secondaryDisabled }} disabled={secondaryDisabled} onPress={secondaryAction} style={({ pressed }) => [styles.secondary, secondaryDisabled && styles.disabled, pressed && styles.pressed]}>
         <Icon name={running ? 'flag' : 'reset'} size={19} color={secondaryDisabled ? c.subtle : c.ink} />
-        <Text style={[styles.secondaryText, secondaryDisabled && { color: c.subtle }]}>{running ? 'Tură' : 'Resetează'}</Text>
+        <Text style={[styles.secondaryText, secondaryDisabled && { color: c.subtle }]}>{running ? m.lap : m.reset}</Text>
       </Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel={running ? 'Pauză' : hasTime ? 'Continuă' : 'Pornește'} onPress={toggleRunning} style={({ pressed }) => [styles.primary, pressed && styles.pressed]}>
+      <Pressable accessibilityRole="button" accessibilityLabel={running ? m.pause : hasTime ? m.resume : m.start} onPress={toggleRunning} style={({ pressed }) => [styles.primary, pressed && styles.pressed]}>
         <Icon name={running ? 'pause' : 'play'} size={19} color={c.actionIcon} strokeWidth={1.4} />
-        <Text style={styles.primaryText}>{running ? 'Pauză' : hasTime ? 'Continuă' : 'Pornește'}</Text>
+        <Text style={styles.primaryText}>{running ? m.pause : hasTime ? m.resume : m.start}</Text>
       </Pressable>
     </View>
-    {hasTime && !running ? <Pressable accessibilityRole="button" onPress={() => { feedback(); update(saveSession); notify('Sesiune salvată în istoric.'); }} style={({ pressed }) => [styles.save, pressed && styles.pressed]}><Icon name="save" size={15} color={c.green} /><Text style={styles.saveText}>Salvează sesiunea</Text></Pressable> : <View style={styles.hint}><View style={styles.hintDot} /><Text style={styles.hintText}>{lapLimit ? 'Ai atins limita de 1.000 de ture.' : running ? 'Rămâi în mișcare. Noi ținem timpul.' : 'Un start mic. Un pas înainte.'}</Text></View>}
+    {hasTime && !running ? <Pressable accessibilityRole="button" onPress={() => { feedback(); update(saveSession); notify('sessionSaved'); }} style={({ pressed }) => [styles.save, pressed && styles.pressed]}><Icon name="save" size={15} color={c.green} /><Text style={styles.saveText}>{m.saveSession}</Text></Pressable> : <View style={styles.hint}><View style={styles.hintDot} /><Text style={styles.hintText}>{lapLimit ? m.lapLimit : running ? m.runningHint : m.readyHint}</Text></View>}
     <LapList laps={stopwatch.laps} />
-    <Text style={styles.footer}>FĂ LOC LUCRURILOR CARE CONTEAZĂ.</Text>
-    <ConfirmSheet visible={resetDialog} title="Un nou început?" description="Timpul și turele acestei sesiuni vor fi șterse. Poți salva sesiunea în istoric înainte de resetare." confirmLabel="Resetează cronometrul" onClose={() => setResetDialog(false)} onConfirm={() => { feedback(); update((previous) => ({ ...previous, stopwatch: emptyStopwatch() })); setResetDialog(false); }} />
+    <Text style={styles.footer}>{m.stopwatchFooter}</Text>
+    <ConfirmSheet visible={resetDialog} title={m.resetStopwatchTitle} description={m.resetStopwatchHelp} confirmLabel={m.resetStopwatch} onClose={() => setResetDialog(false)} onConfirm={() => { feedback(); update((previous) => ({ ...previous, stopwatch: emptyStopwatch() })); setResetDialog(false); }} />
   </ScrollView>;
 }
 

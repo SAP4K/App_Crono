@@ -1,3 +1,4 @@
+import { useI18n } from '../hooks/useI18n';
 import { PropsWithChildren } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,16 +10,17 @@ import { TimingNotices } from './TimingNotices';
 export function Sheet({ visible, title, onClose, children, scrollable = true }: PropsWithChildren<{
   visible: boolean; title: string; onClose: () => void; scrollable?: boolean;
 }>) {
+  const { messages: m } = useI18n();
   const styles = useThemeStyles(createStyles);
   const insets = useSafeAreaInsets();
   return <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
     <KeyboardAvoidingView style={styles.overlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityRole="button" accessibilityLabel="Închide fereastra" />
+      <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityRole="button" accessibilityLabel={m.closeWindow} />
       <View style={[styles.sheet, !scrollable && styles.tallSheet, { paddingBottom: Math.max(insets.bottom, 20) }]} role="dialog" aria-modal accessibilityLabel={title} accessibilityViewIsModal onAccessibilityEscape={onClose}>
         <View style={styles.handle} />
         <View style={styles.heading}>
           <Text accessibilityRole="header" style={styles.title}>{title}</Text>
-          <Pressable onPress={onClose} accessibilityLabel="Închide" accessibilityRole="button" style={({ pressed }) => [styles.close, pressed && { opacity: 0.5 }]}><Icon name="close" size={20} /></Pressable>
+          <Pressable onPress={onClose} accessibilityLabel={m.close} accessibilityRole="button" style={({ pressed }) => [styles.close, pressed && { opacity: 0.5 }]}><Icon name="close" size={20} /></Pressable>
         </View>
         <TimingNotices />
         {scrollable ? <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content} bounces={false} keyboardShouldPersistTaps="handled">{children}</ScrollView> : <View style={[styles.content, styles.staticContent]}>{children}</View>}
@@ -30,11 +32,12 @@ export function Sheet({ visible, title, onClose, children, scrollable = true }: 
 export function ConfirmSheet({ visible, title, description, confirmLabel, onClose, onConfirm }: {
   visible: boolean; title: string; description: string; confirmLabel: string; onClose: () => void; onConfirm: () => void;
 }) {
+  const { messages: m } = useI18n();
   const styles = useThemeStyles(createStyles);
   return <Sheet visible={visible} title={title} onClose={onClose}>
     <Text style={styles.description}>{description}</Text>
     <Pressable accessibilityRole="button" onPress={onConfirm} style={({ pressed }) => [styles.confirm, pressed && { opacity: 0.75 }]}><Text style={styles.confirmText}>{confirmLabel}</Text></Pressable>
-    <Pressable accessibilityRole="button" onPress={onClose} style={({ pressed }) => [styles.cancel, pressed && buttonPressedStyle]}><Text style={styles.cancelText}>Renunță</Text></Pressable>
+    <Pressable accessibilityRole="button" onPress={onClose} style={({ pressed }) => [styles.cancel, pressed && buttonPressedStyle]}><Text style={styles.cancelText}>{m.cancel}</Text></Pressable>
   </Sheet>;
 }
 

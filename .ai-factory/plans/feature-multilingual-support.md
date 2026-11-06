@@ -3,7 +3,8 @@
 Branch: `feature/multilingual-support`
 Created: 2026-11-06
 Mode: full
-Status: ready for implementation; all tasks below are pending.
+Status: implemented; 12/12 tasks completed for available browser/CLI verification. Native-device and independent native-speaker checks pending.
+Current task: none.
 
 ## Original Request
 
@@ -82,7 +83,7 @@ These are implementation checkpoints, not commits executed by planning. Each che
 
 ### Phase 1: Preference, catalogs, and selection
 
-- [ ] Task 1: Add a backward-compatible language preference and register its tests.
+- [x] Task 1: Add a backward-compatible language preference and register its tests.
   - **Files:** new `src/core/language.ts`, new `tests/language.test.ts`; modify `src/core/stopwatch.ts` and `package.json`.
   - **Depends on:** none.
   - **Deliverable:** registry/type/validation/default from decision 1; `initialData()` and independent `restoreData()` handling; no schema/key bump or unrelated restoration repair. Register the new test file in the explicit `npm test` script immediately when created.
@@ -90,7 +91,7 @@ These are implementation checkpoints, not commits executed by planning. Each che
   - **Logging:** no new logs for valid choices or malformed persisted language; retain existing storage WARN/ERROR behavior.
   - **Source:** user language answers; `restoreData` and `initialData`; architecture persistence contract.
 
-- [ ] Task 2: Establish the typed catalog and locale formatting boundary with registered unit tests.
+- [x] Task 2: Establish the typed catalog and locale formatting boundary with registered unit tests.
   - **Files:** new `src/i18n/types.ts`, `index.ts`, `formatters.ts`, `ro.ts`, `en.ts`, `ru.ts`; new `tests/i18n.test.ts`; modify `package.json`.
   - **Depends on:** 1.
   - **Deliverable:** explicit `Messages` contract, stable catalog lookup, typed dynamic phrase parameters, Romanian invalid-language fallback, cached date/time/plural helpers. Start all three catalogs with the same required initial entries; task 3 completes the inventory. Date helpers accept a time-zone override for deterministic tests, while normal callers use the device zone. Avoid an ICU/template parser, `any`, native imports, storage imports, or core-to-i18n dependencies.
@@ -98,7 +99,7 @@ These are implementation checkpoints, not commits executed by planning. Each che
   - **Logging:** deterministic helpers and tests remain silent; missing translation keys are compile/test failures, not repeated runtime logs.
   - **Source:** user extensibility answer; `src/core/stopwatch.ts` formatting and current hard-coded history dates; Expo localization guide — Intl API.
 
-- [ ] Task 3: Complete Romanian, English, and Russian catalogs against a source-string inventory.
+- [x] Task 3: Complete Romanian, English, and Russian catalogs against a source-string inventory.
   - **Files:** `src/i18n/types.ts`, `ro.ts`, `en.ts`, `ru.ts`, `tests/i18n.test.ts`; inspect every file under `src/app/` and `src/components/`, plus context/hook feedback.
   - **Depends on:** 2.
   - **Deliverable:** account for visible strings, accessibility labels/hints, validation/limits, sound names, storage failures, share text, and dynamic phrases. Keep original Romanian meaning; use concise natural English and Russian suited to mobile widths. Include complete count phrases, action default numbering, and the four stable sound IDs. Static branding/numeric notation and user text are explicitly exempt from translation extraction.
@@ -106,7 +107,7 @@ These are implementation checkpoints, not commits executed by planning. Each che
   - **Logging:** no translation lookup or success logs; test diagnostics identify key/language without dumping saved user data.
   - **Source:** original request and language answers; current route/component copy; C6/C7.
 
-- [ ] Task 4: Add Settings language selection and connect the application shell.
+- [x] Task 4: Add Settings language selection and connect the application shell.
   - **Files:** new `src/hooks/useI18n.ts`; modify `src/components/SettingsSheet.tsx`, `src/app/_layout.tsx`, and catalog entries/tests as needed.
   - **Depends on:** 1, 2, 3.
   - **Deliverable:** accessible language radios using fixed autonyms, selected state, functional updates, immediate saved choice, and at least 44-point touch targets. Translate Settings headings/descriptions, all sound/duration controls, shell tabs/header/loading/storage warning, and web document language. Migrate sound labels and remove the now-unused `SOUND_CHOICES.label` in `src/core/sounds.ts` in the same task. Keep root hydration/font gates and existing layout/theme behavior. Catalog data must not become a controller dependency.
@@ -118,7 +119,7 @@ These are implementation checkpoints, not commits executed by planning. Each che
 
 ### Phase 2: Feedback and complete interface integration
 
-- [ ] Task 5: Make transient feedback semantic and localize it without restarting timing/audio owners.
+- [x] Task 5: Make transient feedback semantic and localize it without restarting timing/audio owners.
   - **Files:** new `src/core/notices.ts` for framework-free transient notice descriptors; modify `src/context/CronoContext.tsx`, `src/hooks/timerCompletion.ts`, `useTimerCompletion.ts`, `alertPlayback.ts`, `useAlertPlayback.ts`, `usePlanningRunner.ts`, `src/app/_layout.tsx`, route `notify` call sites, and notice/error renderers; update `tests/timerCompletion.test.ts`, `tests/alertPlayback.test.ts`, `tests/planningRunner.test.ts` where their contracts change.
   - **Depends on:** 1–4.
   - **Deliverable:** typed toast descriptors; semantic timer completion/audio-unavailable variants; semantic playback error code instead of stored Romanian copy. Atomically update all callers, test expectations, Settings preview feedback, timer/planning notices, and native accessibility announcements. Replace `_layout.tsx`'s `startsWith('Timpul a expirat.')` logic with explicit semantic handling or remove the obsolete filter after confirming its caller contract. Use stable callbacks reading the latest locale at event time; render existing notices using the current catalog.
@@ -127,7 +128,7 @@ These are implementation checkpoints, not commits executed by planning. Each che
   - **Logging:** retain WARN/ERROR at existing audio/runtime failure boundaries with stable technical codes; do not log translations, action names, history, or routine events.
   - **Source:** architecture Display and Device Behavior; current notice/coordinator APIs; November 5 real-timer patch.
 
-- [ ] Task 6: Localize stopwatch, timer, reusable sheets, and timing notices.
+- [x] Task 6: Localize stopwatch, timer, reusable sheets, and timing notices.
   - **Files:** `src/app/index.tsx`, `timer.tsx`; `src/components/StopwatchFace.tsx`, `TimerFace.tsx`, `LapList.tsx`, `Sheet.tsx`, `TimerCompletionNotice.tsx`, `TimingNotices.tsx`; catalogs as required.
   - **Depends on:** 3–5.
   - **Deliverable:** complete screen copy, buttons, input labels/placeholders, reset/cancel confirmations, lap statistics/counts/limits, generic close/cancel accessibility labels, and completion/Stop feedback. Keep timer/stopwatch numeric formats, input behavior, focus handling, confirmation requirements, and existing timing transitions.
@@ -135,7 +136,7 @@ These are implementation checkpoints, not commits executed by planning. Each che
   - **Logging:** no new logs for routine actions or translation; existing recoverable error feedback remains visible.
   - **Source:** original request; existing screens and generic Sheet; project mobile/UI/state rules.
 
-- [ ] Task 7: Localize planning while preserving controlled drafts and saved names.
+- [x] Task 7: Localize planning while preserving controlled drafts and saved names.
   - **Files:** `src/app/planning.tsx`, `src/components/ScheduleEditorSheet.tsx`, `ScheduleStepRow.tsx`, `PlanningRunCard.tsx`, `PlanningNotice.tsx`; catalogs/tests as required.
   - **Depends on:** 3–6.
   - **Deliverable:** translate list/empty states, editor titles/placeholders/errors, limits, move/delete controls, time units, run states and counters, start/replacement/discard/reset confirmations, and boundary/final notices. New default action names use the current catalog only at creation. Retain saved names across language changes and preserve controlled draft IDs/order/durations, selection, and editability rules within each editor flow.
@@ -143,7 +144,7 @@ These are implementation checkpoints, not commits executed by planning. Each che
   - **Logging:** no routine schedule/name/input logs; keep existing warnings/errors and semantic notices.
   - **Source:** user languages; controlled editor state; pure planning bounds and cumulative transition contract.
 
-- [ ] Task 8: Localize history and sharing, migrating the core presentation helper atomically.
+- [x] Task 8: Localize history and sharing, migrating the core presentation helper atomically.
   - **Files:** `src/app/history.tsx`, `src/core/stopwatch.ts`, `src/i18n/formatters.ts`, catalogs, `tests/stopwatch.test.ts`, `tests/i18n.test.ts`.
   - **Depends on:** 2, 3, 5, 6.
   - **Deliverable:** translate list/empty/details/statistics/deletion, recent label, lap counts, date/time, share title and content, copied/failure notices. Move `sessionText` into the translation formatting layer and migrate both imports/tests in the same change. Supply the selected language at sharing time; keep native Share, web Share, clipboard fallback, and AbortError behavior. Do not change saved sessions or introduce a core-to-presentation dependency.
@@ -155,7 +156,7 @@ These are implementation checkpoints, not commits executed by planning. Each che
 
 ### Phase 3: Regression coverage, mobile checks, and documentation
 
-- [ ] Task 9: Add browser language persistence and complete-flow coverage with the real legacy fixture.
+- [x] Task 9: Add browser language persistence and complete-flow coverage with the real legacy fixture.
   - **Files:** new `tests/e2e/localization.spec.ts`; extend `tests/e2e/helpers.ts` only where reusable; preserve existing Romanian test defaults and `tests/fixtures/app-v1-before-planning.json` bytes.
   - **Depends on:** 4–8.
   - **Deliverable:** parameterized three-language flows for settings/reload, tabs, all four screens, editor/confirmations, notices, history/share, validation, and language/theme independence. Observe page errors before navigation. Reuse the literal fixture through the real hydration path, assert false preferences/dark theme/history/completed timer, switch language, reload, and assert preservation.
@@ -163,7 +164,7 @@ These are implementation checkpoints, not commits executed by planning. Each che
   - **Logging:** Playwright assertions/traces and page-error checks only; no stored payload dumps.
   - **Source:** user manual/default answer; existing e2e helpers and literal fixture; Requirements Reconciliation combinations.
 
-- [ ] Task 10: Prove language changes preserve live timing and pending/playing sound.
+- [x] Task 10: Prove language changes preserve live timing and pending/playing sound.
   - **Files:** `tests/e2e/localization.spec.ts`, `tests/e2e/realTimers.spec.ts`; coordinator tests only if additional isolated race coverage is necessary.
   - **Depends on:** 5–9.
   - **Deliverable:** deterministic-clock coverage of concurrent stopwatch/timer/planning, pause/resume, locale switch around a deadline, foreground/background catch-up, current notice/error translation and its unchanged expiration. Extend real browser timer scenarios with a language change while preview is pending and while playing; assert actual play count, natural configured expiry, Stop, and no `Illegal invocation` or unhandled rejection. Preserve all four existing real-timer regressions.
@@ -171,7 +172,7 @@ These are implementation checkpoints, not commits executed by planning. Each che
   - **Logging:** page errors fail tests; retain existing event-scoped failure diagnostics. No production timer/translation tracing.
   - **Source:** existing real-timer suite and November 5 patch; one playback owner and coordinator lifecycle contracts.
 
-- [ ] Task 11: Verify compact layouts, both themes, and mobile accessibility for the three languages.
+- [x] Task 11: Verify compact layouts, both themes, and mobile accessibility for the three languages.
   - **Files:** `tests/e2e/localization.spec.ts`; affected component styles only when evidence shows clipping/overlap; `src/theme.ts` only if necessary to use existing tokens correctly.
   - **Depends on:** 6–10.
   - **Deliverable:** cover all three languages × light/dark at 390px; representative long Russian Settings/editor/notice/confirmation/tab content at 320px and 430px, plus the existing 1024px web preview. Check scrolling, bottom safe area, full button labels, focus, and 44-point targets. Allow wrapping/flexible heights rather than shrinking text to hide overflow; preserve list virtualization and keyboard behavior.
@@ -179,7 +180,7 @@ These are implementation checkpoints, not commits executed by planning. Each che
   - **Logging:** test/manual evidence only; no new production layout logs.
   - **Source:** AGENTS mobile-first/cross-platform instructions; shared palettes/fonts; measured TTF glyph availability.
 
-- [ ] Task 12: Complete the documentation checkpoint and final verification.
+- [x] Task 12: Complete the documentation checkpoint and final verification.
   - **Files:** `README.md` and relevant documentation through `$aif-docs`; this plan's task/evidence ledger. Do not silently rewrite architecture/rules/description ownership artifacts; route any needed context/map correction to its owner workflow and preserve prior local edits.
   - **Depends on:** 1–11.
   - **Deliverable:** English usage instructions for Settings language selection, Romanian default, persistence/offline operation, supported languages, preservation of user text, shared results, testing limits, and adding a language (registry, typed catalog, plural/date tests, fonts, mobile layout review). Document any pending device/native-speaker checks precisely. Review the final diff for leftover user-facing hard-coded Romanian strings and translation-based business logic; allow explicit brand/data/numeric/technical-log exemptions.
@@ -214,4 +215,35 @@ Documentation consulted for this plan: [Expo SDK 57](https://docs.expo.dev/versi
 
 Planning checks on 2026-11-06: all 12 pending tasks have file scopes, prior-task dependencies, deliverables, verification, logging, and source evidence. The exact Original Request is preserved, there is one active plan representation, and command-source hashes still match. The selected planning branch is at `dd576e4e4f586e4a21f0b4882cd37d8741009835`; application files and the Git index are unchanged, with only this plan untracked. `npm run lint` and `npm run typecheck` both passed on that baseline. Meaning preservation: PASS.
 
-Feature implementation, localization tests, new exports, and native checks have not run for this plan. Add dated implementation evidence here as tasks are completed; historical theme/timer results do not establish localization acceptance.
+At planning time, feature implementation, localization tests, new exports, and native checks had not run for this plan. Add dated implementation evidence here as tasks are completed; historical theme/timer results do not establish localization acceptance.
+
+- Task 1 completed (2026-11-06): independent language restoration and registry added; literal legacy data and active timing snapshots preserved. Lint, typecheck, and all 54 Node tests passed. New test registered immediately.
+
+- Task 2 completed (2026-11-06): typed stable catalogs, cached plural/date formatting, fallback/parity/plural/time-zone checks added. Lint, typecheck and all 57 Node tests passed. `plurals.ts` keeps catalog count helpers separate from sharing/date formatters to avoid circular imports.
+
+- Task 3 completed (2026-11-06): source-string inventory covered shell, four routes, sheets, settings and feedback; all three complete typed catalogs include parameterized labels, count phrases and stable sound IDs. Lint/typecheck and 58 Node tests passed. Independent native-speaker review remains pending.
+
+- Task 4 completed (2026-11-06): Settings autonym radios, stable `useI18n` hook, localized shell/settings/sound names and web document language added. Real browser check passed for immediate updates, current-selection no-op/no write, rapid selections and reload; lint/typecheck passed. Commit checkpoints are deferred until the implementation is complete; no automatic commit/push is part of this implementation request.
+
+- Task 5 completed (2026-11-06): transient toast/timer/audio values now use semantic IDs; renderers and announcements resolve the current language. Callback/controller dependencies, timer cancellation wrappers, expiration windows and event IDs remain unchanged. Lint/typecheck and all 58 Node tests passed, including updated semantic completion/error assertions. Browser lifecycle scenarios follow in tasks 9–10.
+
+- Task 6 completed (2026-11-06): stopwatch/countdown faces, controls, labels, laps and shared sheets use the selected catalog; numeric input keys remain stable across locale changes. Lint/typecheck and all 12 selection/countdown browser cases passed. Complete three-language flows are expanded in task 9.
+
+- Task 7 completed (2026-11-06): planning list/editor/action rows/run controls localized, with generated names translated only when created and stored names unchanged. Lint/typecheck passed; 15/17 initial planning/button cases passed, and both legacy editor cases passed after their expected preferences included default `language: ro`. Fixture bytes and application behavior were unchanged for that assertion update.
+
+- Task 8 completed (2026-11-06): history/share use selected-language dates, 24-hour times, plural phrases and share text. `sessionText` and both consumers/tests moved atomically out of the core. Lint/typecheck, 59 Node tests and all four existing stopwatch/history browser journeys passed. Task 9 adds the three-language sharing and legacy hydration matrix.
+
+- Task 9 completed (2026-11-06): ten browser cases pass across Romanian/English/Russian complete flows, literal legacy hydration, saved names, sharing/AbortError/failure, default/unsupported languages despite foreign browser locales, repeated-selection no-op and rapid-choice reload. Lint/typecheck passed.
+
+- Task 10 completed (2026-11-06): all 19 localization/real-timer cases passed (51.2s). Coverage proves concurrent-clock identity and cumulative boundaries through locale changes, silent background catch-up, unchanged 3.5-second toast/error lifetimes, pending/playing real Chrome audio through locale changes, natural expiry and Stop. All four original native-browser-timer regressions remain passing. Lint/typecheck passed.
+
+- Task 11 completed (2026-11-06): all three languages × light/dark at 390px and Russian at 320/430/1024px covered. The initial 12-case matrix reproduced a 2px Russian tab overflow at 320px in both palettes; constrained text and compact tab spacing fixed it, with the same two cases passing afterward. Representative shell/settings/editor/confirmation screenshots were inspected; 44-point controls, full labels and scrolling were checked. The final full suite reruns all 12 layout cases. Android adb is absent in WSL and Windows; iOS native runtime, device large-text/VoiceOver/TalkBack/audio and independent native-speaker review remain pending.
+
+- Task 12 verification progress (2026-11-06): final lint/typecheck and 59 Node tests pass; one complete browser run passed all 95 cases in 4.6 minutes with existing 45-second limits, one worker and no retries. Fresh all-platform export is running. The tested 71-file source/test snapshot is `7a8eb12f7a5dbb126ab8096fad2191b075f0ffe3494b242218d7a91c84dc7d49`.
+
+- Task 12 completed (2026-11-06): README usage/default/offline/preservation guidance and the AGENTS language-extension guide were updated through `$aif-docs`. README remains 149 lines; relative links resolve. AGENTS/ARCHITECTURE/DESCRIPTION received factual new-layer, preference, semantic-notice and entry-point updates through the implementation context-maintenance boundary. Existing limits, WARN/ERROR-only logging, known follow-ups and device/signed-build limitations are retained. Documentation meaning preservation PASS; readability/technical review passed for the changed content, with no document restructuring.
+- Final verification: lint and typecheck passed; all 59 registered Node tests passed; all 95 browser cases passed in one run (4.6 minutes), with 45-second limits, one worker, no retries and unchanged loopback headers. Fresh Android/iOS/web exports passed (`npm run export`), including both native Hermes bundles. New dependencies and native config changes: none. Physical Android/iOS, large text, screen-reader speech/voice, audible phone behavior, and independent native-speaker review remain unverified, as documented.
+- Implementation baseline was advanced from the saved planning branch to current `master` at `4a62a0c17bd8f6627b7814c61dbd107636e31d6a` before edits. All twelve tasks are implemented locally on `feature/multilingual-support`; implementation changes are uncommitted and were not pushed. Commit checkpoints were deferred to complete the requested implementation. The named full plan is retained.
+- Refreshed implementation command catalog revision: `4ef445cdc28caa53a3b80348ca1dadaa988d8958552b02d68d2452db32b4c467`; `package.json` SHA-256: `1fc5ff4c535cd0056f10a7087c0f2fa71c1c2313a0e31f8b44de060d8f801c8d`; lockfile SHA-256: `9faa54bacbf3c0741e5d586438bd147df17dc598e460c03cf78bf64029609766`. Executed IDs: `package.json#/scripts/lint`, `/scripts/typecheck`, `/scripts/test`, `/scripts/test:e2e`, `/scripts/export` (all from CWD `.` using Windows Node/npm).
+- Browser/export source/test snapshot SHA-256: `7a8eb12f7a5dbb126ab8096fad2191b075f0ffe3494b242218d7a91c84dc7d49`. Compute over sorted POSIX relative paths for all `src/**/*.ts`, `src/**/*.tsx`, `tests/**/*.ts`, `tests/fixtures/*.json`, and `package.json`, `package-lock.json`, `playwright.config.ts`, `app.json`, `tsconfig.json`; feed each path, NUL, raw bytes, NUL. All 71 inputs remained unchanged between the complete browser run and fresh exports. The literal legacy fixture, prior feature plans, timing algorithms, native/browser sound transports and lockfile remain unchanged.
+- Final whitespace cleanup removed one redundant EOF blank line in `src/core/stopwatch.ts`, after the full browser/export runs. Hash comparison proved that adding precisely that newline reconstructs the tested source and every other input is identical. Lint, typecheck, all 59 Node tests and `git diff --check` passed after cleanup; full browser/export checks were not repeated for this whitespace-only change. Clean final source/test snapshot SHA-256: `84515deaaae9e9a77b4cefe2b3b9819cdd29f635c4589e609b0b6d1ad9bfd2d7` (same 71-path hashing contract).

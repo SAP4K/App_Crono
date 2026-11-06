@@ -2,7 +2,7 @@
 
 ## Purpose
 
-CRONO is a local stopwatch, countdown, and action schedule app for iOS and Android, with a web preview. Its interface is Romanian. Users can time activities, run ordered action sequences, record laps, save sessions, review history, and share results without an account or an application backend.
+CRONO is a local stopwatch, countdown, and action schedule app for iOS and Android, with a web preview. Its interface supports Romanian (default), English, and Russian through manual saved selection in Settings. Users can time activities, run ordered action sequences, record laps, save sessions, review history, and share results without an account or an application backend.
 
 ## Implemented Features
 
@@ -18,6 +18,7 @@ CRONO is a local stopwatch, countdown, and action schedule app for iOS and Andro
 - Play foreground action/final alerts, with one final event for the last action. Reconcile overdue timing silently on return/relaunch, without background alarms or notifications.
 - Restore active timing state, schedule snapshots/templates, laps, history, and preferences from local storage.
 - Save manual white/blue light or navy/blue dark selection (light default), sound ID/duration, automatic alerts, mobile haptic feedback, and screen wake lock preferences independently.
+- Select Romanian, English or Russian manually in Settings; save the choice independently, translate built-in copy/dates/counts/sharing/announcements, and retain user-entered names and timing/audio lifecycles.
 - Adapt the interface to compact screens, safe areas, and a constrained desktop preview width.
 
 ## Technology Stack
@@ -71,6 +72,8 @@ Read [ARCHITECTURE.md](ARCHITECTURE.md) for the actual folder structure, depende
 | `src/components/TimerFace.tsx`, `TimerCompletionNotice.tsx` | Local countdown display and completion feedback in shell/sheets |
 | `src/components/ScheduleEditorSheet.tsx`, `ScheduleStepRow.tsx` | Controlled drafts, ordered actions, validation, and explicit save/discard |
 | `src/components/PlanningRunCard.tsx`, `PlanningNotice.tsx`, `TimingNotices.tsx` | Local schedule display, controls, and shared notices/Stop in shell/sheets |
+| `src/core/language.ts`, `src/core/notices.ts` | Pure language registry/defaults and semantic transient notices |
+| `src/i18n/`, `src/hooks/useI18n.ts` | Typed stable catalogs, cached locale/plural/share formatting, and saved selection |
 | `src/theme.ts` | Pure semantic light/dark palettes and font-family names |
 
 ## Data and Persistence
@@ -82,13 +85,13 @@ The `AppData` object contains:
 - `timer`: status, configured duration, remaining snapshot, optional deadline, and run identity.
 - `planning`: saved schedules and an optional run snapshot containing its identity, source ID/name/actions, running/paused/completed status, current index, remaining milliseconds, and optional deadline.
 - `sessions`: saved session identifiers, save timestamps, total durations, and laps.
-- `preferences`: `haptics`, `keepAwake`, and `timerSound` booleans, `theme: 'light' | 'dark'`, `alertSoundId: 'classic' | 'bell' | 'digital' | 'gong'`, and `alertDurationSeconds: 5 | 15 | 30`. The legacy `timerSound` name now controls automatic timer and schedule alerts.
+- `preferences`: `language: 'ro' | 'en' | 'ru'`, `haptics`, `keepAwake`, and `timerSound` booleans, `theme: 'light' | 'dark'`, `alertSoundId: 'classic' | 'bell' | 'digital' | 'gong'`, and `alertDurationSeconds: 5 | 15 | 30`. The legacy `timerSound` name now controls automatic timer and schedule alerts.
 
 The hook stores the entire object as JSON under `@crono/app-v1`. Actions go through `update(action)`, which applies a functional transformation and queues a write. Its synchronous `{ changed, data }` result confirms in-memory acceptance, not durable storage; stable `getSnapshot()` reads the current accepted state. Additional writes are requested when the app leaves the active state. Display refreshes do not persist a new snapshot on every frame.
 
 `restoreData` validates unknown JSON and filters invalid stored records. Unsupported versions and malformed input fall back to initial data. This fallback is existing behavior, not a migration strategy for future schema changes.
 
-Optional timer/planning/preferences additions retain version 1 and the storage key. Missing or invalid fields independently default to light theme, an idle five-minute timer, empty planning, Clasic, and five-second sound; automatic alerts default on. Existing valid clocks/history and false preferences are preserved. Schedule restoration filters bad templates independently and rejects incoherent run snapshots independently; validated snapshots can outlive their source template. Valid overdue runs remain running until the provider reconciles them. A literal pre-planning fixture exercises compatibility through restoration, settings, real Classic asset playback, completion, and reload.
+Optional timer/planning/preferences additions retain version 1 and the storage key. Missing or invalid fields independently default to Romanian language, light theme, an idle five-minute timer, empty planning, Clasic, and five-second sound; automatic alerts default on. Existing valid clocks/history and false preferences are preserved. Schedule restoration filters bad templates independently and rejects incoherent run snapshots independently; validated snapshots can outlive their source template. Valid overdue runs remain running until the provider reconciles them. A literal pre-planning fixture exercises compatibility through restoration, settings, real Classic asset playback, completion, and reload.
 
 Time is derived from `Date.now()` timestamps and accumulated paused time. Background time counts on return. Manual changes to the device clock can affect measurements; this app does not provide a metrological accuracy guarantee.
 
@@ -118,7 +121,9 @@ Time is derived from `Date.now()` timestamps and accumulated paused time. Backgr
 | `npm run export` | Export JavaScript/assets for all platforms |
 | `npx expo-doctor` | Diagnose Expo dependency and configuration issues |
 
-Latest theme-refresh checks on 2026-11-05: 51 Node tests, lint/typecheck, and all 56 Playwright scenarios pass in one full browser run (7.6 minutes) against the development server on port 8091. The unchanged stopwatch journey passes in 21.7 seconds; 45-second timeouts and no retries are retained. Android/iOS/web export passed before the test-configuration fix, which does not change application code.
+Multilingual checks on 2026-11-06: lint/typecheck, all 59 Node tests, all 95 browser scenarios in one complete 4.6-minute run, and fresh Android/iOS/web exports passed. Both themes cover all three languages at 390px; Russian also covers 320/430/1024px. Tests cover manual saved choice, defaults/legacy data, user text, localized sharing, concurrent timing, pending/playing real audio, silent catch-up and unchanged feedback lifetimes. Native-device and independent native-speaker checks remain pending.
+
+Historical theme-refresh checks on 2026-11-05: 51 Node tests, lint/typecheck, and all 56 Playwright scenarios pass in one full browser run (7.6 minutes) against the development server on port 8091. The unchanged stopwatch journey passes in 21.7 seconds; 45-second timeouts and no retries are retained. Android/iOS/web export passed before the test-configuration fix, which does not change application code.
 
 The preceding verification run passed 55/56 browser scenarios: repeated compressed Metro bundle loads exhausted the stopwatch journey's time limit, including a 90-second diagnostic. Playwright now requests uncompressed responses from the local server, resolving that verification failure without changing assertions or application behavior.
 
@@ -148,6 +153,6 @@ Plan fixes separately and verify the relevant behavior before changing storage f
 - Installed workflow skills: `../.agents/skills/` (33 existing AI Factory skills).
 - Communication and generated artifact languages: English, as configured.
 - Git base branch: `master`; new full/ultra plans may create branches using `feature/`.
-- Latest implementation plan: `plans/feature-planning-button-feedback.md`; earlier completed implementations remain at `plans/feature-white-blue-theme.md`, `plans/feature-sound-settings-schedules.md`, and `plans/feature-dark-mode-preference.md`. No roadmap or research artifact is present.
+- Latest implementation plan: `plans/feature-multilingual-support.md`; earlier completed implementations remain at `plans/feature-planning-button-feedback.md`, `plans/feature-white-blue-theme.md`, `plans/feature-sound-settings-schedules.md`, and `plans/feature-dark-mode-preference.md`. No roadmap or research artifact is present.
 
 The connected GitHub app is available in the current agent session. No repository-level MCP server configuration is present. Reuse host-provided integrations when available; additional servers should address a concrete project need.

@@ -1,3 +1,4 @@
+import { useI18n } from '../hooks/useI18n';
 import { useEffect, useState } from 'react';
 import { AppState, Platform, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
@@ -7,6 +8,7 @@ import { useTheme, useThemeStyles } from '../context/ThemeContext';
 import { fonts as f, Palette } from '../theme';
 
 export function TimerFace({ timer }: { timer: TimerState }) {
+  const { messages: m } = useI18n();
   const { colors: c } = useTheme();
   const styles = useThemeStyles(createStyles);
   const { width, height } = useWindowDimensions();
@@ -34,13 +36,13 @@ export function TimerFace({ timer }: { timer: TimerState }) {
   const radius = size / 2 - 8;
   const circumference = 2 * Math.PI * radius;
   const remaining = remainingTime(timer, now);
-  const status = { idle: 'Pregătit de start', running: 'Numărătoare inversă', paused: 'Temporizator în pauză', completed: 'Timpul a expirat' }[timer.status];
+  const status = { idle: m.timerIdle, running: m.timerRunning, paused: m.timerPaused, completed: m.timerExpired }[timer.status];
   return <View style={[styles.face, { width: size, height: size }]}>
     <Svg width={size} height={size} style={StyleSheet.absoluteFill} aria-hidden>
       <Circle cx={size / 2} cy={size / 2} r={radius} stroke={c.border} strokeWidth={3} fill="none" />
       <Circle cx={size / 2} cy={size / 2} r={radius} stroke={c.green} strokeWidth={4} fill="none" strokeDasharray={`${circumference} ${circumference}`} strokeDashoffset={circumference * (1 - remaining / timer.durationMs)} transform={`rotate(-90 ${size / 2} ${size / 2})`} />
     </Svg>
-    <Text style={[styles.digits, { fontSize: size * 0.135 }]} accessibilityLabel={`Timp rămas ${formatRemaining(remaining)}`}>{formatRemaining(remaining)}</Text>
+    <Text style={[styles.digits, { fontSize: size * 0.135 }]} accessibilityLabel={m.remainingTime(formatRemaining(remaining))}>{formatRemaining(remaining)}</Text>
     <Text style={styles.status}>{status}</Text>
   </View>;
 }

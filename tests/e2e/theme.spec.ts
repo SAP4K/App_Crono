@@ -86,7 +86,7 @@ test('literal legacy-v1 clocks, history and false preferences survive the blue t
   expect(restored.timer).toEqual(legacy.timer);
   expect(restored.sessions).toEqual(legacy.sessions);
   expect(restored.planning).toEqual({ schedules: [], run: null });
-  expect(restored.preferences).toEqual({ ...legacy.preferences, theme: 'light', alertSoundId: 'classic', alertDurationSeconds: 5 });
+  expect(restored.preferences).toEqual({ ...legacy.preferences, language: 'ro', theme: 'light', alertSoundId: 'classic', alertDurationSeconds: 5 });
 });
 
 for (const owner of ['timer', 'planning']) for (const startup of ['pending', 'playing']) {
