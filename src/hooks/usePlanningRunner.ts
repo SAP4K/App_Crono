@@ -1,3 +1,4 @@
+import { getMessages } from '../i18n';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AccessibilityInfo, Platform } from 'react-native';
 import type { ScheduleBoundary } from '../core/planning';
@@ -17,8 +18,9 @@ export function usePlanningRunner({ getSnapshot, update, ready }: Store, data: A
   const [boundary, setBoundary] = useState<ScheduleBoundary | null>(null);
   const notify = useCallback((event: ScheduleBoundary) => {
     setBoundary(event);
-    if (Platform.OS !== 'web') AccessibilityInfo.announceForAccessibility(event.kind === 'schedule-complete' ? 'Orarul s-a încheiat.' : `Etapă încheiată: ${event.stepName}.`);
-  }, []);
+    const m = getMessages(getSnapshot().preferences.language);
+    if (Platform.OS !== 'web') AccessibilityInfo.announceForAccessibility(event.kind === 'schedule-complete' ? m.scheduleAnnouncement : m.stepAnnouncement(event.stepName));
+  }, [getSnapshot]);
   const controls = useMemo(() => createPlanningRunner({ getSnapshot, update, alerts, notify, isActive: isAppActive,
     now: Date.now, createId: createRunId,
     schedule: (callback, delay) => setTimeout(callback, delay), cancel: (handle) => clearTimeout(handle),

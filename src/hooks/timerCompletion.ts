@@ -1,3 +1,4 @@
+import type { TimerNotice } from '../core/notices.ts';
 import type { AppData } from '../core/stopwatch.ts';
 import { completeTimer, configureTimer, pauseTimer, remainingTime, resetTimer, resumeTimer, startTimer } from '../core/timer.ts';
 import type { TimerState } from '../core/timer.ts';
@@ -10,7 +11,7 @@ type Adapters = TimerAudio & {
   isActive: () => boolean;
   now: () => number;
   createId: () => string;
-  notify: (message: string) => void;
+  notify: (message: TimerNotice) => void;
   schedule: (callback: () => void, delay: number) => ReturnType<typeof setTimeout>;
   cancel: (handle: ReturnType<typeof setTimeout>) => void;
 };
@@ -42,7 +43,7 @@ export function createTimerCoordinator(a: Adapters) {
     handled.add(timer.runId);
     // Only the most recent run can complete; keep deduplication bounded.
     if (handled.size > 2) handled.delete(handled.values().next().value!);
-    a.notify('Timpul a expirat.');
+    a.notify('timer-complete');
     if (!soundAllowed || !a.isActive() || !a.getSnapshot().preferences.timerSound) return;
     soundingRun = timer.runId;
     const ticket = ++audioGeneration;
@@ -54,7 +55,7 @@ export function createTimerCoordinator(a: Adapters) {
     void a.play(allowed, { runId: timer.runId, dueAt }).catch((error) => {
       if (!allowed()) return;
       console.warn('[timer] Completion sound unavailable.', error);
-      a.notify('Timpul a expirat. Sunetul nu este disponibil acum.');
+      a.notify('timer-sound-unavailable');
     });
   }
 

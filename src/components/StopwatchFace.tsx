@@ -1,3 +1,4 @@
+import { useI18n } from '../hooks/useI18n';
 import { useEffect, useState } from 'react';
 import { AppState, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Svg, { Circle, Line } from 'react-native-svg';
@@ -6,6 +7,7 @@ import { fonts as f, Palette } from '../theme';
 import { useTheme, useThemeStyles } from '../context/ThemeContext';
 
 export function StopwatchFace({ stopwatch }: { stopwatch: Stopwatch }) {
+  const { messages: m } = useI18n();
   const { colors: c } = useTheme();
   const styles = useThemeStyles(createStyles);
   const [now, setNow] = useState(Date.now);
@@ -53,19 +55,19 @@ export function StopwatchFace({ stopwatch }: { stopwatch: Stopwatch }) {
           <Circle cx={center + Math.cos(angle) * radius} cy={center + Math.sin(angle) * radius} r="6.5" fill={c.lime} stroke={c.ink} strokeWidth="2" />
         </Svg>
         <View style={styles.readout}>
-          <Text style={styles.label}>TIMP TOTAL</Text>
-          <View style={styles.digits} accessible accessibilityLabel={`Timp total ${formatted}`} accessibilityLiveRegion="none">
+          <Text style={styles.label}>{m.totalTimeUpper}</Text>
+          <View style={styles.digits} accessible accessibilityLabel={m.totalTime(formatted)} accessibilityLiveRegion="none">
             <Text maxFontSizeMultiplier={1.15} style={[styles.time, { fontSize: long ? size * 0.132 : size * 0.185 }]}>{formatted.slice(0, decimalAt)}</Text>
             <Text maxFontSizeMultiplier={1.15} style={[styles.fraction, { fontSize: long ? size * 0.075 : size * 0.091 }]}>.{formatted.slice(decimalAt + 1)}</Text>
           </View>
           <View style={[styles.status, running && styles.statusActive]}>
             <View style={[styles.dot, { backgroundColor: running ? c.green : c.subtle }]} />
-            <Text style={[styles.statusText, running && { color: c.green }]}>{running ? 'În desfășurare' : total > 0 ? 'În pauză' : 'Gata de start'}</Text>
+            <Text style={[styles.statusText, running && { color: c.green }]}>{running ? m.inProgress : total > 0 ? m.paused : m.ready}</Text>
           </View>
         </View>
       </View>
       <View style={[styles.currentLap, compact && { marginTop: 12, marginBottom: 17 }]}>
-        <Text style={styles.currentLabel}>Tura curentă <Text style={styles.lapNumber}>{String(stopwatch.laps.length + 1).padStart(2, '0')}</Text></Text>
+        <Text style={styles.currentLabel}>{m.currentLap} <Text style={styles.lapNumber}>{String(stopwatch.laps.length + 1).padStart(2, '0')}</Text></Text>
         <Text style={styles.currentTime} maxFontSizeMultiplier={fontScale > 1.5 ? 1.25 : 1.5}>{formatTime(Math.max(0, total - (stopwatch.laps.at(-1)?.elapsedMs ?? 0)))}</Text>
       </View>
     </View>

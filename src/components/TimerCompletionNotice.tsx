@@ -1,15 +1,17 @@
+import { useI18n } from '../hooks/useI18n';
 import { StyleSheet, Text, View } from 'react-native';
 import { useCrono } from '../context/CronoContext';
 import { useThemeStyles } from '../context/ThemeContext';
 import { fonts as f, Palette } from '../theme';
 
 export function TimerCompletionNotice() {
+  const { messages: m } = useI18n();
   const { data, alerts } = useCrono();
   const styles = useThemeStyles(createStyles);
   if (data.timer.status !== 'completed') return null;
   const error = alerts.state.request?.eventId === `timer:${data.timer.runId}` ? alerts.state.error : null;
-  return <View style={styles.notice} accessibilityLabel="Temporizator finalizat" accessibilityLiveRegion="polite">
-    <Text style={styles.text}>{error ? `Timpul a expirat. ${error}` : 'Timpul a expirat.'}</Text>
+  return <View style={styles.notice} accessibilityLabel={m.timerCompleted} accessibilityLiveRegion="polite">
+    <Text style={styles.text}>{error ? `${m.timerComplete} ${m.soundUnavailable}` : m.timerComplete}</Text>
   </View>;
 }
 

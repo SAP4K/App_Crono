@@ -1,3 +1,4 @@
+import { useI18n } from '../hooks/useI18n';
 import { useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useCrono } from '../context/CronoContext';
@@ -12,6 +13,7 @@ import { PlanningRunCard } from '../components/PlanningRunCard';
 import { buttonPressedStyle, fonts as f, Palette } from '../theme';
 
 export default function PlanningScreen() {
+  const { messages: m } = useI18n();
   const { data, update, feedback, notify, planning } = useCrono(); const styles = useThemeStyles(createStyles);
   const [editor, setEditor] = useState<{ schedule: Schedule; isNew: boolean } | null>(null);
   const [deleting, setDeleting] = useState<Schedule | null>(null);
@@ -20,7 +22,7 @@ export default function PlanningScreen() {
   const start = (schedule: Schedule) => {
     feedback();
     if (data.planning.run && data.planning.run.status !== 'completed') setReplacing(schedule);
-    else if (!planning.controls.start(schedule.id)) notify('Orarul nu poate fi pornit acum.');
+    else if (!planning.controls.start(schedule.id)) notify('scheduleUnavailable');
   };
   const save = (schedule: Schedule): boolean => {
     const result = update((previous) => {
@@ -29,38 +31,38 @@ export default function PlanningScreen() {
     });
     const saved = result.data.planning.schedules.find((item) => item.id === schedule.id);
     const accepted = result.changed || JSON.stringify(saved) === JSON.stringify(schedule);
-    if (accepted) { feedback(); notify('Orar salvat.'); }
+    if (accepted) { feedback(); notify('scheduleSaved'); }
     return accepted;
   };
   return <View style={styles.content}>
-    <Text accessibilityRole="header" style={styles.title}>Planificare</Text>
-    <Text style={styles.subtitle}>Mai multe etape. Un ritm ales de tine.</Text>
+    <Text accessibilityRole="header" style={styles.title}>{m.planningTab}</Text>
+    <Text style={styles.subtitle}>{m.planningSubtitle}</Text>
     <Pressable accessibilityRole="button" disabled={scheduleLimit} onPress={() => {
-      feedback(); setEditor({ isNew: true, schedule: { id: createTimingId(), name: '', steps: [{ id: createTimingId(), name: 'Etapa 1', durationMs: 300000 }] } });
-    }} style={({ pressed }) => [styles.primary, pressed && !scheduleLimit && buttonPressedStyle, scheduleLimit && styles.disabled]}><Text style={styles.primaryText}>Orar nou</Text></Pressable>
-    <Text style={styles.limit}>{data.planning.schedules.length}/{MAX_SCHEDULES} orare salvate · un singur orar activ</Text>
+      feedback(); setEditor({ isNew: true, schedule: { id: createTimingId(), name: '', steps: [{ id: createTimingId(), name: m.stepNumber(1), durationMs: 300000 }] } });
+    }} style={({ pressed }) => [styles.primary, pressed && !scheduleLimit && buttonPressedStyle, scheduleLimit && styles.disabled]}><Text style={styles.primaryText}>{m.newSchedule}</Text></Pressable>
+    <Text style={styles.limit}>{m.scheduleLimit(data.planning.schedules.length, MAX_SCHEDULES)}</Text>
     <FlatList data={data.planning.schedules} keyExtractor={(item) => item.id} contentContainerStyle={styles.list} ListHeaderComponent={<PlanningRunCard />}
-      ListEmptyComponent={<Text style={styles.empty}>Creează un orar cu acțiuni și durate, apoi urmează etapele pe rând.</Text>}
+      ListEmptyComponent={<Text style={styles.empty}>{m.planningEmpty}</Text>}
       renderItem={({ item }) => {
         const protectedTemplate = isProtectedSchedule(data.planning, item.id);
         return <View style={styles.card}>
           <Text style={styles.name}>{item.name}</Text>
-          <Text style={styles.subtitle}>{item.steps.length} etape · {formatRemaining(item.steps.reduce((sum, step) => sum + step.durationMs, 0))}</Text>
-          {protectedTemplate && <Text style={styles.limit}>Oprește orarul înainte să îl modifici.</Text>}
+          <Text style={styles.subtitle}>{m.stepCount(item.steps.length)} · {formatRemaining(item.steps.reduce((sum, step) => sum + step.durationMs, 0))}</Text>
+          {protectedTemplate && <Text style={styles.limit}>{m.protectedSchedule}</Text>}
           <View style={styles.actions}>
-            <Pressable accessibilityRole="button" accessibilityLabel={`Pornește orarul ${item.name}`} disabled={protectedTemplate} onPress={() => start(item)} style={({ pressed }) => [styles.secondary, pressed && !protectedTemplate && buttonPressedStyle, protectedTemplate && styles.disabled]}><Text style={styles.secondaryText}>Pornește</Text></Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel={`Editează orarul ${item.name}`} disabled={protectedTemplate} onPress={() => { feedback(); setEditor({ schedule: item, isNew: false }); }} style={({ pressed }) => [styles.secondary, pressed && !protectedTemplate && buttonPressedStyle, protectedTemplate && styles.disabled]}><Text style={styles.secondaryText}>Editează</Text></Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel={`Șterge orarul ${item.name}`} disabled={protectedTemplate} onPress={() => { feedback(); setDeleting(item); }} style={({ pressed }) => [styles.secondary, pressed && !protectedTemplate && buttonPressedStyle, protectedTemplate && styles.disabled]}><Text style={styles.danger}>Șterge</Text></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={m.startSchedule(item.name)} disabled={protectedTemplate} onPress={() => start(item)} style={({ pressed }) => [styles.secondary, pressed && !protectedTemplate && buttonPressedStyle, protectedTemplate && styles.disabled]}><Text style={styles.secondaryText}>{m.start}</Text></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={m.editSchedule(item.name)} disabled={protectedTemplate} onPress={() => { feedback(); setEditor({ schedule: item, isNew: false }); }} style={({ pressed }) => [styles.secondary, pressed && !protectedTemplate && buttonPressedStyle, protectedTemplate && styles.disabled]}><Text style={styles.secondaryText}>{m.edit}</Text></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={m.deleteSchedule(item.name)} disabled={protectedTemplate} onPress={() => { feedback(); setDeleting(item); }} style={({ pressed }) => [styles.secondary, pressed && !protectedTemplate && buttonPressedStyle, protectedTemplate && styles.disabled]}><Text style={styles.danger}>{m.delete}</Text></Pressable>
           </View>
         </View>;
       }} />
     {editor && <ScheduleEditorSheet schedule={editor.schedule} isNew={editor.isNew} onClose={() => setEditor(null)} onSave={save} />}
-    <ConfirmSheet visible={deleting !== null} title="Ștergi orarul?" description="Orarul și etapele sale vor fi șterse de pe acest dispozitiv." confirmLabel="Șterge orarul" onClose={() => setDeleting(null)} onConfirm={() => {
+    <ConfirmSheet visible={deleting !== null} title={m.deleteScheduleTitle} description={m.deleteScheduleHelp} confirmLabel={m.deleteScheduleConfirm} onClose={() => setDeleting(null)} onConfirm={() => {
       if (!deleting) return;
       feedback(); update((previous) => { const planning = deleteSchedule(previous.planning, deleting.id); return planning === previous.planning ? previous : { ...previous, planning }; }); setDeleting(null);
     }} />
-    <ConfirmSheet visible={replacing !== null} title="Înlocuiești orarul activ?" description="Orarul curent se va opri. Noul orar începe de la prima etapă." confirmLabel="Înlocuiește orarul" onClose={() => setReplacing(null)} onConfirm={() => {
-      if (replacing) { feedback(); if (!planning.controls.start(replacing.id, true)) notify('Orarul nu poate fi pornit acum.'); }
+    <ConfirmSheet visible={replacing !== null} title={m.replaceScheduleTitle} description={m.replaceScheduleHelp} confirmLabel={m.replaceScheduleConfirm} onClose={() => setReplacing(null)} onConfirm={() => {
+      if (replacing) { feedback(); if (!planning.controls.start(replacing.id, true)) notify('scheduleUnavailable'); }
       setReplacing(null);
     }} />
   </View>;

@@ -25,19 +25,19 @@ When developing on Windows, you can run the app on a physical iPhone using Expo 
 - Start, pause, and resume; reset with confirmation.
 - Time displayed to hundredths of a second, with hours shown automatically for long sessions.
 - Individual lap durations and cumulative times, with the fastest laps highlighted and average lap times displayed.
-- Save sessions, view details, share results, and delete sessions with confirmation.
-- Keep the latest 50 sessions, with up to 1,000 laps per session.
-- Run an independent countdown alongside the stopwatch, with pause/resume and a completion sound.
-- Save multiple action schedules and run one sequence automatically alongside both clocks.
+- Save the latest 50 sessions with up to 1,000 laps each, view details, share results, and delete with confirmation.
+- Run an independent countdown with pause/resume and a completion sound; save multiple action schedules and run one sequence automatically alongside both clocks.
 - Choose from four bundled sounds with 5, 15, or 30 seconds of playback, preview, and Stop controls.
 - Choose white/blue light or navy/blue dark mode and save that preference across launches.
 - Restore the active stopwatch, countdown, schedule, laps, and settings after closing and reopening the app.
 - Haptic feedback and screen wake lock on mobile, each with its own setting.
-- Romanian interface, bundled fonts, and no account or dedicated backend required.
+- Romanian, English, and Russian interfaces, bundled fonts, and no account or dedicated backend required.
 
 Tap **Pauză → Salvează sesiunea** (Pause → Save session) to keep your result and prepare a new stopwatch session. In **Istoric** (History), tap a session to view its details and share it. On the web, results are copied to the clipboard if the browser does not support native sharing.
 
-## Theme, Timer, and Sound
+## Language, Theme, Timer, and Sound
+
+Open the gear button (**Setări / Settings / Настройки**) and choose **Română**, **English**, or **Русский** under Language. Romanian is the default, including older data and unsupported saved choices; device/browser language is not detected. Your manual selection is saved and works offline. Labels, dates, plural phrases, accessible names, notices, and shared results use that choice. Existing schedule/action names and history remain unchanged; new default action names use the selected language. Switching language preserves clocks and pending/playing audio. The examples below use the default Romanian labels. To extend support, follow [Adding a language](AGENTS.md#adding-a-language).
 
 Light mode uses white backgrounds and blue accents; dark mode uses navy backgrounds and lighter blue accents across the four tabs, controls, and sheets. Open the gear button (**Setări**) and enable **Mod întunecat** for dark mode. Light is the default. Your manual choice is saved and takes priority over the phone/browser appearance.
 
@@ -65,7 +65,7 @@ The stopwatch calculates the difference between timestamps instead of accumulati
 
 The countdown and schedule use absolute deadlines, with local foreground display refreshes every 200 ms. Schedule deadlines remain anchored to preceding actions; a delayed callback catches up without replaying every missed sound. Positive fractions round up to the next displayed second. Pausing freezes the exact remaining milliseconds. Device clock changes can affect both activities too.
 
-Data is stored locally using AsyncStorage. Version 1 and `@crono/app-v1` are retained: older data defaults to empty schedules, Clasic, and 5 seconds while preserving valid clocks, history, theme, and false preferences. A running schedule saves a snapshot of its actions. Uninstalling the app or clearing browser data removes local data. Haptic feedback and screen wake lock apply only to mobile. With **Ecran mereu activ** enabled, one wake guard covers any running stopwatch, timer, or schedule.
+Data is stored locally using AsyncStorage. Version 1 and `@crono/app-v1` are retained: older data defaults to Romanian, empty schedules, Clasic, and 5 seconds while preserving valid clocks, history, theme, and false preferences. A running schedule saves a snapshot of its actions. Uninstalling the app or clearing browser data removes local data. Haptic feedback and screen wake lock apply only to mobile. With **Ecran mereu activ** enabled, one wake guard covers any running stopwatch, timer, or schedule.
 
 ## Checks
 
@@ -114,7 +114,7 @@ Source: [lee-to/ai-factory](https://github.com/lee-to/ai-factory).
 
 ## Verification Status
 
-Planning button checks on November 6, 2026 passed lint, typecheck, all 51 core/coordinator/contrast tests, and 44 targeted browser scenarios: eight new interaction cases and 36 planning/theme/real-timer regressions. Light/dark screenshots were inspected at 320/390px. The previous full run on November 5 passed all 60 then-existing browser scenarios (10.5 minutes) and fresh Android/iOS/web exports; the full suite and exports were not repeated for this style change. Tests retain 45-second limits and no retries.
+Multilingual checks on November 6, 2026 passed lint, typecheck, all 59 Node tests and all 95 browser scenarios in one complete run (4.6 minutes). Fresh Android/iOS/web exports also passed. Earlier Planning button checks passed lint, typecheck, all 51 core/coordinator/contrast tests, and 44 targeted browser scenarios: eight new interaction cases and 36 planning/theme/real-timer regressions. Light/dark screenshots were inspected at 320/390px. The previous full run on November 5 passed all 60 then-existing browser scenarios (10.5 minutes) and fresh Android/iOS/web exports; the full suite and exports were not repeated for this style change. Tests retain 45-second limits and no retries.
 
 Four regressions using real browser timers first reproduced `Illegal invocation` during preview playback, failed audio loading, countdown pause, and schedule pause. All four pass after wrapping `clearTimeout` in the three hook adapters. The new tests use Chrome's actual timers and media player; preview tests serve the committed Classic WAV bytes directly to isolate local Metro asset-transfer latency, including an explicit failed-load/retry case. Existing checks still fetch and decode all four effects from the development server. Fake-clock tests retain deterministic duration and race coverage.
 
@@ -122,7 +122,7 @@ An earlier verification run passed 55/56 browser scenarios because repeated comp
 
 Coverage includes both palettes at 320/390/430/1024px, saved/legacy preferences, pending/playing alerts during theme changes, independent activities, modal completion/Stop, mute/blocked/stale playback, silent catch-up, and decoding all four effects. Each palette checks 31 foreground/surface contrast pairs; all 12 sound/duration combinations retain controller boundary coverage. Representative screenshots were visually inspected. The earlier baseline passed all 21 Expo Doctor checks; this theme refresh adds no dependencies.
 
-Exporting JavaScript/Hermes bundles for Android and iOS does not replace physical-phone testing. Audible choices/durations and Stop, silent mode/audio routing, schedule keyboard behavior, press gestures/haptics, native wake lock, cold-launch appearance/status/navigation bars, and locked/background transitions remain pending on devices. No device was connected for this validation. No signed APK/IPA builds or app store releases have been produced.
+Exporting JavaScript/Hermes bundles for Android and iOS does not replace physical-phone testing. Audible choices/durations and Stop, silent mode/audio routing, schedule keyboard behavior, press gestures/haptics, native wake lock, cold-launch appearance/status/navigation bars, and locked/background transitions remain pending on devices. Cyrillic/diacritic rendering, large text, translated VoiceOver/TalkBack announcements, selected-language relaunch, and independent native-speaker review also remain pending. No device was connected for this validation. No signed APK/IPA builds or app store releases have been produced.
 
 During installation, `npm audit` reported vulnerabilities in transitive Expo dependencies and development tools, including `decode-uri-component` and `zod`. Available compatible updates were applied; no migrations to other major SDK versions were forced. The audit must be reassessed before a public release.
 
@@ -132,7 +132,8 @@ During installation, `npm audit` reported vulnerabilities in transitive Expo dep
 src/app/          Screens and Expo Router navigation
 src/components/   Dials, schedule editor/run card, shared alerts, laps, sheets, and settings
 src/context/      Shared state, theme, haptic feedback, and screen wake lock
-src/core/         Pure stopwatch/countdown/schedule logic, sound catalog, and validation
+src/core/         Pure timing, language/sound registries, semantic notices, and validation
+src/i18n/         Typed Romanian/English/Russian catalogs, plurals, dates, and sharing
 src/hooks/        Serialized persistence, global timing runners, and shared platform audio
 src/audio/        Static bundled sound source map
 tests/            Logic and UI tests

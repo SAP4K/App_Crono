@@ -1,3 +1,4 @@
+import { useI18n } from '../hooks/useI18n';
 import { ComponentProps, useEffect, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
@@ -27,7 +28,9 @@ export default function RootLayout() {
 }
 
 function RootContent({ fontsReady }: { fontsReady: boolean }) {
+  const { language, messages: m } = useI18n();
   const { ready } = useCrono();
+  useEffect(() => { if (Platform.OS === 'web') document.documentElement.lang = language; }, [language]);
   const { colors: c, mode } = useTheme();
   const styles = useThemeStyles(createStyles);
   useEffect(() => {
@@ -37,35 +40,37 @@ function RootContent({ fontsReady }: { fontsReady: boolean }) {
   }, [ready, fontsReady]);
   return <><StatusBar style={mode === 'dark' ? 'light' : 'dark'} />{ready && fontsReady
     ? <AppShell />
-    : <View style={styles.loading}><ActivityIndicator color={c.green} accessibilityLabel="Se încarcă aplicația" /></View>}</>;
+    : <View style={styles.loading}><ActivityIndicator color={c.green} accessibilityLabel={m.loadingApp} /></View>}</>;
 }
 
 type TabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>>[0];
-const tabItems: Record<string, { title: string; icon: IconName }> = {
-  index: { title: 'Cronometru', icon: 'clock' },
-  timer: { title: 'Timer', icon: 'timer' },
-  planning: { title: 'Planificare', icon: 'planning' },
-  history: { title: 'Istoric', icon: 'history' },
+const tabItems: Record<string, { title: 'stopwatchTab' | 'timerTab' | 'planningTab' | 'historyTab'; icon: IconName }> = {
+  index: { title: 'stopwatchTab', icon: 'clock' },
+  timer: { title: 'timerTab', icon: 'timer' },
+  planning: { title: 'planningTab', icon: 'planning' },
+  history: { title: 'historyTab', icon: 'history' },
 };
 
 function TabBar({ state, navigation }: TabBarProps) {
+  const { messages: m } = useI18n();
+  const compact = useWindowDimensions().width < 360;
   const { colors: c } = useTheme();
   const styles = useThemeStyles(createStyles);
   const insets = useSafeAreaInsets();
   const { data, feedback } = useCrono();
-  return <View style={[styles.tabBar, { paddingBottom: Math.max(insets.bottom, 14) }]}>
+  return <View style={[styles.tabBar, compact && styles.compactTabBar, { paddingBottom: Math.max(insets.bottom, 14) }]}>
     {state.routes.map((route, index) => {
       const selected = state.index === index;
       const history = route.name === 'history';
       const item = tabItems[route.name];
       if (!item) return null;
       const running = route.name === 'timer' ? data.timer.status === 'running' : route.name === 'planning' ? data.planning.run?.status === 'running' : route.name === 'index' && data.stopwatch.startedAt !== null;
-      return <Pressable key={route.key} accessibilityRole="tab" accessibilityLabel={item.title} accessibilityState={{ selected }} aria-selected={selected} onPress={() => {
+      return <Pressable key={route.key} accessibilityRole="tab" accessibilityLabel={m[item.title]} accessibilityState={{ selected }} aria-selected={selected} onPress={() => {
         const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
         if (!selected && !event.defaultPrevented) { feedback(); navigation.navigate(route.name, route.params); }
-      }} style={({ pressed }) => [styles.tab, selected && styles.selectedTab, pressed && { opacity: 0.6 }]}>
+      }} style={({ pressed }) => [styles.tab, compact && styles.compactTab, selected && styles.selectedTab, pressed && { opacity: 0.6 }]}>
         <Icon name={item.icon} size={19} color={selected ? c.ink : c.muted} />
-        <Text style={[styles.tabText, selected && styles.selectedTabText]}>{item.title}</Text>
+        <Text style={[styles.tabText, selected && styles.selectedTabText]}>{m[item.title]}</Text>
         {history && data.sessions.length > 0 && <View style={styles.badge}><Text style={styles.badgeText}>{data.sessions.length}</Text></View>}
         {running && <View style={styles.runningDot} />}
       </Pressable>;
@@ -74,28 +79,29 @@ function TabBar({ state, navigation }: TabBarProps) {
 }
 
 function AppShell() {
+  const { messages: m } = useI18n();
   const { colors: c } = useTheme();
   const styles = useThemeStyles(createStyles);
   const insets = useSafeAreaInsets();
   const { ready, notice, storageError, dismissStorageError, feedback } = useCrono();
   const [settings, setSettings] = useState(false);
   const compact = useWindowDimensions().height < 740;
-  if (!ready) return <View style={styles.loading}><ActivityIndicator color={c.green} accessibilityLabel="Se încarcă sesiunea" /></View>;
+  if (!ready) return <View style={styles.loading}><ActivityIndicator color={c.green} accessibilityLabel={m.loadingSession} /></View>;
   return <View style={styles.desktop}><View style={styles.app}>
     <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) }, compact && { paddingBottom: 16 }]}>
       <View style={styles.logoGroup}><View style={styles.logo}><Icon name="clock" size={22} color={c.onAccent} /></View><Text style={styles.wordmark}>CRONO<Text style={{ color: c.green }}>.</Text></Text></View>
-      <Pressable accessibilityLabel="Setări" accessibilityRole="button" onPress={() => { feedback(); setSettings(true); }} style={({ pressed }) => [styles.settings, pressed && { opacity: 0.55 }]}><Icon name="settings" size={19} /></Pressable>
+      <Pressable accessibilityLabel={m.settings} accessibilityRole="button" onPress={() => { feedback(); setSettings(true); }} style={({ pressed }) => [styles.settings, pressed && { opacity: 0.55 }]}><Icon name="settings" size={19} /></Pressable>
     </View>
-    {storageError && <Pressable onPress={dismissStorageError} accessibilityRole="button" accessibilityLabel="Închide avertizarea de salvare" style={styles.warning}><Text style={styles.warningText}>Salvarea locală nu este disponibilă. Datele se pot pierde la închidere.</Text><Icon name="close" size={15} color={c.danger} /></Pressable>}
+    {storageError && <Pressable onPress={dismissStorageError} accessibilityRole="button" accessibilityLabel={m.dismissStorage} style={styles.warning}><Text style={styles.warningText}>{m.storageWarning}</Text><Icon name="close" size={15} color={c.danger} /></Pressable>}
     <TimingNotices />
     <Tabs initialRouteName="index" backBehavior="initialRoute" tabBar={(props) => <TabBar {...props} />} screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: c.background }, animation: 'none' }}>
-      <Tabs.Screen name="index" options={{ title: 'Cronometru' }} />
-      <Tabs.Screen name="timer" options={{ title: 'Timer' }} />
-      <Tabs.Screen name="planning" options={{ title: 'Planificare' }} />
-      <Tabs.Screen name="history" options={{ title: 'Istoric' }} />
+      <Tabs.Screen name="index" options={{ title: m.stopwatchTab }} />
+      <Tabs.Screen name="timer" options={{ title: m.timerTab }} />
+      <Tabs.Screen name="planning" options={{ title: m.planningTab }} />
+      <Tabs.Screen name="history" options={{ title: m.historyTab }} />
     </Tabs>
     <SettingsSheet visible={settings} onClose={() => setSettings(false)} />
-    {notice && !notice.startsWith('Timpul a expirat.') && <View pointerEvents="none" style={styles.toast} accessibilityLiveRegion="polite"><Icon name="check" size={17} color={c.lime} /><Text style={styles.toastText}>{notice}</Text></View>}
+    {notice && <View pointerEvents="none" style={styles.toast} accessibilityLiveRegion="polite"><Icon name="check" size={17} color={c.lime} /><Text style={styles.toastText}>{m[notice]}</Text></View>}
   </View></View>;
 }
 
@@ -109,9 +115,11 @@ const createStyles = (c: Palette) => StyleSheet.create({
   wordmark: { fontFamily: f.heavy, fontSize: 22, letterSpacing: -0.9, color: c.ink },
   settings: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.border, borderRadius: 16 },
   tabBar: { flexDirection: 'row', paddingHorizontal: 16, paddingTop: 10, gap: 8, backgroundColor: c.background, borderTopWidth: 1, borderTopColor: c.border },
+  compactTabBar: { paddingHorizontal: 8, gap: 4 },
   tab: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: 58, borderRadius: 14, paddingHorizontal: 4, paddingVertical: 9 },
+  compactTab: { paddingHorizontal: 0 },
   selectedTab: { backgroundColor: c.selected },
-  tabText: { fontFamily: f.medium, fontSize: 11, color: c.muted },
+  tabText: { fontFamily: f.medium, fontSize: 11, color: c.muted, maxWidth: '100%', flexShrink: 1, textAlign: 'center' },
   selectedTabText: { color: c.ink, fontFamily: f.semibold },
   badge: { position: 'absolute', top: 5, right: 8, backgroundColor: c.badge, paddingHorizontal: 5, minWidth: 18, borderRadius: 5, height: 17, alignItems: 'center', justifyContent: 'center' },
   badgeText: { fontFamily: f.semibold, fontSize: 9, color: c.green },

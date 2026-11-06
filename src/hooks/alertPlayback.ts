@@ -1,3 +1,4 @@
+import type { PlaybackError } from '../core/notices.ts';
 import type { AlertDuration, SoundId } from '../core/sounds.ts';
 
 export type AlertOwner = 'timer' | 'planning' | 'preview';
@@ -6,7 +7,7 @@ export type AlertRequest = {
   owner: AlertOwner; eventId: string; kind: AlertKind; dueAt: number;
   soundId: SoundId; durationSeconds: AlertDuration; allowed: () => boolean;
 };
-export type AlertState = { status: 'idle' | 'pending' | 'playing'; request: AlertRequest | null; error: string | null };
+export type AlertState = { status: 'idle' | 'pending' | 'playing'; request: AlertRequest | null; error: PlaybackError | null };
 export type AlertTransport = {
   play: (soundId: SoundId, allowed: () => boolean, failed: (error: unknown) => void) => Promise<void>;
   stop: () => void;
@@ -73,7 +74,7 @@ export function createAlertPlayback(a: Adapters) {
       invalidate();
       const errorTicket = generation;
       a.warn(error);
-      publish({ status: 'idle', request: incoming, error: 'Sunetul nu este disponibil acum.' });
+      publish({ status: 'idle', request: incoming, error: 'sound-unavailable' });
       feedback = a.schedule(() => { if (!disposed && errorTicket === generation) publish(idleAlert()); }, 3500);
     };
     publish({ status: 'pending', request: incoming, error: null });

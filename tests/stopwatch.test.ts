@@ -1,7 +1,8 @@
+import { sessionText } from '../src/i18n/formatters.ts';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
-import { elapsed, emptyStopwatch, formatTime, initialData, lapStats, MAX_SESSIONS, pause, recordLap, restoreData, saveSession, sessionText, start } from '../src/core/stopwatch.ts';
+import { elapsed, emptyStopwatch, formatTime, initialData, lapStats, MAX_SESSIONS, pause, recordLap, restoreData, saveSession, start } from '../src/core/stopwatch.ts';
 
 test('start is idempotent, including a timestamp of zero', () => {
   const state = start(emptyStopwatch(), 0);
@@ -157,7 +158,7 @@ test('literal pre-planning v1 data retains all clocks, history, theme and false 
   assert.deepEqual(restored.stopwatch, legacy.stopwatch);
   assert.deepEqual(restored.timer, legacy.timer);
   assert.deepEqual(restored.sessions, legacy.sessions);
-  assert.deepEqual(restored.preferences, { ...legacy.preferences, alertSoundId: 'classic', alertDurationSeconds: 5 });
+  assert.deepEqual(restored.preferences, { ...legacy.preferences, language: 'ro', alertSoundId: 'classic', alertDurationSeconds: 5 });
   assert.deepEqual(restored.planning, { schedules: [], run: null });
   const valid = { id: 'sequence', name: 'Orar', steps: [{ id: 'step', name: 'Respiră', durationMs: 1000 }] };
   const mixed = restoreData(JSON.stringify({ ...legacy, planning: { schedules: [valid, {}], run: {} }, preferences: { ...legacy.preferences, alertSoundId: 'gong', alertDurationSeconds: '30' } }));

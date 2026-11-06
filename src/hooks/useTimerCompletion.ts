@@ -1,3 +1,4 @@
+import type { TimerNotice } from '../core/notices';
 import { useEffect, useMemo } from 'react';
 import { isAppActive, subscribeAppActivity } from './appActivity';
 import { createTimerCoordinator, TimerAudio } from './timerCompletion';
@@ -10,7 +11,7 @@ function createId() {
   return `${Date.now()}-${++runCounter}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-export function useTimerCompletion({ getSnapshot, update, ready }: Store, data: AppData, audio: TimerAudio, notify: (message: string) => void) {
+export function useTimerCompletion({ getSnapshot, update, ready }: Store, data: AppData, audio: TimerAudio, notify: (message: TimerNotice) => void) {
   const coordinator = useMemo(() => createTimerCoordinator({
     getSnapshot, update, ...audio, notify, isActive: isAppActive, now: Date.now,
     createId,

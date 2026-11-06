@@ -1,3 +1,4 @@
+import { useI18n } from '../hooks/useI18n';
 import { StyleSheet, Text, View } from 'react-native';
 import { formatTime, Lap, lapStats } from '../core/stopwatch';
 import { fonts as f, Palette } from '../theme';
@@ -5,29 +6,30 @@ import { useTheme, useThemeStyles } from '../context/ThemeContext';
 import { Icon } from './Icon';
 
 export function LapList({ laps }: { laps: Lap[] }) {
+  const { messages: m } = useI18n();
   const { colors: c } = useTheme();
   const styles = useThemeStyles(createStyles);
   const stats = lapStats(laps);
   return (
     <View>
       <View style={styles.heading}>
-        <View style={styles.titleGroup}><Text style={styles.title}>Ture</Text><View style={styles.count}><Text style={styles.countText}>{laps.length}</Text></View></View>
-        {laps.length > 1 && <Text style={styles.bestHint}><Text style={{ color: c.green }}>●</Text> Cea mai rapidă</Text>}
+        <View style={styles.titleGroup}><Text style={styles.title}>{m.laps}</Text><View style={styles.count}><Text style={styles.countText}>{laps.length}</Text></View></View>
+        {laps.length > 1 && <Text style={styles.bestHint}><Text style={{ color: c.green }}>●</Text> {m.fastest}</Text>}
       </View>
       {laps.length === 0 ? (
         <View style={styles.empty}>
           <View style={styles.emptyIcon}><Icon name="flag" size={21} color={c.muted} /></View>
-          <Text style={styles.emptyTitle}>Fiecare tură contează.</Text>
-          <Text style={styles.emptyText}>Pornește cronometrul și apasă „Tură”{ '\n' }pentru a-ți urmări ritmul.</Text>
+          <Text style={styles.emptyTitle}>{m.lapsEmptyTitle}</Text>
+          <Text style={styles.emptyText}>{m.lapsEmptyText}</Text>
         </View>
       ) : (
         <>
           {stats && laps.length > 1 && <View style={styles.summary}>
-            <View style={styles.stat}><Text style={styles.statLabel}>CEA MAI RAPIDĂ</Text><Text style={[styles.statValue, { color: c.green }]}>{formatTime(stats.best)}</Text></View>
+            <View style={styles.stat}><Text style={styles.statLabel}>{m.fastestUpper}</Text><Text style={[styles.statValue, { color: c.green }]}>{formatTime(stats.best)}</Text></View>
             <View style={styles.separator} />
-            <View style={styles.stat}><Text style={styles.statLabel}>MEDIA TURELOR</Text><Text style={styles.statValue}>{formatTime(stats.average)}</Text></View>
+            <View style={styles.stat}><Text style={styles.statLabel}>{m.averageUpper}</Text><Text style={styles.statValue}>{formatTime(stats.average)}</Text></View>
           </View>}
-          <View style={styles.columns}><Text style={styles.columnNumber}>TURĂ</Text><Text style={styles.columnTime}>DURATĂ</Text><Text style={styles.columnTime}>TOTAL</Text></View>
+          <View style={styles.columns}><Text style={styles.columnNumber}>{m.lapUpper}</Text><Text style={styles.columnTime}>{m.durationUpper}</Text><Text style={styles.columnTime}>{m.totalUpper}</Text></View>
           {[...laps].reverse().map((lap) => {
             const best = laps.length > 1 && lap.splitMs === stats?.best;
             return <View key={lap.number} style={[styles.row, best && styles.bestRow]}>

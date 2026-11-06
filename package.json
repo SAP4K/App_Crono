@@ -44,7 +44,7 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
-    "test": "node --test tests/stopwatch.test.ts tests/timer.test.ts tests/timerCompletion.test.ts tests/theme.test.ts tests/sounds.test.ts tests/planning.test.ts tests/alertPlayback.test.ts tests/planningRunner.test.ts",
+    "test": "node --test tests/i18n.test.ts tests/language.test.ts tests/stopwatch.test.ts tests/timer.test.ts tests/timerCompletion.test.ts tests/theme.test.ts tests/sounds.test.ts tests/planning.test.ts tests/alertPlayback.test.ts tests/planningRunner.test.ts",
     "test:e2e": "playwright test",
     "export": "expo export --platform all",
     "build:android": "npx eas-cli@latest build --platform android --profile preview",

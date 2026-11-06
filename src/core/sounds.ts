@@ -1,8 +1,8 @@
 export const SOUND_CHOICES = [
-  { id: 'classic', label: 'Clasic' },
-  { id: 'bell', label: 'Clopoțel' },
-  { id: 'digital', label: 'Digital' },
-  { id: 'gong', label: 'Gong' },
+  { id: 'classic' },
+  { id: 'bell' },
+  { id: 'digital' },
+  { id: 'gong' },
 ] as const;
 
 export type SoundId = typeof SOUND_CHOICES[number]['id'];
