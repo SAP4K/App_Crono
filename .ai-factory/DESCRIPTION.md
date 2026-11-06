@@ -12,7 +12,9 @@ CRONO is a local stopwatch, countdown, and action schedule app for iOS and Andro
 - Save paused sessions and retain the latest 50 sessions, with up to 1,000 laps per session.
 - View session details, share results, and delete sessions with confirmation.
 - Run a separate countdown (one second to 23:59:59, five-minute default) alongside the stopwatch, with pause/resume, reset confirmation, restart, and visible completion across tabs/sheets.
+- Select duration with finite centered wheels: hours 00–23 and minutes/seconds 00–59, no wrapping/carry. Timer editing is idle/completed only; Start and Planning Apply reject zero or active motion. Native columns expose adjustable controls; web supports scrolling, neighboring-row clicks and ArrowUp/ArrowDown/Home/End.
 - Save up to 20 schedules with 1–50 named actions each, automatic advancement, exact pause/resume, confirmed replacement/reset, and protected running/paused templates. Names are limited to 80 trimmed characters; action durations range from one second to 23:59:59.
+- Edit an action duration inside the existing schedule sheet: temporary numeric wheels, explicit Apply/Cancel, then separate whole-schedule Save. Preserve the virtualized list viewport/focus and shared completion/Stop feedback; name fields retain their text keyboard.
 - Run one schedule alongside the independent stopwatch and timer. The Planificare tab follows Timer; schedule runs do not enter stopwatch history.
 - Select Clasic, Clopoțel, Digital, or Gong with 5/15/30-second looping playback, manual preview, and Stop controls. Defaults are Clasic and five seconds; the retained automatic-alert switch applies to timer and schedule boundaries.
 - Play foreground action/final alerts, with one final event for the last action. Reconcile overdue timing silently on return/relaunch, without replaying in-app audio. A separate native notification owner registers future OS alerts in advance.
@@ -60,6 +62,9 @@ Read [ARCHITECTURE.md](ARCHITECTURE.md) for the actual folder structure, depende
 | `src/app/history.tsx` | Session history, details, sharing, and deletion |
 | `src/core/stopwatch.ts` | Types, immutable timing operations, limits, formatting, statistics, and stored-data validation |
 | `src/core/timer.ts` | Pure countdown transitions, bounds, restoration, parsing, and ceiling-based display |
+| `src/core/durationPicker.ts` | Pure numeric parts, duration conversion, bounds and nearest-row clamping |
+| `src/components/DurationPicker.tsx`, `DurationWheel.tsx`, `.web.tsx` | Localized themed columns, native adjustment and web spinbuttons |
+| `src/hooks/durationWheel.ts`, `useDurationWheel.ts` | Shared injected settling generations and lifecycle/current-prop bridge |
 | `src/core/planning.ts` | Schedule bounds, validation/CRUD, run snapshots, and cumulative transitions |
 | `src/core/sounds.ts`, `src/audio/sources.ts` | Pure preference catalog and separate static asset map |
 | `src/hooks/useStopwatch.ts` | Hydration outcome, accepted-update subscriptions, serialized writes and app-state persistence |
@@ -73,6 +78,7 @@ Read [ARCHITECTURE.md](ARCHITECTURE.md) for the actual folder structure, depende
 | `src/components/StopwatchFace.tsx` | Local display refresh and stopwatch dial |
 | `src/components/TimerFace.tsx`, `TimerCompletionNotice.tsx` | Local countdown display and completion feedback in shell/sheets |
 | `src/components/ScheduleEditorSheet.tsx`, `ScheduleStepRow.tsx` | Controlled drafts, ordered actions, validation, and explicit save/discard |
+| `src/components/EditorBody.tsx`, `.web.tsx` | Keep a covered virtualized editor laid out while excluding interaction/accessibility |
 | `src/components/PlanningRunCard.tsx`, `PlanningNotice.tsx`, `TimingNotices.tsx` | Local schedule display, controls, and shared notices/Stop in shell/sheets |
 | `src/core/language.ts`, `src/core/notices.ts` | Pure language registry/defaults and semantic transient notices |
 | `src/i18n/`, `src/hooks/useI18n.ts` | Typed stable catalogs, cached locale/plural/share formatting, and saved selection |
@@ -95,6 +101,8 @@ The `AppData` object contains:
 - `preferences`: `language: 'ro' | 'en' | 'ru'`, `haptics`, `keepAwake`, `timerSound`, and `systemNotifications` booleans, `theme: 'light' | 'dark'`, `alertSoundId: 'classic' | 'bell' | 'digital' | 'gong'`, and `alertDurationSeconds: 5 | 15 | 30`. The legacy `timerSound` name now controls automatic timer and schedule alerts.
 
 The hook stores the entire object as JSON under `@crono/app-v1`. Actions go through `update(action)`, which applies a functional transformation and queues a write. Its synchronous `{ changed, data }` result confirms in-memory acceptance, not durable storage; stable `getSnapshot()` reads the current accepted state. Additional writes are requested when the app leaves the active state. Display refreshes do not persist a new snapshot on every frame.
+
+Wheel offsets, motion flags and temporary parts are local presentation state, with no persisted schema changes. A settled effective valid Timer change uses the existing timer controls; focus/alignment/same-value scrolling cannot reset completion or stop its audio. Planning Apply updates only the identified local action draft; Save retains the shared accepted-update boundary.
 
 `restoreData` validates unknown JSON and filters invalid stored records. Unsupported versions and malformed input fall back to initial data. This fallback is existing behavior, not a migration strategy for future schema changes.
 
@@ -130,7 +138,9 @@ Time is derived from `Date.now()` timestamps and accumulated paused time. Backgr
 | `npm run export` | Export JavaScript/assets for all platforms |
 | `npx expo-doctor` | Diagnose Expo dependency and configuration issues |
 
-Notification implementation checks on 2026-11-06: lint/typecheck, 89 Node tests, all 104 browser scenarios in one full run (4.7min), fresh Android/iOS/web exports, dependency compatibility and 21/21 Expo Doctor checks passed. The five recommended SDK-57 patch updates were installed through Expo. Fresh isolated Android CNG verified SCHEDULE_EXACT_ALARM and byte-identical raw sound resources; iOS config introspection has no microphone or audio/remote-notification background mode. The native implementation is excluded from web. Physical Home/lock delivery, audible/visual behavior, permissions, exact access/Doze/channel/reboot settings and cold/warm taps remain pending; no APK/IPA or signed build was produced. Detailed evidence and source fingerprint are in the active notification plan.
+Duration-wheel checks on 2026-11-06: lint/typecheck, all 103 Node tests and Android/iOS/web exports passed. Full browser run: 118/119 passed in 24.1min; the unchanged stopwatch journey timed out at 45 seconds, then passed alone in 26.1s with no source/config change. All 119 cases therefore have passing results across those runs, not one clean full pass. Fifteen picker cases cover real scrolling/touch, motion/cancellation, endpoints/zero, disabled clocks, no-op completion/audio, actual legacy data, concurrent feedback, fifty-action save/reorder/removal and all languages/palettes with enlarged web text. Screenshots were inspected. Implementation/test/config/asset fingerprint `b6ed99c1e947aa64ab588ceb17edcaac08f44b6c96013c684cf7d1a90bcec394`; details are in `plans/feature-duration-wheel-picker.md`. No new dependency was added. Physical native gestures, keyboard avoidance, list return, VoiceOver/TalkBack, font scaling and reduced motion remain pending.
+
+Notification implementation checks on 2026-11-06: lint/typecheck, 89 Node tests, all 104 browser scenarios in one full run (4.7min), fresh Android/iOS/web exports, dependency compatibility and 21/21 Expo Doctor checks passed. The five recommended SDK-57 patch updates were installed through Expo. Fresh isolated Android CNG verified SCHEDULE_EXACT_ALARM and byte-identical raw sound resources; iOS config introspection has no microphone or audio/remote-notification background mode. The native implementation is excluded from web. Physical Home/lock delivery, audible/visual behavior, permissions, exact access/Doze/channel/reboot settings and cold/warm taps remain pending; no APK/IPA or signed build was produced. Detailed evidence and source fingerprint are in the notification plan.
 
 Earlier multilingual checks on 2026-11-06: lint/typecheck, all 59 Node tests, all 95 browser scenarios in one complete 4.6-minute run, and fresh Android/iOS/web exports passed. Both themes cover all three languages at 390px; Russian also covers 320/430/1024px. Tests cover manual saved choice, defaults/legacy data, user text, localized sharing, concurrent timing, pending/playing real audio, silent catch-up and unchanged feedback lifetimes. Native-device and independent native-speaker checks remain pending.
 
@@ -146,12 +156,14 @@ Install app dependencies through `npx expo install <package>` to resolve SDK-com
 
 ## Known Follow-up Work
 
-These findings were identified during the repository review on November 4, 2026. Context setup does not resolve them:
+The original repository review on November 4, 2026 identified findings 1–4. The November 6 notification review added findings 5–6. Duration-wheel work does not resolve them:
 
 1. A failed initial storage read leaves the hook ready with initial data. A subsequent action can overwrite previously stored history. This was reproduced with a simulated browser storage read failure. The notification feature now guards its own writes/inventory on failed hydration; unrelated existing writes still require a separate storage fix.
 2. The permitted maximum history can produce a single JSON entry larger than Android AsyncStorage's [documented per-entry read limit](https://react-native-async-storage.github.io/2.0/advanced/Limits/). A generated valid 50-session history with 1,000 laps per session was approximately 2.33 MiB. Physical-device reproduction is still needed.
 3. Dependency audit alerts require triage before release; no CI workflow or signed APK/IPA build verification is present.
 4. Lap lists currently render all recorded rows without virtualization.
+5. Android SDK 57 can report notification permission as denied while `canAskAgain` is true. `notificationCapability` currently makes `canAsk` true only for undetermined status, blocking the app's request path for that requestable-denied case.
+6. The installed iOS SDK 57 DATE-trigger implementation truncates milliseconds to whole seconds; the app passes exact millisecond deadlines to it. Subsecond deadlines therefore need a separate precision fix and native validation.
 
 Plan fixes separately and verify the relevant behavior before changing storage formats or release assumptions.
 
@@ -164,6 +176,6 @@ Plan fixes separately and verify the relevant behavior before changing storage f
 - Installed workflow skills: `../.agents/skills/` (33 existing AI Factory skills).
 - Communication and generated artifact languages: English, as configured.
 - Git base branch: `master`; new full/ultra plans may create branches using `feature/`.
-- Latest implementation plan: `plans/feature-background-notifications.md` (code/CLI/browser/docs complete; physical native acceptance pending); multilingual work remains at `plans/feature-multilingual-support.md`. Earlier completed implementations remain at `plans/feature-planning-button-feedback.md`, `plans/feature-white-blue-theme.md`, `plans/feature-sound-settings-schedules.md`, and `plans/feature-dark-mode-preference.md`. No roadmap or research artifact is present.
+- Latest implementation plan: `plans/feature-duration-wheel-picker.md` (code/CLI/browser/docs complete; physical native acceptance pending). Notification work remains at `plans/feature-background-notifications.md`, with the separate review findings above and physical acceptance pending; multilingual work remains at `plans/feature-multilingual-support.md`. Earlier completed implementations remain at `plans/feature-planning-button-feedback.md`, `plans/feature-white-blue-theme.md`, `plans/feature-sound-settings-schedules.md`, and `plans/feature-dark-mode-preference.md`. No roadmap or research artifact is present.
 
 The connected GitHub app is available in the current agent session. No repository-level MCP server configuration is present. Reuse host-provided integrations when available; additional servers should address a concrete project need.

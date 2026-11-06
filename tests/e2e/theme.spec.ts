@@ -146,15 +146,18 @@ for (const dark of [false, true]) for (const width of [320, 390, 430, 1024]) {
     await expect(reset).toHaveCSS('background-color', dark ? 'rgb(15, 23, 42)' : 'rgb(255, 255, 255)');
     await reset.getByRole('button', { name: 'Renunță', exact: true }).click();
     await page.clock.runFor(300);
+    // Browser CSS dismissal outlives the fake JS clock; its focus trap must be gone.
+    await expect(reset).not.toBeVisible();
     await expect(page.getByRole('tab')).toHaveCount(4);
     for (const name of ['Timer', 'Planificare', 'Istoric', 'Cronometru']) {
       await page.getByRole('tab', { name, exact: true }).click();
       await expect(page.getByRole('tab', { name, exact: true })).toHaveAttribute('aria-selected', 'true');
       await expect(page.getByRole('tab', { name, exact: true })).toHaveCSS('background-color', dark ? 'rgb(30, 58, 138)' : 'rgb(219, 234, 254)');
       if (name === 'Timer') {
-        const input = page.getByLabel('Minute', { exact: true });
-        await input.focus(); await expect(input).toBeFocused();
-        await expect(input).toHaveCSS('color', dark ? 'rgb(248, 250, 252)' : 'rgb(15, 23, 42)');
+        const wheel = page.getByRole('spinbutton', { name: 'Minute', exact: true });
+        await wheel.focus(); await expect(wheel).toBeFocused();
+        const selected = wheel.locator('button').nth(Number(await wheel.getAttribute('aria-valuenow')));
+        await expect(selected).toHaveCSS('color', dark ? 'rgb(248, 250, 252)' : 'rgb(15, 23, 42)');
         await expect(page.getByRole('button', { name: 'Resetează temporizatorul', exact: true })).toBeDisabled();
       }
       await page.screenshot({ path: `previews/blue-${dark ? 'dark' : 'light'}-${name}-${width}.png`, fullPage: true, animations: 'disabled' });
@@ -242,13 +245,7 @@ for (const dark of [false, true]) for (const width of [320, 390, 430, 1024]) {
     }
     await page.getByRole('tab', { name: 'Timer', exact: true }).click();
     await expect(page.getByRole('tab', { name: 'Timer', exact: true })).toHaveAttribute('aria-selected', 'true');
-    for (const [name, value] of [['Ore', '00'], ['Minute', '00'], ['Secunde', '10']]) {
-      const input = page.getByLabel(name, { exact: true });
-      // Settle selectTextOnFocus before replacing a controlled value with the paused clock.
-      await input.focus(); await page.clock.runFor(20); await input.fill(value);
-      await expect(input).toHaveValue(value);
-    }
-    await page.getByLabel('Secunde', { exact: true }).blur();
+    await duration(page, '10');
     const start = page.getByRole('button', { name: 'Pornește temporizatorul', exact: true });
     await expect(start).toBeEnabled(); await start.click();
     await page.getByRole('button', { name: 'Resetează temporizatorul', exact: true }).click(); await page.clock.runFor(300);

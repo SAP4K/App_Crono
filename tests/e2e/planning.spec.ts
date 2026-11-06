@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { audioSpy, duration, expectNoPageErrors, expectTheme, observePageErrors, playCount, seed, settings, stored } from './helpers';
+import { audioSpy, duration, expectNoPageErrors, expectTheme, observePageErrors, playCount, seed, selectDuration, settings, stepDuration, stored } from './helpers';
 import { initialData } from '../../src/core/stopwatch';
 
 function scheduleData() {
@@ -26,16 +26,19 @@ test('schedule editor saves ordered actions, validates durations, and preserves 
   await expect(save).toBeDisabled();
   await dialog.getByLabel('Nume orar', { exact: true }).fill('Studiu');
   await dialog.getByLabel('Nume etapa 1', { exact: true }).fill('Lucru');
-  await dialog.getByLabel('Minute etapa 1', { exact: true }).fill('00');
-  await dialog.getByLabel('Secunde etapa 1', { exact: true }).fill('60'); await expect(save).toBeDisabled();
-  await dialog.getByLabel('Secunde etapa 1', { exact: true }).fill('02');
+  await dialog.getByRole('button', { name: 'Modifică durata etapei 1', exact: true }).click();
+  const panel = page.getByRole('dialog', { name: 'Durata etapei 1', exact: true });
+  await selectDuration(panel, [0, 0, 0], undefined, 1);
+  await expect(panel.getByRole('button', { name: 'Aplică durata', exact: true })).toBeDisabled();
+  await selectDuration(panel, [0, 0, 2], undefined, 1);
+  await panel.getByRole('button', { name: 'Aplică durata', exact: true }).click();
   await dialog.getByRole('button', { name: 'Adaugă etapă', exact: true }).click();
   await dialog.getByLabel('Nume etapa 2', { exact: true }).fill('Pauză');
-  await dialog.getByLabel('Minute etapa 2', { exact: true }).fill('00');
-  await dialog.getByLabel('Secunde etapa 2', { exact: true }).fill('01');
+  await stepDuration(page, 2, [0, 0, 1]);
   await dialog.getByRole('button', { name: 'Mută etapa 2 mai sus', exact: true }).click();
   await save.click(); await page.clock.runFor(300);
   await expect.poll(async () => (await stored(page)).planning.schedules[0]?.steps.map((step) => step.name)).toEqual(['Pauză', 'Lucru']);
+  expect((await stored(page)).planning.schedules[0].steps.map((step) => step.durationMs)).toEqual([1000, 2000]);
   const before = (await stored(page)).planning;
   await page.getByRole('button', { name: 'Editează orarul Studiu', exact: true }).click();
   dialog = page.getByRole('dialog', { name: 'Editează orarul', exact: true });

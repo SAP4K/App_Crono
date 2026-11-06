@@ -1,5 +1,7 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 import { initialData, type AppData } from '../../src/core/stopwatch';
+import { getMessages } from '../../src/i18n';
+import type { Messages } from '../../src/i18n/types';
 
 const pageErrors = new WeakMap<Page, string[]>();
 export function observePageErrors(page: Page) {
@@ -49,10 +51,36 @@ export async function playCount(page: Page) {
   return page.evaluate(() => (window as unknown as { timerPlayCount: number }).timerPlayCount);
 }
 
-export async function duration(page: Page, seconds: string) {
-  await page.getByLabel('Ore', { exact: true }).fill('00');
-  await page.getByLabel('Minute', { exact: true }).fill('00');
-  await page.getByLabel('Secunde', { exact: true }).fill(seconds);
+export async function selectWheel(wheel: Locator, value: number) {
+  await expect(wheel).toHaveAttribute('aria-disabled', 'false');
+  const maximum = Number(await wheel.getAttribute('aria-valuemax'));
+  expect(Number.isInteger(value) && value >= 0 && value <= maximum).toBe(true);
+  if (Number(await wheel.getAttribute('aria-valuenow')) === value) return;
+  const fromEnd = maximum - value < value;
+  await wheel.press(fromEnd ? 'End' : 'Home');
+  for (let index = 0; index < (fromEnd ? maximum - value : value); index++) {
+    await wheel.press(fromEnd ? 'ArrowDown' : 'ArrowUp');
+  }
+  await expect(wheel).toHaveAttribute('aria-valuenow', String(value));
+}
+
+export async function selectDuration(scope: Page | Locator, parts: readonly [number, number, number], messages: Messages = getMessages('ro'), stepNumber?: number) {
+  for (const [index, value] of parts.entries()) {
+    const name = stepNumber === undefined ? messages.timeUnits[index] : messages.stepField(messages.timeUnits[index], stepNumber);
+    await selectWheel(scope.getByRole('spinbutton', { name, exact: true }), value);
+  }
+}
+
+export async function duration(page: Page, seconds: string, messages: Messages = getMessages('ro')) {
+  await selectDuration(page, [0, 0, Number(seconds)], messages);
+}
+
+export async function stepDuration(page: Page, stepNumber: number, parts: readonly [number, number, number], messages: Messages = getMessages('ro')) {
+  await page.getByRole('button', { name: messages.editStepDuration(stepNumber), exact: true }).click();
+  const panel = page.getByRole('dialog', { name: messages.durationPickerTitle(stepNumber), exact: true });
+  await selectDuration(panel, parts, messages, stepNumber);
+  await panel.getByRole('button', { name: messages.applyDuration, exact: true }).click();
+  await expect(panel).not.toBeVisible();
 }
 
 export async function settings(page: Page) {

@@ -2,6 +2,12 @@ import type { Messages } from './types.ts';
 import { countPhrase } from './plurals.ts';
 
 export const ru: Messages = {
+  duration: 'Длительность',
+  editStepDuration: (index) => `Изменить длительность действия ${index}`,
+  durationPickerTitle: (index) => `Длительность действия ${index}`,
+  applyDuration: 'Применить длительность',
+  durationWheelHint: 'Проведите вверх или вниз, чтобы изменить значение.',
+
   systemNotifications: "Системные уведомления",
   notificationsHelp: "Сигналы таймера и расписания на экране блокировки или в фоновом режиме.",
   notificationsWeb: "Системные уведомления доступны в приложении для Android и iOS.",
