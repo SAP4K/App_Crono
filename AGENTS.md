@@ -51,7 +51,7 @@ The app uses technical layers with shared pure stopwatch/countdown/schedule core
 ```text
 src/
   app/          Expo Router routes and application shell
-  components/   Dials, schedule editor/run card, timing notices, laps, sheets, and settings
+  components/   Dials, native/web duration wheels, schedule editor/run card, notices, sheets
   context/      Shared state, saved theme, notices, and mobile feedback
   hooks/        Persistence, timing/playback owners, OS notifications, native/web adapters
   core/         Pure timing/schedule operations, notification projection, registries, validation
@@ -63,6 +63,8 @@ tests/
   i18n.test.ts          Catalog parity, plurals, locale dates, and shared results
   stopwatch.test.ts     Node.js core logic tests
   timer.test.ts         Countdown boundary/transition tests
+  durationPicker.test.ts Bounded parts, conversion and snapping geometry
+  durationWheel.test.ts Settling, cancellation, disabled state and changed row geometry
   timerCompletion.test.ts Completion/audio coordination tests
   theme.test.ts         Palette contrast checks
   sounds.test.ts        Sound preferences and real PCM asset validation
@@ -73,7 +75,7 @@ tests/
   notificationCoordinator.test.ts Native reconciliation, failures, hydration and races
   notificationResponses.test.ts Buffered, validated and deduplicated tap navigation
   fixtures/             Literal legacy version-1 saved data
-  e2e/                  Stopwatch, theme, countdown, sound, planning, notification compatibility
+  e2e/                  Timing, themes, languages, sound, planning, notifications, real wheel gestures
 assets/                 App icons, splash images, and four original WAV patterns plus a native Classic copy
 .agents/skills/         Installed AI Factory workflows
 .ai-factory/            Project context and workflow configuration
@@ -90,6 +92,9 @@ assets/                 App icons, splash images, and four original WAV patterns
 | `src/app/history.tsx` | History, details, sharing, and deletion |
 | `src/core/stopwatch.ts` | Types, transitions, limits, validation, and formatting |
 | `src/core/timer.ts` | Pure countdown transitions, validation, and formatting |
+| `src/core/durationPicker.ts` | Numeric duration parts, finite bounds, conversion and snap index |
+| `src/components/DurationPicker.tsx`, `DurationWheel.tsx`, `.web.tsx` | Shared themed picker, native adjustable columns and web spinbuttons |
+| `src/hooks/durationWheel.ts`, `useDurationWheel.ts` | Injected settling/cancellation controller and committed-prop lifecycle bridge |
 | `src/core/planning.ts` | Schedule bounds, CRUD, snapshot restoration, and cumulative deadlines |
 | `src/core/sounds.ts`, `src/audio/sources.ts` | Pure sound preferences and separate asset map |
 | `src/hooks/useStopwatch.ts` | Hydration outcome, accepted-update subscriptions, functional updates, ordered writes |
@@ -107,6 +112,7 @@ assets/                 App icons, splash images, and four original WAV patterns
 | `src/audio/notificationSounds.ts`, `src/components/SystemNotificationNotice.tsx` | Native sound names/channels and separate failure/retry feedback |
 | `src/hooks/appActivity.ts` | Shared foreground checks and lifecycle subscription |
 | `src/components/ScheduleEditorSheet.tsx`, `ScheduleStepRow.tsx` | Controlled virtualized action editor with explicit save/discard |
+| `src/components/EditorBody.tsx`, `.web.tsx` | Preserve covered editor layout while hiding interaction/accessibility |
 | `src/components/PlanningRunCard.tsx`, `TimingNotices.tsx` | Run controls and shared feedback/Stop in shell and sheets |
 | `src/core/language.ts`, `src/i18n/`, `src/hooks/useI18n.ts` | Saved language, catalogs, formatting, and shared-state selection |
 | `src/core/notices.ts` | Semantic transient toast/completion/audio codes |
@@ -118,7 +124,7 @@ assets/                 App icons, splash images, and four original WAV patterns
 
 | File | Purpose |
 |---|---|
-| `README.md` | Setup, languages, themes, schedules, notifications, checks, builds |
+| `README.md` | Setup, wheel usage, languages, themes, notifications, checks, builds |
 | `AGENTS.md` | Repository map and authoritative Expo workflow requirements |
 | `.ai-factory/DESCRIPTION.md` | Project purpose, stack, data model, and known follow-ups |
 | `.ai-factory/ARCHITECTURE.md` | Layered architecture, dependencies, and data flow |

@@ -2,14 +2,16 @@ import { useI18n } from '../hooks/useI18n';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useTheme, useThemeStyles } from '../context/ThemeContext';
 import { MAX_NAME_LENGTH } from '../core/planning';
+import { formatRemaining, parseDuration } from '../core/timer';
 import { buttonPressedStyle, fonts as f, Palette } from '../theme';
 import { Icon } from './Icon';
 
 export type StepDraft = { id: string; name: string; hours: string; minutes: string; seconds: string };
 
-export function ScheduleStepRow({ value, index, count, onChange, onMove, onRemove }: {
+export function ScheduleStepRow({ value, index, count, onChange, onMove, onRemove, onEditDuration, durationRef }: {
   value: StepDraft; index: number; count: number; onChange: (value: Partial<StepDraft>) => void;
   onMove: (direction: number) => void; onRemove: () => void;
+  onEditDuration: () => void; durationRef: (node: View | null) => void;
 }) {
   const { messages: m } = useI18n();
   const { colors: c } = useTheme(); const styles = useThemeStyles(createStyles);
@@ -22,10 +24,12 @@ export function ScheduleStepRow({ value, index, count, onChange, onMove, onRemov
       </View>
     </View>
     <TextInput accessibilityLabel={m.stepName(index + 1)} value={value.name} maxLength={MAX_NAME_LENGTH} onChangeText={(name) => onChange({ name })} placeholder={m.stepPlaceholder} placeholderTextColor={c.muted} style={styles.input} selectionColor={c.green} />
-    <View style={styles.fields}>{(['hours', 'minutes', 'seconds'] as const).map((key, field) => <View key={key} style={styles.field}>
-      <TextInput accessibilityLabel={m.stepField(m.timeUnits[field], index + 1)} value={value[key]} onChangeText={(text) => onChange({ [key]: text })} keyboardType="number-pad" maxLength={2} selectTextOnFocus style={[styles.input, styles.number]} selectionColor={c.green} />
-      <Text style={styles.unit}>{m.timeUnits[field]}</Text>
-    </View>)}</View>
+    <Pressable ref={durationRef} accessibilityRole="button" accessibilityLabel={m.editStepDuration(index + 1)} onPress={onEditDuration}
+      style={({ pressed }) => [styles.duration, pressed && buttonPressedStyle]}>
+      <Text style={styles.unit}>{m.duration}</Text>
+      <Text style={styles.number}>{formatRemaining(parseDuration(value.hours, value.minutes, value.seconds) ?? 0)}</Text>
+      <Icon name="timer" size={18} color={c.green} />
+    </Pressable>
   </View>;
 }
 
@@ -37,6 +41,7 @@ const createStyles = (c: Palette) => StyleSheet.create({
   control: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   arrow: { fontSize: 21, color: c.ink }, disabled: { opacity: 0.35 },
   input: { minHeight: 44, borderWidth: 1, borderColor: c.border, borderRadius: 10, paddingHorizontal: 10, fontFamily: f.regular, fontSize: 13, color: c.ink, backgroundColor: c.background },
-  fields: { flexDirection: 'row', gap: 8 }, field: { flex: 1, gap: 5 }, number: { textAlign: 'center', fontVariant: ['tabular-nums'] },
+  duration: { minHeight: 48, paddingHorizontal: 12, borderWidth: 1, borderColor: c.border, borderRadius: 10, flexDirection: 'row', gap: 12, alignItems: 'center', backgroundColor: c.background },
+  number: { flex: 1, textAlign: 'center', fontFamily: f.semibold, color: c.ink, fontSize: 16, fontVariant: ['tabular-nums'] },
   unit: { fontFamily: f.regular, fontSize: 10, color: c.muted, textAlign: 'center' },
 });
