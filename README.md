@@ -27,6 +27,7 @@ When developing on Windows, you can preview the interface on a physical iPhone u
 - Individual lap durations and cumulative times, with the fastest laps highlighted and average lap times displayed.
 - Save the latest 50 sessions with up to 1,000 laps each, view details, share results, and delete with confirmation.
 - Run an independent countdown with pause/resume and a completion sound; save multiple action schedules and run one sequence automatically alongside both clocks.
+- Select timer and action durations with scrolling hours/minutes/seconds wheels.
 - Choose from four bundled sounds with 5, 15, or 30 seconds of in-app playback, preview, and Stop controls.
 - Schedule native timer/action/final notifications for Home and locked screens, with saved enablement and OS permission controls.
 - Choose white/blue light or navy/blue dark mode and save that preference across launches.
@@ -57,7 +58,9 @@ Light mode uses white backgrounds and blue accents; dark mode uses navy backgrou
 
 Older saved data or an invalid theme preference falls back to light while retaining valid stopwatch/history data. Changing the theme preserves active clocks, schedules, and alert playback. The first interactive screen uses the restored theme; the native launch image appears before saved settings can load. Launcher icons, favicon, and splash artwork retain their existing branding.
 
-Open **Timer** to configure **Ore / Minute / Secunde** (hours/minutes/seconds), then press **Pornește**. The default is five minutes; valid durations range from `00:00:01` to `23:59:59`. Pause/resume keeps the remaining time; reset requires confirmation while running or paused. Reset before editing an active duration. After completion, use **Repornește** to start again. Countdown runs do not create stopwatch history entries.
+Open **Timer** and scroll **Ore / Minute / Secunde** (hours/minutes/seconds) until the desired values reach the highlighted center row, then press **Pornește**. Duration selection opens no numeric keyboard. Hours stop at 00–23; minutes and seconds stop at 00–59, without wrapping or carrying into another column. Start waits for scrolling to settle; `00:00:00` is invalid. On web, focus a column and use ArrowUp/ArrowDown or Home/End, or click a neighboring value.
+
+The default is five minutes; valid durations remain `00:00:01`–`23:59:59`. Wheels are editable while idle or completed and disabled while running or paused. Pause/resume keeps the exact remaining time; reset requires confirmation while running or paused. Reset before editing an active duration. After completion, use **Repornește** to start again. Focusing or returning to the same value preserves completion and its sound. Countdown runs do not create stopwatch history entries.
 
 In **Setări**, **Alerte sonore** controls automatic timer and schedule alerts and defaults on. Choose **Clasic**, **Clopoțel**, **Digital**, or **Gong** under **Sunet**, then **5 s**, **15 s**, or **30 s** under **Durata sunetului**. Clasic and 5 seconds are the defaults. The selected pattern loops for that duration after playback starts. **Ascultă sunetul** previews it even when automatic alerts are muted.
 
@@ -79,7 +82,9 @@ Web retains in-app notices/audio and shows a disabled system-notification switch
 
 ## Planning Example
 
-Open **Planificare**, next to Timer, and tap **Orar nou**. Name it “Studiu”, set the first action to “Lucru” for 25 minutes, then use **Adaugă etapă** for “Pauză” lasting 5 minutes. Move actions with the arrow buttons and tap **Salvează orarul**, then **Pornește**. Planning controls fade and shrink slightly while pressed.
+Open **Planificare**, next to Timer, and tap **Orar nou**. Name it “Studiu”, set the first action to “Lucru”, and tap its **Durată** value to open the wheels. Select 25 minutes and tap **Aplică durata**, then use **Adaugă etapă** for “Pauză” lasting 5 minutes. Move actions with the arrow buttons and tap **Salvează orarul**, then **Pornește**. Planning controls fade and shrink slightly while pressed.
+
+**Aplică durata** changes only the action draft; **Salvează orarul** saves the whole schedule. Apply waits for scrolling to settle and rejects zero duration. **Renunță**, the close button, or Back returns to the editor without applying the temporary selection. The action list retains its position and returns focus to that action. Schedule/action names still use the text keyboard, and completion notices and **Oprește sunetul** remain available inside the duration panel.
 
 Actions advance automatically, with the selected sound at each foreground boundary. The last action and schedule ending produce one final alert. **Pauză / Continuă / Resetează / Repornește** control the run; reset retains the saved schedule. Starting another schedule confirms replacement. Running or paused schedules are protected from editing/deletion; other schedules remain editable. Closing an edited draft asks before discarding it.
 
@@ -144,6 +149,8 @@ Language expansion checks on November 7, 2026 passed lint/typecheck, all **96 No
 
 Tests cover saved/default choices, literal legacy data, localized sharing/notifications, drafts, clocks, notice lifetimes and real pending/playing audio. The [implementation plan](.ai-factory/plans/feature-additional-languages.md) records source identity and evidence. Native device/accessibility/notification acceptance and independent native-speaker review remain pending; exports do not verify them.
 
+Duration-wheel checks on November 6, 2026 passed lint/typecheck, **103 Node tests**, and Android/iOS/web exports. The full browser run passed **118/119** cases; the unchanged stopwatch journey hit its 45-second limit, then passed alone in **26.1 seconds** without code or timeout changes. Thus all 119 cases have passing results across the full run and rerun, rather than one clean full run. The 15 picker scenarios cover real mouse/touch scrolling, cancellation, zero/bounds, disabled clocks, no-op completion/audio, legacy persistence, concurrent notices, fifty-action editing, translations and layouts. Representative screenshots were inspected, including enlarged web text; no dependency was added.
+
 Notification implementation checks on November 6, 2026 passed lint/typecheck, all **89 Node tests**, all **104 browser scenarios** in one full run (4.7 minutes), fresh Android/iOS/web exports, the SDK compatibility check, and **21/21 Expo Doctor checks**. Five existing Expo packages were aligned to recommended SDK-57 patches through `npx expo install --fix`. Isolated Android CNG verified the exact-alarm permission and byte-identical copies of all four notification resources; iOS config introspection confirmed no microphone or background audio/remote-notification mode. These checks do not establish native delivery.
 
 Earlier multilingual checks on November 6, 2026 passed lint, typecheck, all 59 Node tests and all 95 browser scenarios in one complete run (4.6 minutes). Fresh Android/iOS/web exports also passed. Earlier Planning button checks passed lint, typecheck, all 51 core/coordinator/contrast tests, and 44 targeted browser scenarios: eight new interaction cases and 36 planning/theme/real-timer regressions. Light/dark screenshots were inspected at 320/390px. The previous full run on November 5 passed all 60 then-existing browser scenarios (10.5 minutes) and fresh Android/iOS/web exports; the full suite and exports were not repeated for this style change. Tests retain 45-second limits and no retries.
@@ -156,13 +163,15 @@ Coverage includes both palettes at 320/390/430/1024px, saved/legacy preferences,
 
 Exporting JavaScript/Hermes bundles for Android and iOS does not replace physical-phone testing. Audible choices/durations and Stop, silent mode/audio routing, schedule keyboard behavior, press gestures/haptics, native wake lock, cold-launch appearance/status/navigation bars, and locked/background transitions remain pending on devices. Cyrillic/diacritic rendering, large text, translated VoiceOver/TalkBack announcements, selected-language relaunch, and independent native-speaker review also remain pending. System notifications also need physical Android/iOS checks for permission denial/revocation, Home/lock delivery, foreground suppression, all sounds/mute, pause/resume/reset/replacement cancellation, cold/warm/stale taps, retained drafts, Android exact access/Doze/channel/reboot behavior and iOS Focus/silent/lock-screen settings. No device was connected for this validation. No signed APK/IPA builds or app store releases have been produced.
 
+Wheel-specific native acceptance also remains pending: slow drags/flings, snapping/endpoints, parent scrolling, immediate Start/Apply, interruption/return, list focus restoration, VoiceOver/TalkBack adjustment, native font scaling and reduced motion. Browser touch emulation and enlarged web text do not establish these results. The earlier notification review's Android permission-request and iOS date-precision findings remain separate follow-ups in [Known Follow-up Work](.ai-factory/DESCRIPTION.md#known-follow-up-work).
+
 During installation, `npm audit` reported vulnerabilities in transitive Expo dependencies and development tools, including `decode-uri-component` and `zod`. Available compatible updates were applied; no migrations to other major SDK versions were forced. The audit must be reassessed before a public release.
 
 ## Project Structure
 
 ```text
 src/app/          Screens and Expo Router navigation
-src/components/   Dials, schedule editor/run card, shared alerts, laps, sheets, and settings
+src/components/   Dials, duration wheels, schedule editor/run card, shared alerts, sheets, settings
 src/context/      Shared state, theme, haptic feedback, and screen wake lock
 src/core/         Pure timing, notification projection, language/sound registries, notices, validation
 src/i18n/         Six typed catalogs (ro/en/ru/es/fr/de), plurals, dates, and sharing

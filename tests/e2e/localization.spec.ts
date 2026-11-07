@@ -4,7 +4,7 @@ import { LANGUAGES, type AppLanguage } from '../../src/core/language';
 import { getMessages } from '../../src/i18n';
 import { initialData } from '../../src/core/stopwatch';
 import { startSchedule } from '../../src/core/planning';
-import { audioEvents, audioSpy, expectNoPageErrors, expectTheme, observePageErrors, playCount, seed, stored } from './helpers';
+import { audioEvents, audioSpy, duration, expectNoPageErrors, expectTheme, observePageErrors, playCount, seed, stored } from './helpers';
 
 test.beforeEach(({ page }) => observePageErrors(page));
 test.afterEach(({ page }) => expectNoPageErrors(page));
@@ -120,10 +120,10 @@ for (const { id } of LANGUAGES) {
     const retainedStopwatch = (await stored(page)).stopwatch;
     expect(retainedStopwatch.accumulatedMs).toBe(2250);
     await page.getByRole('tab', { name: m.timerTab, exact: true }).click();
-    await page.getByLabel(m.timeUnits[0], { exact: true }).fill('99');
+    await duration(page, '00', m);
     await expect(page.getByRole('button', { name: m.startTimer, exact: true })).toBeDisabled();
     await expect(page.getByText(m.durationInvalid, { exact: true })).toBeVisible();
-    await page.getByLabel(m.timeUnits[0], { exact: true }).fill('00');
+    await duration(page, '01', m);
     await page.getByRole('button', { name: m.startTimer, exact: true }).click();
     await page.getByRole('button', { name: m.pauseTimer, exact: true }).click();
     const retainedTimer = (await stored(page)).timer;
@@ -408,7 +408,10 @@ for (const { id, theme, width } of layouts) {
     await expectControlsFit(page);
     await page.screenshot({ path: `${prefix}-editor.png`, animations: 'disabled' });
     await editor.getByLabel(m.stepName(2), { exact: true }).scrollIntoViewIfNeeded();
-    await expect(editor.getByLabel(m.stepField(m.timeUnits[2], 2), { exact: true })).toHaveValue('00');
+    await editor.getByRole('button', { name: m.editStepDuration(2), exact: true }).click();
+    const panel = page.getByRole('dialog', { name: m.durationPickerTitle(2), exact: true });
+    await expect(panel.getByRole('spinbutton', { name: m.stepField(m.timeUnits[2], 2), exact: true })).toHaveAttribute('aria-valuenow', '0');
+    await panel.getByRole('button', { name: m.cancel, exact: true }).click();
     await editor.getByRole('button', { name: m.close, exact: true }).click();
     const discard = page.getByRole('dialog', { name: m.discardTitle, exact: true });
     await expect(discard.getByText(m.discardHelp, { exact: true })).toBeVisible();

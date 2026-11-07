@@ -27,10 +27,13 @@ src/
 ├── components/
 │   ├── StopwatchFace.tsx     # Dial and local display refresh
 │   ├── TimerFace.tsx         # Local foreground countdown refresh
+│   ├── DurationPicker.tsx    # Three localized controlled numeric columns
+│   ├── DurationWheel.tsx / .web.tsx # Native adjustable / web spinbutton adapters
 │   ├── TimerCompletionNotice.tsx # Persistent completion in shell/sheets
 │   ├── PlanningRunCard.tsx   # Schedule controls and local display refresh
 │   ├── ScheduleEditorSheet.tsx # Explicit save/discard and virtualized actions
-│   ├── ScheduleStepRow.tsx   # Controlled action name/duration/reorder fields
+│   ├── ScheduleStepRow.tsx   # Action name, duration summary and reorder controls
+│   ├── EditorBody.tsx / .web.tsx # Covered editor keeps its viewport/layout
 │   ├── PlanningNotice.tsx    # Current boundary/final event feedback
 │   ├── TimingNotices.tsx    # Shared timer/planning notices and playback Stop
 │   ├── SystemNotificationNotice.tsx # Independent native failure/retry feedback
@@ -44,6 +47,8 @@ src/
 ├── hooks/
 │   ├── useStopwatch.ts       # Hydration outcome, accepted updates, ordered storage
 │   ├── useI18n.ts            # Saved language projection and shared-state setter
+│   ├── durationWheel.ts      # Injected bounded settling/generation controller
+│   ├── useDurationWheel.ts   # Committed props, alignment and lifecycle cleanup
 │   ├── timerCompletion.ts    # Framework-free injected completion coordinator
 │   ├── useTimerCompletion.ts # Global readiness/lifecycle adapter
 │   ├── planningRunner.ts     # Injected schedule coordinator and controls
@@ -74,6 +79,7 @@ src/
 ├── core/
 │   ├── stopwatch.ts          # App data, stopwatch, history, validation
 │   ├── timer.ts              # Pure countdown model and validation
+│   ├── durationPicker.ts     # Numeric parts, bounds, conversion and nearest index
 │   ├── planning.ts           # Schedule CRUD, snapshots, cumulative transitions
 │   ├── language.ts           # Supported IDs/autonyms/locales and default
 │   ├── notifications.ts     # Bounded future events and owned payload validation
@@ -85,6 +91,8 @@ tests/
 ├── i18n.test.ts              # Catalogs, plural boundaries, dates and sharing
 ├── stopwatch.test.ts         # Core logic tests
 ├── timer.test.ts             # Countdown boundaries/transitions
+├── durationPicker.test.ts    # Parts, valid bounds and snapping geometry
+├── durationWheel.test.ts     # Motion, stale callbacks, disposal and geometry changes
 ├── timerCompletion.test.ts   # Coordination, cancellation, and audio races
 ├── theme.test.ts             # Text/surface contrast
 ├── sounds.test.ts            # Preferences and actual PCM pattern validation
@@ -95,7 +103,7 @@ tests/
 ├── notificationCoordinator.test.ts # Injected inventory, async races and failures
 ├── notificationResponses.test.ts # Buffered, validated tap navigation
 ├── fixtures/                 # Literal pre-planning version-1 saved data
-└── e2e/                     # Stopwatch, theme, timer, sounds, planning, and notification compatibility
+└── e2e/                     # Timing, palettes, languages, notifications, real duration-wheel gestures
 assets/audio/                # Original four WAVs and a byte-identical Android-safe Classic copy
 ```
 
@@ -165,6 +173,12 @@ A schedule run snapshots its source ID/name/ordered actions. A running or paused
 The current storage unit is the complete `AppData` object at `@crono/app-v1`. Changes to that layout need an explicit compatibility and migration plan; splitting storage is follow-up implementation work.
 
 ### Display and Device Behavior
+
+`DurationPicker` composes three numeric columns using pure `durationPicker` helpers. Native columns use finite ScrollViews and adjustable accessibility actions; the web adapter owns CSS snapping, spinbutton semantics, keyboard/row selection and window-level release cleanup. The injected `durationWheel` controller distinguishes user motion from silent alignment, invalidates stale settling callbacks and releases interaction state on cancellation/disable/unmount. `useDurationWheel` binds committed current props and cancels unfinished motion when the app becomes inactive. Font-scale geometry realigns silently; explicit alignment is nonanimated.
+
+The Timer route holds numeric parts and fresh selection/motion refs. Only a settled, effective, valid change configures the existing timer coordinator; Start uses the latest parts and waits until all columns settle. Running/paused wheels are disabled. Zero stays an invalid local selection; focus and same-value alignment do not mutate a completed timer or cancel its audio.
+
+The schedule editor owns one selected action ID and temporary numeric parts inside its existing Sheet. Apply functionally changes that action's draft; Cancel/Back/close abandons temporary parts. Save remains the only template-persistence boundary. `EditorBody` preserves the outer FlatList's layout while the duration/discard panel covers it: native hides interaction/accessibility, while web also uses inertness and hidden visibility to exclude covered controls from tab order. A captured list offset and stable-ID button map restore the action's viewport/focus. Name inputs and shared notices remain separate; no stacked duration Modal, timing runner or storage owner is added.
 
 `StopwatchFace` owns a local timestamp and refreshes the display approximately every 32 ms while running. It derives the elapsed value from the core and listens for app-state changes. Its display refresh does not update the shared persisted object.
 
