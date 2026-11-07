@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { initialData } from '../../src/core/stopwatch';
+import { LANGUAGES } from '../../src/core/language';
 import { getMessages } from '../../src/i18n';
 import { expectNoPageErrors, observePageErrors, seed, settings, stored } from './helpers';
 
@@ -21,7 +22,7 @@ test.afterEach(async ({ page }) => {
   expect(await page.evaluate(() => (window as unknown as { systemPermissionPrompts: number }).systemPermissionPrompts)).toBe(0);
 });
 
-for (const language of ['ro', 'en', 'ru'] as const) for (const theme of ['light', 'dark'] as const) {
+for (const { id: language } of LANGUAGES) for (const theme of ['light', 'dark'] as const) {
   test(`web notifications explain unsupported status in ${language} ${theme} without prompting`, async ({ page }) => {
     await page.setViewportSize({ width: language === 'ru' ? 320 : 390, height: 740 });
     const data = initialData(); data.preferences = { ...data.preferences, language, theme };

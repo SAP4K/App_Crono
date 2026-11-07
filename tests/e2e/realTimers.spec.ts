@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+import { LANGUAGES } from '../../src/core/language';
+import { getMessages } from '../../src/i18n';
 import { initialData } from '../../src/core/stopwatch';
 import { expectNoPageErrors, expectTheme, observePageErrors, seed, settings, stored } from './helpers';
 
@@ -133,36 +135,38 @@ test('real timers allow schedule pause, resume and confirmed reset without losin
   expect(saved.timer).toEqual(data.timer);
 });
 
-test('real timers retain pending and playing preview across language changes, natural expiry and Stop', async ({ page }) => {
-  let release!: () => void; let requested = false;
-  const pending = new Promise<void>((resolve) => { release = resolve; });
-  await page.route(classicUrl, async (route) => {
-    requested = true; await pending;
-    await route.fulfill({ contentType: 'audio/wav', body: classicWav });
+for (const [first, second] of [['en', 'ru'], ['es', 'fr'], ['fr', 'de'], ['de', 'es']] as const) {
+  test(`real timers retain pending and playing preview across ${first} and ${second}, natural expiry and Stop`, async ({ page }) => {
+    let release!: () => void; let requested = false;
+    const pending = new Promise<void>((resolve) => { release = resolve; });
+    await page.route(classicUrl, async (route) => {
+      requested = true; await pending;
+      await route.fulfill({ contentType: 'audio/wav', body: classicWav });
+    });
+    const data = dataWithPausedStopwatch();
+    await seed(page, data); await observeRealAudio(page); await page.goto('/');
+    await settings(page);
+    try {
+      await page.getByRole('button', { name: 'Ascultă sunetul', exact: true }).click();
+      await expect.poll(() => requested).toBe(true);
+      await page.getByRole('radio', { name: LANGUAGES.find(({ id }) => id === first)!.label, exact: true }).click();
+      await expect(page.getByRole('button', { name: getMessages(first).stopPreview, exact: true })).toBeVisible();
+      release();
+      await expect.poll(async () => (await audioState(page))[0]?.currentTime ?? 0).toBeGreaterThan(0);
+      await page.getByRole('radio', { name: LANGUAGES.find(({ id }) => id === second)!.label, exact: true }).click();
+      expect(await audioState(page)).toHaveLength(1);
+      expect((await audioState(page))[0]).toMatchObject({ paused: false, loop: true });
+      const audition = page.getByRole('button', { name: getMessages(second).preview, exact: true });
+      await expect(audition).toBeVisible({ timeout: 10000 });
+      expect((await audioState(page))[0].paused).toBe(true);
+      await audition.click();
+      await expect.poll(async () => (await audioState(page))[1]?.currentTime ?? 0).toBeGreaterThan(0);
+      await page.getByRole('button', { name: getMessages(second).stopPreview, exact: true }).click();
+      await expect(audition).toBeVisible();
+      expect((await audioState(page))[1].paused).toBe(true);
+      expect(await audioState(page)).toHaveLength(2);
+      const saved = await stored(page);
+      expect(saved.stopwatch).toEqual(data.stopwatch); expect(saved.timer).toEqual(data.timer); expect(saved.planning).toEqual(data.planning);
+    } finally { release(); }
   });
-  const data = dataWithPausedStopwatch();
-  await seed(page, data); await observeRealAudio(page); await page.goto('/');
-  await settings(page);
-  try {
-    await page.getByRole('button', { name: 'Ascultă sunetul', exact: true }).click();
-    await expect.poll(() => requested).toBe(true);
-    await page.getByRole('radio', { name: 'English', exact: true }).click();
-    await expect(page.getByRole('button', { name: 'Stop preview', exact: true })).toBeVisible();
-    release();
-    await expect.poll(async () => (await audioState(page))[0]?.currentTime ?? 0).toBeGreaterThan(0);
-    await page.getByRole('radio', { name: 'Русский', exact: true }).click();
-    expect(await audioState(page)).toHaveLength(1);
-    expect((await audioState(page))[0]).toMatchObject({ paused: false, loop: true });
-    const audition = page.getByRole('button', { name: 'Прослушать', exact: true });
-    await expect(audition).toBeVisible({ timeout: 10000 });
-    expect((await audioState(page))[0].paused).toBe(true);
-    await audition.click();
-    await expect.poll(async () => (await audioState(page))[1]?.currentTime ?? 0).toBeGreaterThan(0);
-    await page.getByRole('button', { name: 'Остановить прослушивание', exact: true }).click();
-    await expect(audition).toBeVisible();
-    expect((await audioState(page))[1].paused).toBe(true);
-    expect(await audioState(page)).toHaveLength(2);
-    const saved = await stored(page);
-    expect(saved.stopwatch).toEqual(data.stopwatch); expect(saved.timer).toEqual(data.timer); expect(saved.planning).toEqual(data.planning);
-  } finally { release(); }
-});
+}

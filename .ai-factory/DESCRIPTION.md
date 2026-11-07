@@ -2,7 +2,7 @@
 
 ## Purpose
 
-CRONO is a local stopwatch, countdown, and action schedule app for iOS and Android, with a web preview. Its interface supports Romanian (default), English, and Russian through manual saved selection in Settings. Users can time activities, run ordered action sequences, record laps, save sessions, review history, and share results without an account or an application backend.
+CRONO is a local stopwatch, countdown, and action schedule app for iOS and Android, with a web preview. Its interface supports Romanian (default), English, Russian, Spanish, French, and German through manual saved selection in Settings. Users can time activities, run ordered action sequences, record laps, save sessions, review history, and share results without an account or an application backend.
 
 ## Implemented Features
 
@@ -19,7 +19,7 @@ CRONO is a local stopwatch, countdown, and action schedule app for iOS and Andro
 - Schedule local Android/iOS timer/action/final notifications with default-on saved enablement, gesture-only permission requests, one selected sound clip or silent visual delivery, localized Settings/status/retry and validated tap navigation. Physical delivery remains pending verification in a rebuilt native app.
 - Restore active timing state, schedule snapshots/templates, laps, history, and preferences from local storage.
 - Save manual white/blue light or navy/blue dark selection (light default), sound ID/duration, automatic alerts, mobile haptic feedback, and screen wake lock preferences independently.
-- Select Romanian, English or Russian manually in Settings; save the choice independently, translate built-in copy/dates/counts/sharing/announcements, and retain user-entered names and timing/audio lifecycles.
+- Select Romanian, English, Russian, Spanish, French or German manually in Settings; save the choice independently, translate built-in copy/dates/counts/sharing/announcements, and retain user-entered names and timing/audio lifecycles.
 - Adapt the interface to compact screens, safe areas, and a constrained desktop preview width.
 
 ## Technology Stack
@@ -92,7 +92,7 @@ The `AppData` object contains:
 - `timer`: status, configured duration, remaining snapshot, optional deadline, and run identity.
 - `planning`: saved schedules and an optional run snapshot containing its identity, source ID/name/actions, running/paused/completed status, current index, remaining milliseconds, and optional deadline.
 - `sessions`: saved session identifiers, save timestamps, total durations, and laps.
-- `preferences`: `language: 'ro' | 'en' | 'ru'`, `haptics`, `keepAwake`, `timerSound`, and `systemNotifications` booleans, `theme: 'light' | 'dark'`, `alertSoundId: 'classic' | 'bell' | 'digital' | 'gong'`, and `alertDurationSeconds: 5 | 15 | 30`. The legacy `timerSound` name now controls automatic timer and schedule alerts.
+- `preferences`: `language: 'ro' | 'en' | 'ru' | 'es' | 'fr' | 'de'`, `haptics`, `keepAwake`, `timerSound`, and `systemNotifications` booleans, `theme: 'light' | 'dark'`, `alertSoundId: 'classic' | 'bell' | 'digital' | 'gong'`, and `alertDurationSeconds: 5 | 15 | 30`. The legacy `timerSound` name now controls automatic timer and schedule alerts.
 
 The hook stores the entire object as JSON under `@crono/app-v1`. Actions go through `update(action)`, which applies a functional transformation and queues a write. Its synchronous `{ changed, data }` result confirms in-memory acceptance, not durable storage; stable `getSnapshot()` reads the current accepted state. Additional writes are requested when the app leaves the active state. Display refreshes do not persist a new snapshot on every frame.
 
@@ -130,6 +130,8 @@ Time is derived from `Date.now()` timestamps and accumulated paused time. Backgr
 | `npm run export` | Export JavaScript/assets for all platforms |
 | `npx expo-doctor` | Diagnose Expo dependency and configuration issues |
 
+Language expansion checks on 2026-11-07: lint/typecheck, all 96 Node tests, all 162 browser scenarios in one full run (8.0min), and fresh Android/iOS/web exports passed on the source identified in `plans/feature-additional-languages.md`. All six languages cover both themes at 390px; Spanish/French/German/Russian also cover 320/430/1024px. The new languages cover 130% web text and reduced motion. Final catalog glyphs exist in all five loaded Inter weights; representative screenshots were inspected. Saved/default selection, exact plurals/dates/sharing, literal legacy data, native-content reconciliation, mounted drafts, independent clocks, notice deadlines and real pending/playing playback are covered. Native devices/accessibility/OS delivery and independent linguistic review remain pending. No dependency, storage schema/key, native config or timing/audio policy changed for this expansion.
+
 Notification implementation checks on 2026-11-06: lint/typecheck, 89 Node tests, all 104 browser scenarios in one full run (4.7min), fresh Android/iOS/web exports, dependency compatibility and 21/21 Expo Doctor checks passed. The five recommended SDK-57 patch updates were installed through Expo. Fresh isolated Android CNG verified SCHEDULE_EXACT_ALARM and byte-identical raw sound resources; iOS config introspection has no microphone or audio/remote-notification background mode. The native implementation is excluded from web. Physical Home/lock delivery, audible/visual behavior, permissions, exact access/Doze/channel/reboot settings and cold/warm taps remain pending; no APK/IPA or signed build was produced. Detailed evidence and source fingerprint are in the active notification plan.
 
 Earlier multilingual checks on 2026-11-06: lint/typecheck, all 59 Node tests, all 95 browser scenarios in one complete 4.6-minute run, and fresh Android/iOS/web exports passed. Both themes cover all three languages at 390px; Russian also covers 320/430/1024px. Tests cover manual saved choice, defaults/legacy data, user text, localized sharing, concurrent timing, pending/playing real audio, silent catch-up and unchanged feedback lifetimes. Native-device and independent native-speaker checks remain pending.
@@ -164,6 +166,6 @@ Plan fixes separately and verify the relevant behavior before changing storage f
 - Installed workflow skills: `../.agents/skills/` (33 existing AI Factory skills).
 - Communication and generated artifact languages: English, as configured.
 - Git base branch: `master`; new full/ultra plans may create branches using `feature/`.
-- Latest implementation plan: `plans/feature-background-notifications.md` (code/CLI/browser/docs complete; physical native acceptance pending); multilingual work remains at `plans/feature-multilingual-support.md`. Earlier completed implementations remain at `plans/feature-planning-button-feedback.md`, `plans/feature-white-blue-theme.md`, `plans/feature-sound-settings-schedules.md`, and `plans/feature-dark-mode-preference.md`. No roadmap or research artifact is present.
+- Latest implementation plan: `plans/feature-additional-languages.md` (six-language code/CLI/browser/exports/docs complete; native acceptance pending). Earlier notification work remains at `plans/feature-background-notifications.md` (physical native acceptance pending), and original multilingual work at `plans/feature-multilingual-support.md`. Earlier completed implementations remain at `plans/feature-planning-button-feedback.md`, `plans/feature-white-blue-theme.md`, `plans/feature-sound-settings-schedules.md`, and `plans/feature-dark-mode-preference.md`. No roadmap or research artifact is present.
 
 The connected GitHub app is available in the current agent session. No repository-level MCP server configuration is present. Reuse host-provided integrations when available; additional servers should address a concrete project need.
