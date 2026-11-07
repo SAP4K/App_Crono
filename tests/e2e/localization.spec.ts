@@ -35,12 +35,17 @@ test('manual selection updates Settings and tabs, repeated choice is a no-op and
     await expect(page.locator('html')).toHaveAttribute('lang', id);
     await expect(page.getByRole('radio', { name: label, exact: true })).toBeChecked();
   }
-  for (const label of ['English', 'Română', 'Русский']) await page.getByRole('radio', { name: label, exact: true }).click();
-  await expect.poll(async () => (await stored(page)).preferences.language).toBe('ru');
+  for (const label of ['Español', 'Français', 'Deutsch', 'Français', 'Español', 'Deutsch']) await page.getByRole('radio', { name: label, exact: true }).click();
+  await expect.poll(async () => (await stored(page)).preferences.language).toBe('de');
+  await page.evaluate(() => { (window as unknown as { languageWrites: number }).languageWrites = 0; });
+  const final = await stored(page);
+  await page.getByRole('radio', { name: 'Deutsch', exact: true }).click();
+  expect(await stored(page)).toEqual(final);
+  expect(await page.evaluate(() => (window as unknown as { languageWrites: number }).languageWrites)).toBe(0);
   await page.reload();
-  await page.getByRole('button', { name: 'Настройки', exact: true }).click();
-  await expect(page.getByRole('radio', { name: 'Русский', exact: true })).toBeChecked();
-  await expect(page.locator('html')).toHaveAttribute('lang', 'ru');
+  await page.getByRole('button', { name: getMessages('de').settings, exact: true }).click();
+  await expect(page.getByRole('radio', { name: 'Deutsch', exact: true })).toBeChecked();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'de');
 });
 
 async function selectLanguage(page: Page, from: AppLanguage, to: AppLanguage) {
@@ -54,7 +59,8 @@ async function selectLanguage(page: Page, from: AppLanguage, to: AppLanguage) {
 
 for (const { id } of LANGUAGES) {
   test(`${id} legacy hydration, selected language, history sharing and reload preserve real saved data`, async ({ page }) => {
-    const legacy = JSON.parse(readFileSync(new URL('../fixtures/app-v1-before-planning.json', import.meta.url), 'utf8'));
+    const fixture = new URL('../fixtures/app-v1-before-planning.json', import.meta.url);
+    const raw = readFileSync(fixture, 'utf8'); const legacy = JSON.parse(raw);
     await seed(page, legacy); await audioSpy(page);
     await page.addInitScript(() => {
       Object.defineProperty(navigator, 'share', { configurable: true, value: undefined });
@@ -67,6 +73,13 @@ for (const { id } of LANGUAGES) {
     if (id !== 'en') await selectLanguage(page, 'en', id);
     const m = getMessages(id);
     await expectTheme(page, true);
+    await page.getByRole('button', { name: m.settings, exact: true }).click();
+    const preferences = page.getByRole('dialog', { name: m.settingsTitle, exact: true });
+    const theme = preferences.getByRole('switch', { name: m.darkMode, exact: true });
+    await theme.click(); await expectTheme(page, false);
+    await theme.click(); await expectTheme(page, true);
+    await preferences.getByRole('button', { name: m.close, exact: true }).click();
+    await expect(preferences).not.toBeVisible();
     await expect(page.getByLabel(m.timerCompleted, { exact: true })).toBeVisible();
     await page.getByRole('tab', { name: m.historyTab, exact: true }).click();
     const session = page.getByRole('button', { name: /00:02\.50/ });
@@ -89,6 +102,7 @@ for (const { id } of LANGUAGES) {
     expect(saved.sessions).toEqual(legacy.sessions);
     expect(saved.preferences).toEqual({ ...legacy.preferences, systemNotifications: true, language: id, alertSoundId: 'classic', alertDurationSeconds: 5 });
     expect(await playCount(page)).toBe(0);
+    expect(readFileSync(fixture, 'utf8')).toBe(raw);
   });
 
   test(`${id} stopwatch timer and planning flows retain controlled user text and confirmations`, async ({ page }) => {
@@ -133,7 +147,7 @@ for (const { id } of LANGUAGES) {
     await editor.getByRole('button', { name: m.saveSchedule, exact: true }).click();
     await expect(editor).not.toBeVisible();
     const template = (await stored(page)).planning.schedules[0];
-    const next: AppLanguage = id === 'ru' ? 'en' : 'ru'; const n = getMessages(next);
+    const next = ({ ro: 'ru', en: 'ru', ru: 'en', es: 'fr', fr: 'de', de: 'es' } as const)[id]; const n = getMessages(next);
     await selectLanguage(page, id, next);
     await page.getByRole('button', { name: n.editSchedule(name), exact: true }).click();
     const edit = page.getByRole('dialog', { name: n.editScheduleTitle, exact: true });
@@ -146,6 +160,11 @@ for (const { id } of LANGUAGES) {
     await page.getByRole('button', { name: n.startSchedule(name), exact: true }).click();
     await expect(page.getByRole('button', { name: n.editSchedule(name), exact: true })).toBeDisabled();
     await page.getByRole('button', { name: n.pauseSchedule, exact: true }).click();
+    const pausedRun = (await stored(page)).planning.run;
+    await selectLanguage(page, next, id);
+    expect((await stored(page)).planning.run).toEqual(pausedRun);
+    await selectLanguage(page, id, next);
+    expect((await stored(page)).planning.run).toEqual(pausedRun);
     await page.getByRole('button', { name: n.resumeSchedule, exact: true }).click();
     await page.getByRole('button', { name: n.resetSchedule, exact: true }).click();
     await page.getByRole('dialog', { name: n.resetScheduleTitle, exact: true }).getByRole('button', { name: n.resetSchedule, exact: true }).click();
@@ -157,7 +176,7 @@ for (const { id } of LANGUAGES) {
   });
 }
 
-for (const [locale, language] of [['en-GB', undefined], ['ru-RU', 'unsupported']] as const) {
+for (const [locale, language] of [['en-GB', undefined], ['ru-RU', 'unsupported'], ['es-ES', undefined], ['fr-FR', 'FR'], ['de-DE', 'de-DE']] as const) {
   test.describe(`browser ${locale} with ${language ?? 'missing'} saved language`, () => {
     test.use({ locale });
     test('defaults to Romanian independently of browser language and other preferences', async ({ page }) => {
@@ -209,88 +228,133 @@ async function timingFixture(page: Page) {
   return data;
 }
 
-test('language changes at live boundaries preserve three independent clocks and one playback per event', async ({ page }) => {
+test('mounted unsaved draft retains mixed text and clocks through all new language updates', async ({ page }) => {
   const data = await timingFixture(page);
-  await page.getByRole('button', { name: 'Setări', exact: true }).click();
-  await page.getByRole('radio', { name: 'English', exact: true }).click();
-  let dialog = page.getByRole('dialog', { name: getMessages('en').settingsTitle, exact: true });
-  const saved = await stored(page);
-  expect(saved.stopwatch).toEqual(data.stopwatch); expect(saved.timer).toEqual(data.timer); expect(saved.planning).toEqual(data.planning);
-  await page.clock.runFor(2999);
-  await page.getByRole('radio', { name: 'Русский', exact: true }).click();
+  const original = getMessages('ro');
+  await page.getByRole('tab', { name: original.planningTab, exact: true }).click();
+  await page.getByRole('button', { name: original.newSchedule, exact: true }).click();
+  let editor = page.getByRole('dialog', { name: original.newSchedule, exact: true });
+  const name = 'École · Español · Übung · Учёба · Școală';
+  await editor.getByLabel(original.scheduleName, { exact: true }).fill(name);
+  await editor.getByLabel(original.stepName(1), { exact: true }).fill(name);
+  let previous = original;
+  const names = [name];
+  for (const id of ['es', 'fr', 'de'] as const) {
+    // Modal stacking blocks Settings gestures during editing. Dispatch the real
+    // controls to exercise accepted context updates without adding a test store.
+    await page.getByRole('button', { name: previous.settings, exact: true, includeHidden: true }).dispatchEvent('click');
+    await page.getByRole('radio', { name: LANGUAGES.find((item) => item.id === id)!.label, exact: true, includeHidden: true }).dispatchEvent('click');
+    const m = getMessages(id);
+    const settings = page.getByRole('dialog', { name: m.settingsTitle, exact: true, includeHidden: true });
+    await settings.getByRole('button', { name: m.close, exact: true, includeHidden: true }).dispatchEvent('click');
+    await expect(settings).not.toBeVisible();
+    editor = page.getByRole('dialog', { name: m.newSchedule, exact: true });
+    await expect(editor.getByLabel(m.scheduleName, { exact: true })).toHaveValue(name);
+    for (let index = 0; index < names.length; index++) {
+      await expect(editor.getByLabel(m.stepName(index + 1), { exact: true })).toHaveValue(names[index]);
+    }
+    await editor.getByRole('button', { name: m.addStep, exact: true }).click();
+    names.push(m.stepNumber(names.length + 1));
+    await expect(editor.getByLabel(m.stepName(names.length), { exact: true })).toHaveValue(names.at(-1)!);
+    const saved = await stored(page);
+    expect(saved.stopwatch).toEqual(data.stopwatch); expect(saved.timer).toEqual(data.timer); expect(saved.planning).toEqual(data.planning);
+    previous = m;
+  }
+  await editor.getByRole('button', { name: previous.close, exact: true }).click();
+  await page.getByRole('button', { name: previous.continueEditing, exact: true }).click();
+  await expect(editor.getByLabel(previous.scheduleName, { exact: true })).toHaveValue(name);
+  await editor.getByRole('button', { name: previous.close, exact: true }).click();
+  await page.getByRole('button', { name: previous.discardChanges, exact: true }).click();
+  expect((await stored(page)).planning).toEqual(data.planning);
   expect(await playCount(page)).toBe(0);
-  await page.clock.runFor(1);
-  dialog = page.getByRole('dialog', { name: getMessages('ru').settingsTitle, exact: true });
-  await expect(dialog.getByLabel(getMessages('ru').stepCompleted, { exact: true })).toBeVisible();
-  await expect.poll(() => playCount(page)).toBe(1);
-  await page.getByRole('radio', { name: 'English', exact: true }).click();
-  dialog = page.getByRole('dialog', { name: getMessages('en').settingsTitle, exact: true });
-  await expect(dialog.getByLabel(getMessages('en').stepCompleted, { exact: true })).toBeVisible();
-  expect(await playCount(page)).toBe(1);
-  expect((await audioEvents(page)).filter((event) => event.type === 'pause')).toHaveLength(0);
-  await page.clock.runFor(2000);
-  await expect(dialog.getByLabel(getMessages('en').timerCompleted, { exact: true })).toBeVisible();
-  await expect.poll(() => playCount(page)).toBe(2);
-  await page.getByRole('radio', { name: 'Русский', exact: true }).click();
-  await page.clock.runFor(2000);
-  dialog = page.getByRole('dialog', { name: getMessages('ru').settingsTitle, exact: true });
-  await expect(dialog.getByLabel(getMessages('ru').scheduleCompleted, { exact: true })).toBeVisible();
-  await expect.poll(() => playCount(page)).toBe(3);
-  const result = await stored(page);
-  expect(result.timer).toMatchObject({ status: 'completed', runId: 'language-timer' });
-  expect(result.planning.run).toMatchObject({ status: 'completed', runId: 'language-schedule', stepIndex: 1 });
-  expect(result.planning.schedules).toEqual(data.planning.schedules); expect(result.stopwatch).toEqual(data.stopwatch);
-  await page.getByRole('radio', { name: 'English', exact: true }).click();
-  expect(await playCount(page)).toBe(3);
 });
 
-test('selected language survives silent background catch-up without replaying expired alerts', async ({ page }) => {
-  const data = await timingFixture(page);
-  await selectLanguage(page, 'ro', 'ru');
-  await page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' }); document.dispatchEvent(new Event('visibilitychange')); });
-  await page.clock.runFor(10000);
-  await page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' }); document.dispatchEvent(new Event('visibilitychange')); });
-  await expect.poll(async () => (await stored(page)).timer.status).toBe('completed');
-  await expect.poll(async () => (await stored(page)).planning.run?.status).toBe('completed');
-  await expect(page.getByLabel(getMessages('ru').timerCompleted, { exact: true })).toBeVisible();
-  await expect(page.getByLabel(getMessages('ru').scheduleCompleted, { exact: true })).toBeVisible();
-  expect(await playCount(page)).toBe(0);
-  expect((await stored(page)).stopwatch).toEqual(data.stopwatch);
-});
+for (const [first, second] of [['en', 'ru'], ['es', 'fr'], ['fr', 'de'], ['de', 'es']] as const) {
+  test(`language ${first} to ${second} at live boundaries preserves three clocks and one playback per event`, async ({ page }) => {
+    const data = await timingFixture(page);
+    await page.getByRole('button', { name: 'Setări', exact: true }).click();
+    await page.getByRole('radio', { name: LANGUAGES.find(({ id }) => id === first)!.label, exact: true }).click();
+    let dialog = page.getByRole('dialog', { name: getMessages(first).settingsTitle, exact: true });
+    const saved = await stored(page);
+    expect(saved.stopwatch).toEqual(data.stopwatch); expect(saved.timer).toEqual(data.timer); expect(saved.planning).toEqual(data.planning);
+    await page.clock.runFor(2999);
+    await page.getByRole('radio', { name: LANGUAGES.find(({ id }) => id === second)!.label, exact: true }).click();
+    expect(await playCount(page)).toBe(0);
+    await page.clock.runFor(1);
+    dialog = page.getByRole('dialog', { name: getMessages(second).settingsTitle, exact: true });
+    await expect(dialog.getByLabel(getMessages(second).stepCompleted, { exact: true })).toBeVisible();
+    await expect.poll(() => playCount(page)).toBe(1);
+    await page.getByRole('radio', { name: LANGUAGES.find(({ id }) => id === first)!.label, exact: true }).click();
+    dialog = page.getByRole('dialog', { name: getMessages(first).settingsTitle, exact: true });
+    await expect(dialog.getByLabel(getMessages(first).stepCompleted, { exact: true })).toBeVisible();
+    expect(await playCount(page)).toBe(1);
+    expect((await audioEvents(page)).filter((event) => event.type === 'pause')).toHaveLength(0);
+    await page.clock.runFor(2000);
+    await expect(dialog.getByLabel(getMessages(first).timerCompleted, { exact: true })).toBeVisible();
+    await expect.poll(() => playCount(page)).toBe(2);
+    await page.getByRole('radio', { name: LANGUAGES.find(({ id }) => id === second)!.label, exact: true }).click();
+    await page.clock.runFor(2000);
+    dialog = page.getByRole('dialog', { name: getMessages(second).settingsTitle, exact: true });
+    await expect(dialog.getByLabel(getMessages(second).scheduleCompleted, { exact: true })).toBeVisible();
+    await expect.poll(() => playCount(page)).toBe(3);
+    const result = await stored(page);
+    expect(result.timer).toMatchObject({ status: 'completed', runId: 'language-timer' });
+    expect(result.planning.run).toMatchObject({ status: 'completed', runId: 'language-schedule', stepIndex: 1 });
+    expect(result.planning.schedules).toEqual(data.planning.schedules); expect(result.stopwatch).toEqual(data.stopwatch);
+    await page.getByRole('radio', { name: LANGUAGES.find(({ id }) => id === first)!.label, exact: true }).click();
+    expect(await playCount(page)).toBe(3);
+  });
+}
 
-test('changing language relabels an existing toast without extending its lifetime', async ({ page }) => {
-  await page.clock.install({ time: new Date('2026-11-06T10:00:00Z') }); await page.clock.pauseAt(new Date('2026-11-06T10:00:01Z'));
-  const data = initialData(); data.stopwatch.accumulatedMs = 1500;
-  await seed(page, data); await page.goto('/');
-  await page.getByRole('button', { name: 'Salvează sesiunea', exact: true }).click();
-  await expect(page.getByText(getMessages('ro').sessionSaved, { exact: true })).toBeVisible();
-  await page.clock.runFor(2000);
-  await selectLanguage(page, 'ro', 'ru');
-  await expect(page.getByText(getMessages('ru').sessionSaved, { exact: true })).toBeVisible();
-  await page.clock.runFor(1499);
-  await expect(page.getByText(getMessages('ru').sessionSaved, { exact: true })).toBeVisible();
-  await page.clock.runFor(1);
-  await expect(page.getByText(getMessages('ru').sessionSaved, { exact: true })).toHaveCount(0);
-  expect((await stored(page)).sessions).toHaveLength(1);
-});
+for (const target of ['ru', 'es', 'fr', 'de'] as const) {
+  test(`${target} language survives silent background catch-up without replaying expired alerts`, async ({ page }) => {
+    const data = await timingFixture(page);
+    await selectLanguage(page, 'ro', target);
+    await page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' }); document.dispatchEvent(new Event('visibilitychange')); });
+    await page.clock.runFor(10000);
+    await page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' }); document.dispatchEvent(new Event('visibilitychange')); });
+    await expect.poll(async () => (await stored(page)).timer.status).toBe('completed');
+    await expect.poll(async () => (await stored(page)).planning.run?.status).toBe('completed');
+    await expect(page.getByLabel(getMessages(target).timerCompleted, { exact: true })).toBeVisible();
+    await expect(page.getByLabel(getMessages(target).scheduleCompleted, { exact: true })).toBeVisible();
+    expect(await playCount(page)).toBe(0);
+    expect((await stored(page)).stopwatch).toEqual(data.stopwatch);
+  });
 
-test('existing preview failure translates in its sheet and retains the original feedback deadline', async ({ page }) => {
-  await page.clock.install({ time: new Date('2026-11-06T10:00:00Z') }); await page.clock.pauseAt(new Date('2026-11-06T10:00:01Z'));
-  const wav = readFileSync(new URL('../../assets/audio/timer-complete.wav', import.meta.url));
-  await page.route(/timer-complete[^/]*\.wav/, (route) => route.fulfill({ contentType: 'audio/wav', body: wav }));
-  await seed(page); await audioSpy(page, true); await page.goto('/');
-  await page.getByRole('button', { name: 'Setări', exact: true }).click();
-  await page.getByRole('button', { name: 'Ascultă sunetul', exact: true }).click();
-  await expect(page.getByText(getMessages('ro').soundUnavailable, { exact: true })).toBeVisible();
-  await page.clock.runFor(2000);
-  await page.getByRole('radio', { name: 'Русский', exact: true }).click();
-  await expect(page.getByText(getMessages('ru').soundUnavailable, { exact: true })).toBeVisible();
-  await page.clock.runFor(1499);
-  await expect(page.getByText(getMessages('ru').soundUnavailable, { exact: true })).toBeVisible();
-  await page.clock.runFor(1);
-  await expect(page.getByText(getMessages('ru').soundUnavailable, { exact: true })).toHaveCount(0);
-  expect(await playCount(page)).toBe(1);
-});
+  test(`${target} language relabels an existing toast without extending its lifetime`, async ({ page }) => {
+    await page.clock.install({ time: new Date('2026-11-06T10:00:00Z') }); await page.clock.pauseAt(new Date('2026-11-06T10:00:01Z'));
+    const data = initialData(); data.stopwatch.accumulatedMs = 1500;
+    await seed(page, data); await page.goto('/');
+    await page.getByRole('button', { name: 'Salvează sesiunea', exact: true }).click();
+    await expect(page.getByText(getMessages('ro').sessionSaved, { exact: true })).toBeVisible();
+    await page.clock.runFor(2000);
+    await selectLanguage(page, 'ro', target);
+    await expect(page.getByText(getMessages(target).sessionSaved, { exact: true })).toBeVisible();
+    await page.clock.runFor(1499);
+    await expect(page.getByText(getMessages(target).sessionSaved, { exact: true })).toBeVisible();
+    await page.clock.runFor(1);
+    await expect(page.getByText(getMessages(target).sessionSaved, { exact: true })).toHaveCount(0);
+    expect((await stored(page)).sessions).toHaveLength(1);
+  });
+
+  test(`${target} preview failure translates in its sheet and retains the original feedback deadline`, async ({ page }) => {
+    await page.clock.install({ time: new Date('2026-11-06T10:00:00Z') }); await page.clock.pauseAt(new Date('2026-11-06T10:00:01Z'));
+    const wav = readFileSync(new URL('../../assets/audio/timer-complete.wav', import.meta.url));
+    await page.route(/timer-complete[^/]*\.wav/, (route) => route.fulfill({ contentType: 'audio/wav', body: wav }));
+    await seed(page); await audioSpy(page, true); await page.goto('/');
+    await page.getByRole('button', { name: 'Setări', exact: true }).click();
+    await page.getByRole('button', { name: 'Ascultă sunetul', exact: true }).click();
+    await expect(page.getByText(getMessages('ro').soundUnavailable, { exact: true })).toBeVisible();
+    await page.clock.runFor(2000);
+    await page.getByRole('radio', { name: LANGUAGES.find(({ id }) => id === target)!.label, exact: true }).click();
+    await expect(page.getByText(getMessages(target).soundUnavailable, { exact: true })).toBeVisible();
+    await page.clock.runFor(1499);
+    await expect(page.getByText(getMessages(target).soundUnavailable, { exact: true })).toBeVisible();
+    await page.clock.runFor(1);
+    await expect(page.getByText(getMessages(target).soundUnavailable, { exact: true })).toHaveCount(0);
+    expect(await playCount(page)).toBe(1);
+  });
+}
 
 async function expectControlsFit(page: Page) {
   const controls = page.getByRole('button').or(page.getByRole('radio')).or(page.getByRole('tab'));
@@ -310,11 +374,12 @@ async function expectControlsFit(page: Page) {
 }
 
 const layouts = LANGUAGES.flatMap(({ id }) => ['light', 'dark'].map((theme) => ({ id, theme: theme as 'light' | 'dark', width: 390 })))
-  .concat([320, 430, 1024].flatMap((width) => ['light', 'dark'].map((theme) => ({ id: 'ru' as const, theme: theme as 'light' | 'dark', width }))));
+  .concat([320, 430, 1024].flatMap((width) => ['ru', 'es', 'fr', 'de'].flatMap((id) => ['light', 'dark'].map((theme) => ({ id: id as AppLanguage, theme: theme as 'light' | 'dark', width })))));
 for (const { id, theme, width } of layouts) {
   test(`layout ${id} ${theme} ${width}px keeps controls labels dialogs and notices usable`, async ({ page }) => {
     await page.setViewportSize({ width, height: 844 });
     const data = initialData(); data.preferences.language = id; data.preferences.theme = theme;
+    data.sessions = [{ id: 'layout-history', savedAt: Date.UTC(2026, 10, 6, 23, 7), durationMs: 2500, laps: [] }];
     data.timer = { status: 'completed', durationMs: 1000, remainingMs: 0, deadlineAt: null, runId: 'layout' };
     const wav = readFileSync(new URL('../../assets/audio/timer-complete.wav', import.meta.url));
     await page.route(/timer-complete[^/]*\.wav/, (route) => route.fulfill({ contentType: 'audio/wav', body: wav }));
@@ -351,5 +416,43 @@ for (const { id, theme, width } of layouts) {
     await page.screenshot({ path: `${prefix}-confirmation.png`, animations: 'disabled' });
     await discard.getByRole('button', { name: m.continueEditing, exact: true }).click();
     await expect(editor.getByLabel(m.scheduleName, { exact: true })).toHaveValue('Учёба · Școală');
+    await editor.getByRole('button', { name: m.close, exact: true }).click();
+    await page.getByRole('button', { name: m.discardChanges, exact: true }).click();
+    await page.getByRole('tab', { name: m.timerTab, exact: true }).click();
+    await expect(page.getByLabel(m.timeUnits[0], { exact: true })).toBeVisible();
+    await expectControlsFit(page);
+    await page.screenshot({ path: `${prefix}-timer.png`, animations: 'disabled' });
+    await page.getByRole('tab', { name: m.historyTab, exact: true }).click();
+    await page.getByRole('button', { name: /00:02\.50/ }).click();
+    const details = page.getByRole('dialog', { name: m.sessionTitle, exact: true });
+    await expect(details.getByRole('button', { name: m.shareResults, exact: true })).toBeVisible();
+    await expectControlsFit(page);
+    await page.screenshot({ path: `${prefix}-history.png`, animations: 'disabled' });
+  });
+}
+
+for (const id of ['es', 'fr', 'de'] as const) {
+  test(`layout ${id} enlarged web text and reduced motion retain six reachable choices`, async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    const data = initialData(); data.preferences.language = id;
+    await seed(page, data); await page.goto('/');
+    const m = getMessages(id);
+    await page.getByRole('button', { name: m.settings, exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: m.settingsTitle, exact: true });
+    await dialog.evaluate((element) => {
+      for (const text of element.querySelectorAll<HTMLElement>('[dir="auto"]')) {
+        text.style.fontSize = `${parseFloat(getComputedStyle(text).fontSize) * 1.3}px`;
+      }
+    });
+    for (const { label } of LANGUAGES) {
+      const choice = dialog.getByRole('radio', { name: label, exact: true });
+      await choice.scrollIntoViewIfNeeded(); await expect(choice).toBeInViewport();
+    }
+    await expectControlsFit(page);
+    await dialog.getByText(m.historyLimit, { exact: true }).scrollIntoViewIfNeeded();
+    await expect(dialog.getByText(m.historyLimit, { exact: true })).toBeInViewport();
+    await page.screenshot({ path: `previews/i18n-${id}-enlarged.png`, animations: 'disabled' });
+    await dialog.getByRole('button', { name: m.close, exact: true }).click();
+    await expect(page.locator('html')).toHaveAttribute('lang', id);
   });
 }

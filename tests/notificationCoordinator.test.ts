@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
 import { initialData, restoreData } from '../src/core/stopwatch.ts';
+import { LANGUAGES } from '../src/core/language.ts';
 import { configureTimer, startTimer, pauseTimer, resumeTimer, resetTimer } from '../src/core/timer.ts';
 import { startSchedule, reconcileSchedule } from '../src/core/planning.ts';
 import { NOTIFICATION_PREFIX, notificationData } from '../src/core/notifications.ts';
@@ -112,7 +113,7 @@ test('locale and sound change content without changing clocks; unrelated prefere
   const clocks = JSON.stringify([f.data.timer, f.data.planning]);
   f.data.preferences = { ...f.data.preferences, theme: 'dark', haptics: false, keepAwake: false, alertDurationSeconds: 30 };
   await controller.reconcile(); assert.equal(f.scheduled.length, 1); assert.equal(f.cancelled.length, 0);
-  for (const language of ['en', 'ru', 'ro'] as const) {
+  for (const { id: language } of [...LANGUAGES.slice(1), LANGUAGES[0]]) {
     f.data.preferences.language = language; await controller.reconcile();
     assert.equal(f.pending.size, 1);
     assert.equal(f.scheduled.at(-1)!.descriptor.event.dueAt, 11000);
@@ -125,6 +126,44 @@ test('locale and sound change content without changing clocks; unrelated prefere
   assert.equal(f.scheduled.at(-1)!.descriptor.sound, false); assert.equal(f.pending.size, 1);
   assert.equal(new Set(f.scheduled.map(({ identifier }) => identifier)).size, f.scheduled.length);
   assert.equal(JSON.stringify([f.data.timer, f.data.planning]), clocks);
+});
+
+test('rapid Spanish French German updates discard delayed registrations without permission or event changes', async () => {
+  const { f, native, controller } = fixture(); await controller.reconcile();
+  const first = f.scheduled[0], gate = deferred<void>(), entered = deferred<void>(), schedule = native.schedule;
+  let prompts = 0; native.requestPermission = async () => { prompts++; return f.capability; };
+  native.schedule = async (...args) => { entered.resolve(); await gate.promise; return schedule(...args); };
+  f.data.preferences.language = 'es'; const work = controller.reconcile(); await entered.promise;
+  f.data.preferences.language = 'fr'; void controller.reconcile();
+  f.data.preferences.language = 'de'; void controller.reconcile(); gate.resolve(); await work;
+  const latest = f.scheduled.at(-1)!;
+  assert.equal(f.pending.size, 1); assert.ok(f.pending.has(latest.identifier));
+  assert.notEqual(latest.identifier, first.identifier);
+  assert.deepEqual(latest.descriptor.event, first.descriptor.event);
+  assert.equal(latest.descriptor.channelId, first.descriptor.channelId);
+  assert.equal(latest.descriptor.fingerprint, notificationContent(latest.descriptor.event, f.data.preferences).fingerprint);
+  assert.notEqual(latest.descriptor.fingerprint, first.descriptor.fingerprint);
+  assert.deepEqual(f.cancelled, [first.identifier, f.scheduled[1].identifier]);
+  assert.equal(prompts, 0);
+  f.now = 12000;
+  for (const language of ['es', 'fr', 'de'] as const) { f.data.preferences.language = language; await controller.reconcile(); }
+  assert.equal(f.pending.size, 0); assert.equal(f.scheduled.length, 3);
+});
+
+test('new languages preserve opt-out and muted state and never request denied permissions', async () => {
+  for (const language of ['es', 'fr', 'de'] as const) {
+    const { f, native, controller } = fixture(); let prompts = 0;
+    native.requestPermission = async () => { prompts++; return f.capability; };
+    f.data.preferences.language = language; f.data.preferences.timerSound = false;
+    await controller.reconcile();
+    assert.equal(f.scheduled[0].descriptor.sound, false);
+    assert.equal(f.scheduled[0].descriptor.channelId, 'crono.alerts.silent.v1');
+    f.data.preferences.systemNotifications = false; await controller.reconcile(); assert.equal(f.pending.size, 0);
+    f.data.preferences.systemNotifications = true;
+    f.capability = { status: 'denied', canSchedule: false, canAsk: false, soundAllowed: false };
+    await controller.reconcile(true); assert.equal(f.pending.size, 0); assert.equal(prompts, 0);
+    assert.equal(f.data.preferences.timerSound, false);
+  }
 });
 
 test('the literal legacy snapshot projects no retrospective alert and retains clocks/history/false settings', async () => {

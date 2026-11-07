@@ -42,7 +42,7 @@ Docs: https://docs.expo.dev/eas/index.md
 
 ## Project Overview
 
-CRONO is a Romanian/English/Russian stopwatch, countdown, and action schedule app for iOS and Android with a web preview. Read `.ai-factory/DESCRIPTION.md` for the verified stack, implemented behavior, persistence contract, and open technical findings.
+CRONO is a Romanian/English/Russian/Spanish/French/German stopwatch, countdown, and action schedule app for iOS and Android with a web preview. Read `.ai-factory/DESCRIPTION.md` for the verified stack, implemented behavior, persistence contract, and open technical findings.
 
 The app uses technical layers with shared pure stopwatch/countdown/schedule cores, one alert playback owner, and a separate OS notification owner. Read `.ai-factory/ARCHITECTURE.md` and `.ai-factory/rules/base.md` before implementation.
 
@@ -118,7 +118,7 @@ assets/                 App icons, splash images, and four original WAV patterns
 
 | File | Purpose |
 |---|---|
-| `README.md` | Setup, languages, themes, schedules, notifications, checks, builds |
+| `README.md` | Setup, six languages, themes, schedules, notifications, checks, builds |
 | `AGENTS.md` | Repository map and authoritative Expo workflow requirements |
 | `.ai-factory/DESCRIPTION.md` | Project purpose, stack, data model, and known follow-ups |
 | `.ai-factory/ARCHITECTURE.md` | Layered architecture, dependencies, and data flow |

@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { initialData } from '../src/core/stopwatch.ts';
+import { LANGUAGES } from '../src/core/language.ts';
+import { getMessages } from '../src/i18n/index.ts';
 import { startTimer, configureTimer, pauseTimer, resumeTimer } from '../src/core/timer.ts';
 import { startSchedule } from '../src/core/planning.ts';
 import { notificationData, notificationEventKey, ownedNotificationData, projectNotificationEvents, readNotificationData, NOTIFICATION_PREFIX } from '../src/core/notifications.ts';
@@ -77,7 +79,7 @@ test('notification permissions distinguish undetermined denied and granular iOS 
 
 test('localized notification content retains user names and sound policy independent of duration', () => {
   const data = running(); const event = projectNotificationEvents(data, 1500).find(({ owner }) => owner === 'planning')!;
-  for (const language of ['ro', 'en', 'ru'] as const) for (const alertSoundId of ['classic', 'bell', 'digital', 'gong'] as const) {
+  for (const { id: language } of LANGUAGES) for (const alertSoundId of ['classic', 'bell', 'digital', 'gong'] as const) {
     const preferences = { ...data.preferences, language, alertSoundId };
     const content = notificationContent(event, preferences);
     assert.ok(content.body.includes(event.stepName!)); assert.ok(content.body.includes(event.nextStepName!));
@@ -85,6 +87,28 @@ test('localized notification content retains user names and sound policy indepen
     const silent = notificationContent(event, { ...preferences, timerSound: false });
     assert.equal(silent.sound, false); assert.match(silent.channelId, /silent/);
     assert.notEqual(silent.fingerprint, content.fingerprint);
+  }
+});
+
+test('six-language timer action and final content preserve semantic events and stable channels', () => {
+  const data = running(); const events = projectNotificationEvents(data, 1500);
+  const expected = {
+    es: ['CRONO · Temporizador', 'Se acabó el tiempo.', 'CRONO · Planificación', 'Paso completado: Etapa 0. Siguiente: Etapa 1.', 'El plan «Учёба · Școală» ha terminado.'],
+    fr: ['CRONO · Minuteur', 'Le temps est écoulé.', 'CRONO · Programmes', 'Étape terminée : Etapa 0. Ensuite : Etapa 1.', 'Le programme « Учёба · Școală » est terminé.'],
+    de: ['CRONO · Timer', 'Die Zeit ist abgelaufen.', 'CRONO · Abläufe', 'Schritt abgeschlossen: Etapa 0. Weiter: Etapa 1.', 'Ablauf „Учёба · Școală“ ist beendet.'],
+  } as const;
+  const baseline = events.map((event) => notificationContent(event, data.preferences));
+  for (const { id: language } of LANGUAGES) {
+    const content = events.map((event) => notificationContent(event, { ...data.preferences, language }));
+    assert.deepEqual(content.map(({ event }) => event), events);
+    assert.deepEqual(content.map(({ channelId, sound }) => [channelId, sound]), baseline.map(({ channelId, sound }) => [channelId, sound]));
+    const m = getMessages(language);
+    assert.equal(content[1].body, m.timerComplete);
+    assert.equal(content[0].body, m.stepFinished('Etapa 0', 'Etapa 1'));
+    assert.equal(content[3].body, m.scheduleFinished('Учёба · Școală'));
+    if (language === 'es' || language === 'fr' || language === 'de') {
+      assert.deepEqual([content[1].title, content[1].body, content[0].title, content[0].body, content[3].body], expected[language]);
+    }
   }
 });
 

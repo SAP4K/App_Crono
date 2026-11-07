@@ -42,6 +42,9 @@ test('selected locales format dates and 24-hour time without changing timestamps
   assert.match(sessionDate(timestamp, 'ro', 'UTC'), /noiembrie/);
   assert.match(sessionDate(timestamp, 'en', 'UTC'), /November/);
   assert.match(sessionDate(timestamp, 'ru', 'UTC'), /ноября/);
+  assert.equal(sessionDate(timestamp, 'es', 'UTC'), '6 de noviembre de 2026');
+  assert.equal(sessionDate(timestamp, 'fr', 'UTC'), '6 novembre 2026');
+  assert.equal(sessionDate(timestamp, 'de', 'UTC'), '6. November 2026');
 });
 
 test('catalog parameters preserve names, durations, sound IDs and complete count phrases', () => {
@@ -55,6 +58,9 @@ test('catalog parameters preserve names, durations, sound IDs and complete count
     assert.ok(m.shareTotal('00:03.50').includes('00:03.50'));
     assert.deepEqual(Object.keys(m.sounds).sort(), ['bell', 'classic', 'digital', 'gong']);
     assert.equal(m.timeUnits.length, 3);
+    for (const value of [...Object.values(m.sounds), ...m.timeUnits]) assert.ok(value.trim(), `${id}:nested label`);
+    for (const output of [m.totalTime('01:02'), m.remainingTime('01:02'), m.currentStepTime('01:02'), m.editorTotal('01:02')]) assert.ok(output.includes('01:02'));
+    for (const output of [m.stepNumber(7), m.stepName(7), m.moveStepUp(7), m.moveStepDown(7), m.removeStep(7), m.stepField('Horas · Часы', 7)]) assert.ok(output.includes('7'));
     assert.ok(m.sessionLabel('date', '00:03.50', 22).includes(m.lapCount(22)));
   }
   assert.equal(getMessages('ro').savedSessions(20), '20 de sesiuni salvate');
@@ -74,4 +80,23 @@ test('sharing uses the chosen catalog and preserves all numeric lap totals', () 
   }
   assert.match(sessionText(session, 'ru', 'UTC'), /ноября/);
   assert.match(sessionText(session, 'en', 'UTC'), /Total time:/);
+  assert.match(sessionText(session, 'es', 'UTC'), /Tiempo total: 00:03.50/);
+  assert.match(sessionText(session, 'fr', 'UTC'), /Temps total : 00:03.50/);
+  assert.match(sessionText(session, 'de', 'UTC'), /Gesamtzeit: 00:03.50/);
+});
+
+test('Spanish French and German count phrases use exact locale agreement including French zero', () => {
+  const forms = {
+    es: [['vuelta', 'vueltas'], ['sesión guardada', 'sesiones guardadas'], ['vuelta registrada', 'vueltas registradas'], ['paso', 'pasos']],
+    fr: [['tour', 'tours'], ['séance enregistrée', 'séances enregistrées'], ['tour enregistré', 'tours enregistrés'], ['étape', 'étapes']],
+    de: [['Runde', 'Runden'], ['gespeicherte Sitzung', 'gespeicherte Sitzungen'], ['aufgezeichnete Runde', 'aufgezeichnete Runden'], ['Schritt', 'Schritte']],
+  } as const;
+  for (const id of ['es', 'fr', 'de'] as const) {
+    for (const count of [0, 1, 2, 21, 101, 1000000]) {
+      const singular = count === 1 || (id === 'fr' && count === 0);
+      (['lapCount', 'savedSessions', 'recordedLaps', 'stepCount'] as const).forEach((key, index) => {
+        assert.equal(getMessages(id)[key](count), `${count} ${forms[id][index][singular ? 0 : 1]}`, `${id}:${key}:${count}`);
+      });
+    }
+  }
 });

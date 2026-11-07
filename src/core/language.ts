@@ -2,6 +2,9 @@ export const LANGUAGES = [
   { id: 'ro', label: 'Română', locale: 'ro-RO' },
   { id: 'en', label: 'English', locale: 'en-GB' },
   { id: 'ru', label: 'Русский', locale: 'ru-RU' },
+  { id: 'es', label: 'Español', locale: 'es-ES' },
+  { id: 'fr', label: 'Français', locale: 'fr-FR' },
+  { id: 'de', label: 'Deutsch', locale: 'de-DE' },
 ] as const;
 
 export type AppLanguage = typeof LANGUAGES[number]['id'];

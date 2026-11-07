@@ -63,6 +63,7 @@ src/
 ├── i18n/
 │   ├── types.ts              # Widened catalog contract
 │   ├── ro.ts / en.ts / ru.ts  # Stable bundled translated copy/functions
+│   ├── es.ts / fr.ts / de.ts  # Spanish, French and German copy/functions
 │   ├── index.ts              # Catalog selection with Romanian fallback
 │   ├── notificationContent.ts # Localized OS title/body and content fingerprint
 │   ├── plurals.ts            # Cached Intl plural phrases
@@ -179,7 +180,7 @@ Native audio uses SDK 57 `createAudioPlayer` for each accepted source and explic
 
 `ThemeContext` projects saved preferences into stable semantic palettes and cached styles, supplies the navigation theme, and synchronizes native Appearance/SystemUI and status-bar contrast. It has no independent persistence and does not key/remount routes or clock owners.
 
-`useI18n` derives stable module catalogs from the saved `language` preference and applies effective changes through the existing functional update API. Romanian is the manual default; no device locale is detected. The framework-free translation layer owns plural/date/share presentation; `sessionText` lives here rather than in the pure timing core. Catalogs use stable sound IDs and preserve user-entered schedule/action names. Toast, timer-completion and audio-failure values are semantic codes, translated when rendered or announced with a fresh snapshot. Language does not recreate timing/playback controllers, refresh foreground notice lifetimes, or key/remount routes or controlled inputs. It updates future system-notification content through the separate notification owner. Web document language follows selection; native speech voice remains an OS concern.
+`useI18n` derives stable module catalogs from the saved `language` preference and applies effective changes through the existing functional update API. The registry covers `ro/en/ru/es/fr/de` with complete Romanian, English, Russian, Spanish, French and German catalogs; Romanian is the manual default/fallback and no device locale is detected. The framework-free translation layer owns plural/date/share presentation; `sessionText` lives here rather than in the pure timing core. Catalogs use stable sound IDs and preserve user-entered schedule/action names. Toast, timer-completion and audio-failure values are semantic codes, translated when rendered or announced with a fresh snapshot. Language does not recreate timing/playback controllers, refresh foreground notice lifetimes, or key/remount routes or controlled inputs. It updates future system-notification content through the separate notification owner. Web document language follows selection; native speech voice remains an OS concern.
 
 `CronoContext` owns transient notices and platform-guarded haptics and a single screen wake guard for the OR of running stopwatch, timer, and schedule states. Sharing remains in the history route, with separate mobile and browser paths. Keep mobile-only behavior and browser fallbacks explicit.
 

@@ -32,13 +32,26 @@ When developing on Windows, you can preview the interface on a physical iPhone u
 - Choose white/blue light or navy/blue dark mode and save that preference across launches.
 - Restore the active stopwatch, countdown, schedule, laps, and settings after closing and reopening the app.
 - Haptic feedback and screen wake lock on mobile, each with its own setting.
-- Romanian, English, and Russian interfaces, bundled fonts, and no account or dedicated backend required.
+- Romanian, English, Russian, Spanish, French, and German interfaces, bundled fonts, and no account or dedicated backend required.
 
 Tap **Pauză → Salvează sesiunea** (Pause → Save session) to keep your result and prepare a new stopwatch session. In **Istoric** (History), tap a session to view its details and share it. On the web, results are copied to the clipboard if the browser does not support native sharing.
 
 ## Language, Theme, Timer, and Sound
 
-Open the gear button (**Setări / Settings / Настройки**) and choose **Română**, **English**, or **Русский** under Language. Romanian is the default, including older data and unsupported saved choices; device/browser language is not detected. Your manual selection is saved and works offline. Labels, dates, plural phrases, accessible names, notices, and shared results use that choice. Existing schedule/action names and history remain unchanged; new default action names use the selected language. Switching language preserves clocks and pending/playing audio. The examples below use the default Romanian labels. To extend support, follow [Adding a language](AGENTS.md#adding-a-language).
+Open the gear button (**Setări** in Romanian) and choose a language under **Limbă / Language**:
+
+| Choice | Saved ID | Locale |
+|---|---|---|
+| Română | `ro` | `ro-RO` |
+| English | `en` | `en-GB` |
+| Русский | `ru` | `ru-RU` |
+| Español | `es` | `es-ES` |
+| Français | `fr` | `fr-FR` |
+| Deutsch | `de` | `de-DE` |
+
+Romanian is the default, including older data and unsupported saved choices; device/browser language is not detected. Your manual selection is saved and works offline.
+
+Labels, dates, plural phrases, accessible names, notices, and shared results use that choice. Existing schedule/action names and history remain unchanged; new default action names use the selected language. Switching language preserves clocks and pending/playing audio. The examples below use the default Romanian labels. To extend support, follow [Adding a language](AGENTS.md#adding-a-language).
 
 Light mode uses white backgrounds and blue accents; dark mode uses navy backgrounds and lighter blue accents across the four tabs, controls, and sheets. Open the gear button (**Setări**) and enable **Mod întunecat** for dark mode. Light is the default. Your manual choice is saved and takes priority over the phone/browser appearance.
 
@@ -127,6 +140,10 @@ Source: [lee-to/ai-factory](https://github.com/lee-to/ai-factory).
 
 ## Verification Status
 
+Language expansion checks on November 7, 2026 passed lint/typecheck, all **96 Node tests**, all **162 browser scenarios** in one full run (8.0 minutes), and fresh Android/iOS/web exports. All six languages cover both themes at 390px; Spanish, French, German and Russian also cover 320/430/1024px. The three new languages cover enlarged web text and reduced motion. Final catalog characters were checked against all five bundled Inter weights, and representative screenshots were inspected.
+
+Tests cover saved/default choices, literal legacy data, localized sharing/notifications, drafts, clocks, notice lifetimes and real pending/playing audio. The [implementation plan](.ai-factory/plans/feature-additional-languages.md) records source identity and evidence. Native device/accessibility/notification acceptance and independent native-speaker review remain pending; exports do not verify them.
+
 Notification implementation checks on November 6, 2026 passed lint/typecheck, all **89 Node tests**, all **104 browser scenarios** in one full run (4.7 minutes), fresh Android/iOS/web exports, the SDK compatibility check, and **21/21 Expo Doctor checks**. Five existing Expo packages were aligned to recommended SDK-57 patches through `npx expo install --fix`. Isolated Android CNG verified the exact-alarm permission and byte-identical copies of all four notification resources; iOS config introspection confirmed no microphone or background audio/remote-notification mode. These checks do not establish native delivery.
 
 Earlier multilingual checks on November 6, 2026 passed lint, typecheck, all 59 Node tests and all 95 browser scenarios in one complete run (4.6 minutes). Fresh Android/iOS/web exports also passed. Earlier Planning button checks passed lint, typecheck, all 51 core/coordinator/contrast tests, and 44 targeted browser scenarios: eight new interaction cases and 36 planning/theme/real-timer regressions. Light/dark screenshots were inspected at 320/390px. The previous full run on November 5 passed all 60 then-existing browser scenarios (10.5 minutes) and fresh Android/iOS/web exports; the full suite and exports were not repeated for this style change. Tests retain 45-second limits and no retries.
@@ -148,7 +165,7 @@ src/app/          Screens and Expo Router navigation
 src/components/   Dials, schedule editor/run card, shared alerts, laps, sheets, and settings
 src/context/      Shared state, theme, haptic feedback, and screen wake lock
 src/core/         Pure timing, notification projection, language/sound registries, notices, validation
-src/i18n/         Typed Romanian/English/Russian catalogs, plurals, dates, and sharing
+src/i18n/         Six typed catalogs (ro/en/ru/es/fr/de), plurals, dates, and sharing
 src/hooks/        Persistence, timing/audio owners, notification scheduling, and platform adapters
 src/audio/        Bundled playback map and native notification sound names
 tests/            Logic and UI tests
