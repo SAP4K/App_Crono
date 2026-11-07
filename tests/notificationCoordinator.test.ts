@@ -113,7 +113,9 @@ test('locale and sound change content without changing clocks; unrelated prefere
   const clocks = JSON.stringify([f.data.timer, f.data.planning]);
   f.data.preferences = { ...f.data.preferences, theme: 'dark', haptics: false, keepAwake: false, alertDurationSeconds: 30 };
   await controller.reconcile(); assert.equal(f.scheduled.length, 1); assert.equal(f.cancelled.length, 0);
-  for (const { id: language } of [...LANGUAGES.slice(1), LANGUAGES[0]]) {
+  const startingLanguage = f.data.preferences.language;
+  const otherLanguages = LANGUAGES.map(({ id }) => id).filter((id) => id !== startingLanguage);
+  for (const language of [...otherLanguages, startingLanguage]) {
     f.data.preferences.language = language; await controller.reconcile();
     assert.equal(f.pending.size, 1);
     assert.equal(f.scheduled.at(-1)!.descriptor.event.dueAt, 11000);

@@ -39,16 +39,16 @@ Tap **Pauză → Salvează sesiunea** (Pause → Save session) to keep your resu
 
 ## Language, Theme, Timer, and Sound
 
-Open the gear button (**Setări** in Romanian) and choose a language under **Limbă / Language**:
+Open the gear button (**Setări** in Romanian) and choose a language under **Limbă / Language**. Settings lists the choices by estimated total speakers worldwide, including native and second-language speakers.
 
 | Choice | Saved ID | Locale |
 |---|---|---|
-| Română | `ro` | `ro-RO` |
 | English | `en` | `en-GB` |
-| Русский | `ru` | `ru-RU` |
 | Español | `es` | `es-ES` |
 | Français | `fr` | `fr-FR` |
+| Русский | `ru` | `ru-RU` |
 | Deutsch | `de` | `de-DE` |
+| Română | `ro` | `ro-RO` |
 
 Romanian is the default, including older data and unsupported saved choices; device/browser language is not detected. Your manual selection is saved and works offline.
 
