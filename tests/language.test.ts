@@ -6,14 +6,17 @@ import { initialData, restoreData } from '../src/core/stopwatch.ts';
 import { pauseSchedule, startSchedule } from '../src/core/planning.ts';
 import { configureTimer, pauseTimer, startTimer } from '../src/core/timer.ts';
 
-test('manual language defaults to Romanian and only accepts registered IDs', () => {
+test('Settings languages follow display order and restore by ID with Romanian as the fallback', () => {
   assert.equal(initialData().preferences.language, 'ro');
   for (const { id } of LANGUAGES) assert.equal(restoreLanguage(id), id);
   for (const input of [undefined, null, true, 1, {}, [], 'RU', 'xx', 'ru-RU', 'ES', 'FR', 'DE', 'es-ES', 'fr-FR', 'de-DE']) assert.equal(restoreLanguage(input), 'ro');
-  assert.deepEqual(LANGUAGES.slice(3), [
+  assert.deepEqual(LANGUAGES, [
+    { id: 'en', label: 'English', locale: 'en-GB' },
     { id: 'es', label: 'Español', locale: 'es-ES' },
     { id: 'fr', label: 'Français', locale: 'fr-FR' },
+    { id: 'ru', label: 'Русский', locale: 'ru-RU' },
     { id: 'de', label: 'Deutsch', locale: 'de-DE' },
+    { id: 'ro', label: 'Română', locale: 'ro-RO' },
   ]);
 });
 

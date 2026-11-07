@@ -21,6 +21,8 @@ test('manual selection updates Settings and tabs, repeated choice is a no-op and
   });
   await page.goto('/');
   await page.getByRole('button', { name: 'Setări', exact: true }).click();
+  const languageRadios = page.getByRole('radio', { name: /^(English|Español|Français|Русский|Deutsch|Română)$/ });
+  await expect(languageRadios).toHaveText(['English', 'Español', 'Français', 'Русский', 'Deutsch', 'Română']);
   await expect(page.getByRole('radio', { name: 'Română', exact: true })).toBeChecked();
   await page.evaluate(() => { (window as unknown as { languageWrites: number }).languageWrites = 0; });
   const before = await stored(page);
