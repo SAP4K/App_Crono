@@ -2,6 +2,12 @@ import type { Messages } from './types.ts';
 import { countPhrase } from './plurals.ts';
 
 export const fr: Messages = {
+  duration: 'Durée',
+  editStepDuration: (index) => `Modifier la durée de l’action ${index}`,
+  durationPickerTitle: (index) => `Durée de l’action ${index}`,
+  applyDuration: 'Appliquer la durée',
+  durationWheelHint: 'Balayez vers le haut ou le bas pour modifier la valeur.',
+
   systemNotifications: 'Notifications du système',
   notificationsHelp: 'Alertes du minuteur et des programmes sur l’écran verrouillé ou lorsque l’app est en arrière-plan.',
   notificationsWeb: 'Les notifications du système sont disponibles dans l’app Android et iOS.',

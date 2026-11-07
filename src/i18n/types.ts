@@ -1,6 +1,11 @@
 import type { SoundId } from '../core/sounds.ts';
 
 export type Messages = {
+  duration: string;
+  editStepDuration: (index: number) => string;
+  durationPickerTitle: (index: number) => string;
+  applyDuration: string;
+  durationWheelHint: string;
   systemNotifications: string;
   notificationsHelp: string;
   notificationsWeb: string;

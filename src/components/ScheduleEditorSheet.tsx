@@ -1,6 +1,6 @@
 import { useI18n } from '../hooks/useI18n';
-import { useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { FlatList, Keyboard, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { MAX_NAME_LENGTH, MAX_STEPS, readSchedule } from '../core/planning';
 import type { Schedule } from '../core/planning';
 import { formatRemaining, parseDuration } from '../core/timer';
@@ -9,6 +9,11 @@ import { createTimingId } from '../hooks/createTimingId';
 import { buttonPressedStyle, fonts as f, Palette } from '../theme';
 import { Sheet } from './Sheet';
 import { ScheduleStepRow } from './ScheduleStepRow';
+import { DurationPicker } from './DurationPicker';
+import { EditorBody } from './EditorBody';
+import { durationMilliseconds } from '../core/durationPicker';
+import type { DurationParts } from '../core/durationPicker';
+import { useCrono } from '../context/CronoContext';
 import type { StepDraft } from './ScheduleStepRow';
 
 function draftOf(schedule: Schedule) {
@@ -26,41 +31,99 @@ export function ScheduleEditorSheet({ schedule, isNew, onClose, onSave }: {
   const { colors: c } = useTheme(); const styles = useThemeStyles(createStyles);
   const [initial] = useState(() => draftOf(schedule)); const [draft, setDraft] = useState(initial);
   const [discard, setDiscard] = useState(false); const [saveError, setSaveError] = useState(false);
+  const { feedback } = useCrono();
+  const [durationEdit, setDurationEdit] = useState<{ stepId: string; parts: DurationParts } | null>(null);
+  const [wheelBusy, setWheelBusy] = useState(false);
+  const temporaryParts = useRef<DurationParts | null>(null), moving = useRef(false);
+  const list = useRef<FlatList<StepDraft>>(null), listOffset = useRef(0), returnOffset = useRef(0);
+  const durationButtons = useRef(new Map<string, View>()), restoreFocus = useRef<string | null>(null);
+  const restoreList = useCallback(() => {
+    const id = restoreFocus.current;
+    if (!id) return;
+    list.current?.scrollToOffset({ offset: returnOffset.current, animated: false });
+    const button = durationButtons.current.get(id);
+    if (button) { button.focus(); restoreFocus.current = null; }
+  }, []);
+  useEffect(() => { if (!durationEdit) restoreList(); }, [durationEdit, restoreList]);
+  const closeDuration = () => {
+    feedback(); restoreFocus.current = durationEdit?.stepId ?? null;
+    temporaryParts.current = null; moving.current = false; setWheelBusy(false); setDurationEdit(null);
+  };
+  const openDuration = (step: StepDraft) => {
+    returnOffset.current = listOffset.current;
+    feedback(); Keyboard.dismiss();
+    const parts = { hours: Number(step.hours), minutes: Number(step.minutes), seconds: Number(step.seconds) };
+    temporaryParts.current = parts; moving.current = false; setWheelBusy(false); setDurationEdit({ stepId: step.id, parts });
+  };
+  const changeDuration = (changes: Partial<DurationParts>) => {
+    if (!durationEdit || !temporaryParts.current) return;
+    const parts = { ...temporaryParts.current, ...changes };
+    temporaryParts.current = parts; setDurationEdit({ stepId: durationEdit.stepId, parts });
+  };
+  const applyDuration = () => {
+    const parts = temporaryParts.current;
+    if (!durationEdit || !parts || moving.current || durationMilliseconds(parts) === null) return;
+    const id = durationEdit.stepId;
+    setDraft((previous) => ({ ...previous, steps: previous.steps.map((step) => step.id !== id ? step : {
+      ...step, hours: String(parts.hours).padStart(2, '0'), minutes: String(parts.minutes).padStart(2, '0'), seconds: String(parts.seconds).padStart(2, '0'),
+    }) }));
+    closeDuration();
+  };
   const dirty = JSON.stringify(initial) !== JSON.stringify(draft);
   const candidate = readSchedule({ id: schedule.id, name: draft.name, steps: draft.steps.map((step) => ({
     id: step.id, name: step.name, durationMs: parseDuration(step.hours, step.minutes, step.seconds) ?? 0,
   })) });
   const total = candidate?.steps.reduce((sum, step) => sum + step.durationMs, 0) ?? 0;
   const stepLimit = draft.steps.length >= MAX_STEPS;
-  const close = () => { if (discard) setDiscard(false); else if (dirty) setDiscard(true); else onClose(); };
+  const close = () => { if (durationEdit) { closeDuration(); return; } if (discard) setDiscard(false); else if (dirty) setDiscard(true); else onClose(); };
   const move = (index: number, direction: number) => setDraft((previous) => {
     const next = index + direction;
     if (next < 0 || next >= previous.steps.length) return previous;
     const steps = [...previous.steps]; [steps[index], steps[next]] = [steps[next], steps[index]];
     return { ...previous, steps };
   });
-  return <Sheet visible title={discard ? m.discardTitle : isNew ? m.newSchedule : m.editScheduleTitle} onClose={close} scrollable={false}>
-    {discard ? <View style={styles.discard}>
+  const selectedIndex = durationEdit ? draft.steps.findIndex((step) => step.id === durationEdit.stepId) : -1;
+  return <Sheet visible title={durationEdit ? m.durationPickerTitle(selectedIndex + 1) : discard ? m.discardTitle : isNew ? m.newSchedule : m.editScheduleTitle} onClose={close} scrollable={false}>
+    {discard && <View style={styles.discard}>
       <Text style={styles.help}>{m.discardHelp}</Text>
       <Pressable accessibilityRole="button" onPress={onClose} style={({ pressed }) => [styles.secondary, pressed && buttonPressedStyle]}><Text style={styles.danger}>{m.discardChanges}</Text></Pressable>
       <Pressable accessibilityRole="button" onPress={() => setDiscard(false)} style={({ pressed }) => [styles.primary, pressed && buttonPressedStyle]}><Text style={styles.primaryText}>{m.continueEditing}</Text></Pressable>
-    </View> : <>
+    </View>}
+    <EditorBody hidden={discard || !!durationEdit}>
       <TextInput accessibilityLabel={m.scheduleName} placeholder={m.schedulePlaceholder} placeholderTextColor={c.muted} value={draft.name} maxLength={MAX_NAME_LENGTH} onChangeText={(name) => setDraft((previous) => ({ ...previous, name }))} style={styles.name} selectionColor={c.green} />
       <Text style={styles.help}>{m.editorCount(draft.steps.length, MAX_STEPS)} · {candidate ? m.editorTotal(formatRemaining(total)) : m.draftInvalid}</Text>
-      <FlatList data={draft.steps} keyExtractor={(step) => step.id} keyboardShouldPersistTaps="handled" initialNumToRender={4} style={styles.list} renderItem={({ item, index }) => <ScheduleStepRow value={item} index={index} count={draft.steps.length}
+      <FlatList ref={list} data={draft.steps} onLayout={() => { if (!durationEdit) restoreList(); }}
+        onScroll={({ nativeEvent }) => { if (!durationEdit) listOffset.current = nativeEvent.contentOffset.y; }} scrollEventThrottle={32} keyExtractor={(step) => step.id} keyboardShouldPersistTaps="handled" initialNumToRender={4} style={styles.list} renderItem={({ item, index }) => <ScheduleStepRow value={item} index={index} count={draft.steps.length}
         onChange={(changes) => setDraft((previous) => ({ ...previous, steps: previous.steps.map((step) => step.id === item.id ? { ...step, ...changes } : step) }))}
-        onMove={(direction) => move(index, direction)} onRemove={() => setDraft((previous) => ({ ...previous, steps: previous.steps.filter((step) => step.id !== item.id) }))} />}
+        onEditDuration={() => openDuration(item)} durationRef={(node) => {
+          if (node) durationButtons.current.set(item.id, node); else durationButtons.current.delete(item.id);
+        }} onMove={(direction) => move(index, direction)} onRemove={() => setDraft((previous) => ({ ...previous, steps: previous.steps.filter((step) => step.id !== item.id) }))} />}
         ListFooterComponent={<Pressable accessibilityRole="button" disabled={stepLimit} onPress={() => {
           const step: StepDraft = { id: createTimingId(), name: m.stepNumber(draft.steps.length + 1), hours: '00', minutes: '05', seconds: '00' };
           setDraft((previous) => ({ ...previous, steps: [...previous.steps, step] }));
         }} style={({ pressed }) => [styles.secondary, pressed && !stepLimit && buttonPressedStyle, stepLimit && styles.disabled]}><Text style={styles.secondaryText}>{m.addStep}</Text></Pressable>} />
       {saveError && <Text accessibilityLiveRegion="polite" style={styles.danger}>{m.saveScheduleError}</Text>}
       <Pressable accessibilityRole="button" disabled={!candidate} onPress={() => { if (candidate) { if (onSave(candidate)) onClose(); else setSaveError(true); } }} style={({ pressed }) => [styles.primary, pressed && !!candidate && buttonPressedStyle, !candidate && styles.disabled]}><Text style={styles.primaryText}>{m.saveSchedule}</Text></Pressable>
-    </>}
+    </EditorBody>
+    {durationEdit && <View style={styles.durationPanel}>
+      <Text style={styles.help}>{draft.steps[selectedIndex]?.name}</Text>
+      <DurationPicker value={durationEdit.parts} onChange={changeDuration} stepNumber={selectedIndex + 1} autoFocus
+        onInteractionChange={(busy) => { moving.current = busy; setWheelBusy(busy); }} />
+      <Text style={styles.help}>{durationMilliseconds(durationEdit.parts) === null ? m.durationInvalid : m.durationWheelHint}</Text>
+      <Pressable accessibilityRole="button" disabled={wheelBusy || selectedIndex < 0 || durationMilliseconds(durationEdit.parts) === null}
+        onPress={applyDuration} style={({ pressed }) => [styles.primary, pressed && buttonPressedStyle,
+          (wheelBusy || selectedIndex < 0 || durationMilliseconds(durationEdit.parts) === null) && styles.disabled]}>
+        <Text style={styles.primaryText}>{m.applyDuration}</Text>
+      </Pressable>
+      <Pressable accessibilityRole="button" onPress={closeDuration} style={({ pressed }) => [styles.secondary, pressed && buttonPressedStyle]}>
+        <Text style={styles.secondaryText}>{m.cancel}</Text>
+      </Pressable>
+    </View>}
   </Sheet>;
 }
 
 const createStyles = (c: Palette) => StyleSheet.create({
+  durationPanel: { position: 'absolute', top: 0, bottom: 0, left: 26, right: 26, zIndex: 1, backgroundColor: c.background, justifyContent: 'center', paddingBottom: 16 },
   name: { minHeight: 48, borderWidth: 1, borderColor: c.border, borderRadius: 12, paddingHorizontal: 12, fontFamily: f.semibold, color: c.ink, fontSize: 15, backgroundColor: c.surface },
   help: { fontFamily: f.regular, fontSize: 11, lineHeight: 18, color: c.muted, marginVertical: 12 },
   list: { flex: 1 },
@@ -68,5 +131,6 @@ const createStyles = (c: Palette) => StyleSheet.create({
   primaryText: { fontFamily: f.semibold, fontSize: 13, color: c.actionText },
   secondary: { minHeight: 46, borderRadius: 12, padding: 12, backgroundColor: c.secondary, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
   secondaryText: { fontFamily: f.medium, fontSize: 12, color: c.ink },
-  disabled: { opacity: 0.4 }, danger: { fontFamily: f.medium, fontSize: 12, color: c.danger }, discard: { gap: 12 },
+  disabled: { opacity: 0.4 }, danger: { fontFamily: f.medium, fontSize: 12, color: c.danger },
+  discard: { position: 'absolute', top: 0, bottom: 0, left: 26, right: 26, zIndex: 1, backgroundColor: c.background, gap: 12 },
 });

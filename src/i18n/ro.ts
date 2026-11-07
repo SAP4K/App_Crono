@@ -2,6 +2,12 @@ import type { Messages } from './types.ts';
 import { countPhrase } from './plurals.ts';
 
 export const ro: Messages = {
+  duration: 'Durată',
+  editStepDuration: (index) => `Modifică durata etapei ${index}`,
+  durationPickerTitle: (index) => `Durata etapei ${index}`,
+  applyDuration: 'Aplică durata',
+  durationWheelHint: 'Glisează în sus sau în jos pentru a modifica valoarea.',
+
   systemNotifications: "Notificări de sistem",
   notificationsHelp: "Alerte pentru timer și orare pe ecranul blocat sau când aplicația este în fundal.",
   notificationsWeb: "Notificările de sistem sunt disponibile în aplicația pentru Android și iOS.",

@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { initialData } from '../../src/core/stopwatch';
 import { initialTimer, startTimer } from '../../src/core/timer';
-import { audioSpy, duration, expectNoPageErrors, observePageErrors, playCount, seed, settings, stored } from './helpers';
+import { audioSpy, duration, expectNoPageErrors, observePageErrors, playCount, seed, selectWheel, settings, stored } from './helpers';
 
 test.beforeEach(async ({ page }) => {
   observePageErrors(page);
@@ -10,22 +10,28 @@ test.beforeEach(async ({ page }) => {
 });
 test.afterEach(({ page }) => expectNoPageErrors(page));
 
-test('validates duration fields and preserves fractional remaining time across pause/reload/resume', async ({ page }) => {
+test('bounds duration wheels and preserves fractional remaining time across pause/reload/resume', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', (error) => errors.push(error.message));
   await audioSpy(page); await page.goto('/timer');
   const start = page.getByRole('button', { name: 'Pornește temporizatorul', exact: true });
   await expect(start).toBeVisible();
   await duration(page, '00'); await expect(start).toBeDisabled();
-  await page.getByLabel('Ore', { exact: true }).fill('24'); await expect(start).toBeDisabled();
-  await page.getByLabel('Ore', { exact: true }).fill('00');
-  for (const value of ['', '60', '1e', '-1']) {
-    await page.getByLabel('Secunde', { exact: true }).fill(value); await expect(start).toBeDisabled();
-  }
+  const hours = page.getByRole('spinbutton', { name: 'Ore', exact: true });
+  await hours.press('End'); await hours.press('ArrowUp');
+  await expect(hours).toHaveAttribute('aria-valuenow', '23');
+  await hours.press('Home'); await hours.press('ArrowDown');
+  await expect(hours).toHaveAttribute('aria-valuenow', '0');
+  const seconds = page.getByRole('spinbutton', { name: 'Secunde', exact: true });
+  await seconds.press('End'); await seconds.press('ArrowUp');
+  await expect(seconds).toHaveAttribute('aria-valuenow', '59');
+  await seconds.press('Home'); await expect(start).toBeDisabled();
   await duration(page, '03'); await start.click();
   await page.clock.runFor(1001);
   await page.getByRole('button', { name: 'Pauză temporizator', exact: true }).click();
   await expect(page.getByLabel('Timp rămas 00:00:02')).toBeVisible();
-  await expect(page.getByLabel('Secunde', { exact: true })).not.toBeEditable();
+  await expect(seconds).toHaveAttribute('aria-disabled', 'true');
+  await seconds.press('ArrowUp');
+  await expect(seconds).toHaveAttribute('aria-valuenow', '3');
   const paused = (await stored(page)).timer;
   expect(paused.remainingMs).toBeGreaterThan(0); expect(paused.remainingMs).toBeLessThan(2000);
   await page.clock.runFor(10000); await page.reload();
@@ -168,7 +174,7 @@ test('shipped completion effect is served and decodable', async ({ page }) => {
   expect(decoded.duration).toBeGreaterThan(0.5); expect(decoded.duration).toBeLessThan(2);
 });
 
-test('completed timer survives focusing duration fields without edits', async ({ page }) => {
+test('completed timer survives focusing duration wheels without edits', async ({ page }) => {
   await audioSpy(page); await page.goto('/timer');
   await duration(page, '01');
   await page.getByRole('button', { name: 'Pornește temporizatorul', exact: true }).click();
@@ -187,7 +193,7 @@ test('completed timer survives focusing duration fields without edits', async ({
   await dialog.getByRole('button', { name: 'Închide', exact: true }).click();
   await page.clock.runFor(300);
   await expect(dialog).not.toBeVisible();
-  await page.getByLabel('Secunde', { exact: true }).fill('02');
+  await selectWheel(page.getByRole('spinbutton', { name: 'Secunde', exact: true }), 2);
   await page.getByRole('heading', { name: 'Temporizator', exact: true }).click();
   await expect.poll(async () => (await stored(page)).timer).toMatchObject({ status: 'idle', durationMs: 2000, runId: null });
   await expect(page.getByLabel('Temporizator finalizat', { exact: true })).not.toBeVisible();
