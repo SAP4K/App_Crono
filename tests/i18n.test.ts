@@ -1,8 +1,38 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 import { LANGUAGES } from '../src/core/language.ts';
 import { getMessages } from '../src/i18n/index.ts';
-import { sessionDate, sessionTime, sessionText } from '../src/i18n/formatters.ts';
+import { countPhrase } from '../src/i18n/plurals.ts';
+import { planningDateLabel, planningWeekdayLabel, scheduleCalendarLabel, sessionDate, sessionTime, sessionText } from '../src/i18n/formatters.ts';
+
+test('catalogs load and preserve all count phrases when Intl.PluralRules is unavailable', () => {
+  const languages = LANGUAGES.map(({ id }) => id);
+  const numbers = [0, 1, 2, 4, 5, 11, 14, 20, 21, 22, 25, 50, 100, 101, 111, 1000, 1000000];
+  const keys = ['lapCount', 'savedSessions', 'recordedLaps', 'stepCount'] as const;
+  const expected = languages.map((language) => numbers.map((count) => keys.map((key) => getMessages(language)[key](count))));
+  const script = `
+    Object.defineProperty(Intl, 'PluralRules', { value: undefined, configurable: true });
+    const { getMessages } = await import(${JSON.stringify(new URL('../src/i18n/index.ts', import.meta.url).href)});
+    const result = ${JSON.stringify(languages)}.map((language) =>
+      ${JSON.stringify(numbers)}.map((count) => ${JSON.stringify(keys)}.map((key) => getMessages(language)[key](count))));
+    process.stdout.write(JSON.stringify(result));
+  `;
+  const result = spawnSync(process.execPath, ['--input-type=module', '--eval', script], { encoding: 'utf8', timeout: 10000 });
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(JSON.parse(result.stdout), expected);
+});
+
+test('portable plural categories agree with Intl for all supported bounded counts', () => {
+  const forms = { zero: 'zero', one: 'one', two: 'two', few: 'few', many: 'many', other: 'other' };
+  const counts = [...Array.from({ length: 1001 }, (_, index) => index), 1000000];
+  for (const { id, locale } of LANGUAGES) {
+    const reference = new Intl.PluralRules(locale);
+    for (const count of counts) {
+      assert.equal(countPhrase(id, count, forms), `${count} ${reference.select(count)}`, `${id}:${count}`);
+    }
+  }
+});
 
 test('catalogs have identical widened contracts, nonempty values and a stable Romanian fallback', () => {
   assert.equal(getMessages('invalid'), getMessages('ro'));
@@ -45,6 +75,21 @@ test('selected locales format dates and 24-hour time without changing timestamps
   assert.equal(sessionDate(timestamp, 'es', 'UTC'), '6 de noviembre de 2026');
   assert.equal(sessionDate(timestamp, 'fr', 'UTC'), '6 novembre 2026');
   assert.equal(sessionDate(timestamp, 'de', 'UTC'), '6. November 2026');
+});
+
+test('planning labels use the chosen locale and preserve the selected civil day', () => {
+  const date = '2026-11-05';
+  assert.equal(planningWeekdayLabel(1, 'en', 'long'), 'Monday');
+  assert.equal(planningWeekdayLabel(7, 'ro', 'long'), 'duminică');
+  for (const { id } of LANGUAGES) {
+    const m = getMessages(id);
+    assert.equal(planningDateLabel(date, id), sessionDate(Date.UTC(2026, 10, 5), id, 'UTC'));
+    assert.equal(scheduleCalendarLabel(undefined, id), m.calendarManual);
+    assert.ok(scheduleCalendarLabel({ kind: 'once', date }, id).includes(planningDateLabel(date, id)));
+    const weekly = scheduleCalendarLabel({ kind: 'weekly', weekdays: [1, 4] }, id);
+    assert.ok(weekly.includes(planningWeekdayLabel(1, id, 'short')));
+    assert.ok(weekly.includes(planningWeekdayLabel(4, id, 'short')));
+  }
 });
 
 test('catalog parameters preserve names, durations, sound IDs and complete count phrases', () => {

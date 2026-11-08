@@ -244,6 +244,12 @@ test('fifty-action editing restores list position and focus and preserves IDs th
   }, { intervals: [100, 200, 300] }).toBe(true);
   await last.scrollIntoViewIfNeeded();
   const offset = await list.evaluate((node) => node!.scrollTop);
+  const calendar = page.getByRole('button', { name: 'Programare · Manual', exact: true });
+  await calendar.click();
+  await page.getByRole('dialog', { name: 'Programare', exact: true }).getByRole('button', { name: 'Renunță', exact: true }).click();
+  await expect(calendar).toBeFocused();
+  await expect(last).toBeVisible();
+  expect(Math.abs(await list.evaluate((node) => node!.scrollTop) - offset)).toBeLessThanOrEqual(1);
   await last.click(); await selectDuration(page, [0, 0, 3], undefined, 50);
   await page.getByRole('button', { name: 'Închide', exact: true }).click();
   await expect(last).toBeFocused(); await expect(last).toContainText('00:00:01');

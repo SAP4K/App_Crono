@@ -1,10 +1,11 @@
+import { readScheduleCalendar, type ScheduleCalendar } from './planningCalendar.ts';
 import { validDuration } from './timer.ts';
 
 export const MAX_SCHEDULES = 20;
 export const MAX_STEPS = 50;
 export const MAX_NAME_LENGTH = 80;
 export type ScheduleStep = { id: string; name: string; durationMs: number };
-export type Schedule = { id: string; name: string; steps: ScheduleStep[] };
+export type Schedule = { id: string; name: string; steps: ScheduleStep[]; calendar?: ScheduleCalendar };
 export type ScheduleRun = {
   runId: string;
   scheduleId: string;
@@ -44,11 +45,16 @@ function readSteps(value: unknown): ScheduleStep[] | null {
   return steps;
 }
 
-export function readSchedule(value: unknown): Schedule | null {
+export function readSchedule(value: unknown, { recoverInvalidCalendar = false } = {}): Schedule | null {
   if (!isRecord(value) || !validId(value.id)) return null;
   const name = readName(value.name);
   const steps = readSteps(value.steps);
-  return name && steps ? { id: value.id, name, steps } : null;
+  if (!name || !steps) return null;
+  const schedule = { id: value.id, name, steps };
+  if (value.calendar === undefined) return schedule;
+  const calendar = readScheduleCalendar(value.calendar);
+  if (calendar) return { ...schedule, calendar };
+  return recoverInvalidCalendar ? schedule : null;
 }
 
 export function isProtectedSchedule(state: PlanningState, id: string): boolean {
@@ -73,7 +79,7 @@ export function restorePlanning(value: unknown): PlanningState {
   const state = initialPlanning();
   if (!isRecord(value)) return state;
   if (Array.isArray(value.schedules)) for (const item of value.schedules) {
-    const schedule = readSchedule(item);
+    const schedule = readSchedule(item, { recoverInvalidCalendar: true });
     if (schedule && !state.schedules.some((saved) => saved.id === schedule.id)) state.schedules.push(schedule);
     if (state.schedules.length === MAX_SCHEDULES) break;
   }

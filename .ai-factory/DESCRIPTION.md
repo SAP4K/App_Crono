@@ -15,6 +15,7 @@ CRONO is a local stopwatch, countdown, and action schedule app for iOS and Andro
 - Select duration with finite centered wheels: hours 00–23 and minutes/seconds 00–59, no wrapping/carry. Timer editing is idle/completed only; Start and Planning Apply reject zero or active motion. Native columns expose adjustable controls; web supports scrolling, neighboring-row clicks and ArrowUp/ArrowDown/Home/End.
 - Save up to 20 schedules with 1–50 named actions each, automatic advancement, exact pause/resume, confirmed replacement/reset, and protected running/paused templates. Names are limited to 80 trimmed characters; action durations range from one second to 23:59:59.
 - Edit an action duration inside the existing schedule sheet: temporary numeric wheels, explicit Apply/Cancel, then separate whole-schedule Save. Preserve the virtualized list viewport/focus and shared completion/Stop feedback; name fields retain their text keyboard.
+- Organize saved schedules by recurring weekdays or a specific calendar date. Filter Planning by day and use the existing Start control to run a sequence.
 - Run one schedule alongside the independent stopwatch and timer. The Planificare tab follows Timer; schedule runs do not enter stopwatch history.
 - Select Clasic, Clopoțel, Digital, or Gong with 5/15/30-second looping playback, manual preview, and Stop controls. Defaults are Clasic and five seconds; the retained automatic-alert switch applies to timer and schedule boundaries.
 - Play foreground action/final alerts, with one final event for the last action. Reconcile overdue timing silently on return/relaunch, without replaying in-app audio. A separate native notification owner registers future OS alerts in advance.
@@ -66,6 +67,7 @@ Read [ARCHITECTURE.md](ARCHITECTURE.md) for the actual folder structure, depende
 | `src/components/DurationPicker.tsx`, `DurationWheel.tsx`, `.web.tsx` | Localized themed columns, native adjustment and web spinbuttons |
 | `src/hooks/durationWheel.ts`, `useDurationWheel.ts` | Shared injected settling generations and lifecycle/current-prop bridge |
 | `src/core/planning.ts` | Schedule bounds, validation/CRUD, run snapshots, and cumulative transitions |
+| `src/core/planningCalendar.ts` | Civil date validation, rule normalization, and date matching |
 | `src/core/sounds.ts`, `src/audio/sources.ts` | Pure preference catalog and separate static asset map |
 | `src/hooks/useStopwatch.ts` | Hydration outcome, accepted-update subscriptions, serialized writes and app-state persistence |
 | `src/context/CronoContext.tsx` | Shared state, global timer/planning runners, one audio owner, notices, haptics, and one screen wake guard |
@@ -78,6 +80,7 @@ Read [ARCHITECTURE.md](ARCHITECTURE.md) for the actual folder structure, depende
 | `src/components/StopwatchFace.tsx` | Local display refresh and stopwatch dial |
 | `src/components/TimerFace.tsx`, `TimerCompletionNotice.tsx` | Local countdown display and completion feedback in shell/sheets |
 | `src/components/ScheduleEditorSheet.tsx`, `ScheduleStepRow.tsx` | Controlled drafts, ordered actions, validation, and explicit save/discard |
+| `src/components/ScheduleCalendarPanel.tsx`, `CalendarDateFields.tsx` | Calendar rule drafts and date entry shared with the Planning filter |
 | `src/components/EditorBody.tsx`, `.web.tsx` | Keep a covered virtualized editor laid out while excluding interaction/accessibility |
 | `src/components/PlanningRunCard.tsx`, `PlanningNotice.tsx`, `TimingNotices.tsx` | Local schedule display, controls, and shared notices/Stop in shell/sheets |
 | `src/core/language.ts`, `src/core/notices.ts` | Pure language registry/defaults and semantic transient notices |
@@ -96,7 +99,7 @@ The `AppData` object contains:
 - `version: 1` to identify the persisted schema.
 - `stopwatch`: accumulated milliseconds, an optional start timestamp, and recorded laps.
 - `timer`: status, configured duration, remaining snapshot, optional deadline, and run identity.
-- `planning`: saved schedules and an optional run snapshot containing its identity, source ID/name/actions, running/paused/completed status, current index, remaining milliseconds, and optional deadline.
+- `planning` contains saved schedules with optional weekly or fixed-date rules and a separate run snapshot with its identity, source ID/name/actions, status, current index, remaining milliseconds, and optional deadline. Valid templates with missing or invalid calendar metadata load in Manual mode.
 - `sessions`: saved session identifiers, save timestamps, total durations, and laps.
 - `preferences`: `language: 'ro' | 'en' | 'ru' | 'es' | 'fr' | 'de'`, `haptics`, `keepAwake`, `timerSound`, and `systemNotifications` booleans, `theme: 'light' | 'dark'`, `alertSoundId: 'classic' | 'bell' | 'digital' | 'gong'`, and `alertDurationSeconds: 5 | 15 | 30`. The legacy `timerSound` name now controls automatic timer and schedule alerts.
 
@@ -178,6 +181,6 @@ Plan fixes separately and verify the relevant behavior before changing storage f
 - Installed workflow skills: `../.agents/skills/` (33 existing AI Factory skills).
 - Communication and generated artifact languages: English, as configured.
 - Git base branch: `master`; new full/ultra plans may create branches using `feature/`.
-- Latest implementation plan: `plans/feature-additional-languages.md` (six-language code/CLI/browser/exports/docs complete; native acceptance pending). Duration-picker work is recorded in `plans/feature-duration-wheel-picker.md` (physical native acceptance pending). Earlier notification work remains at `plans/feature-background-notifications.md` (physical native acceptance pending), and original multilingual work at `plans/feature-multilingual-support.md`. Earlier completed implementations remain at `plans/feature-planning-button-feedback.md`, `plans/feature-white-blue-theme.md`, `plans/feature-sound-settings-schedules.md`, and `plans/feature-dark-mode-preference.md`. No roadmap or research artifact is present.
+- The latest implementation plan is `plans/feature-calendar-planning.md`. The six-language expansion is recorded in `plans/feature-additional-languages.md` with code, CLI, browser, export, and documentation evidence. Native acceptance for that expansion is pending. Duration-picker work is recorded in `plans/feature-duration-wheel-picker.md` (physical native acceptance pending). Earlier notification work remains at `plans/feature-background-notifications.md` (physical native acceptance pending), and original multilingual work at `plans/feature-multilingual-support.md`. Earlier completed implementations remain at `plans/feature-planning-button-feedback.md`, `plans/feature-white-blue-theme.md`, `plans/feature-sound-settings-schedules.md`, and `plans/feature-dark-mode-preference.md`. No roadmap or research artifact is present.
 
 The connected GitHub app is available in the current agent session. No repository-level MCP server configuration is present. Reuse host-provided integrations when available; additional servers should address a concrete project need.
