@@ -86,9 +86,13 @@ Open **Planificare**, next to Timer, and tap **Orar nou**. Name it “Studiu”,
 
 **Aplică durata** changes only the action draft; **Salvează orarul** saves the whole schedule. Apply waits for scrolling to settle and rejects zero duration. **Renunță**, the close button, or Back returns to the editor without applying the temporary selection. The action list retains its position and returns focus to that action. Schedule/action names still use the text keyboard, and completion notices and **Oprește sunetul** remain available inside the duration panel.
 
+Before saving, open **Programare** and choose **Săptămânal** for one or more weekdays or **Dată fixă** for a single calendar date. Use **Manual** for a schedule you want to find in the full list. Tap **Aplică programarea** to apply the rule to the draft, then **Salvează orarul** to save it.
+
+In **Planificare**, tap **Alege o zi**, enter a date or fill it with **Astăzi**, and tap **Afișează orarele**. The date view shows matching weekly and one-time schedules. **Toate** shows the complete list. **Orar nou** starts with the selected date when you open it from a date view. Use **Pornește** to start a sequence.
+
 Actions advance automatically, with the selected sound at each foreground boundary. The last action and schedule ending produce one final alert. **Pauză / Continuă / Resetează / Repornește** control the run; reset retains the saved schedule. Starting another schedule confirms replacement. Running or paused schedules are protected from editing/deletion; other schedules remain editable. Closing an edited draft asks before discarding it.
 
-Save up to 20 schedules, each with 1–50 ordered actions. Names allow 80 trimmed characters; each action lasts `00:00:01`–`23:59:59`. One schedule can run or pause at a time, independently of stopwatch and timer. Schedule runs do not add stopwatch history entries. These are duration sequences, without calendar or recurring scheduling.
+Save up to 20 schedules, each with 1–50 ordered actions. Names allow 80 trimmed characters; each action lasts `00:00:01`–`23:59:59`. One schedule can run or pause at a time, independently of stopwatch and timer. Schedule runs do not add stopwatch history entries.
 
 ## How Time Is Measured
 
@@ -96,7 +100,7 @@ The stopwatch calculates the difference between timestamps instead of accumulati
 
 The countdown and schedule use absolute deadlines, with local foreground display refreshes every 200 ms. Schedule deadlines remain anchored to preceding actions; a delayed callback catches up without replaying every missed sound. Positive fractions round up to the next displayed second. Pausing freezes the exact remaining milliseconds. Device clock changes can affect both activities too.
 
-Data is stored locally using AsyncStorage. Version 1 and `@crono/app-v1` are retained: older data defaults to Romanian, empty schedules, Clasic, 5 seconds, and system notifications enabled while preserving valid clocks, history, theme, and false preferences. A running schedule saves a snapshot of its actions. Uninstalling the app or clearing browser data removes local data. Haptic feedback and screen wake lock apply only to mobile. With **Ecran mereu activ** enabled, one wake guard covers any running stopwatch, timer, or schedule.
+Data is stored locally using AsyncStorage. Version 1 and `@crono/app-v1` are retained: older data defaults to Romanian, empty schedules, Clasic, 5 seconds, and system notifications enabled while preserving valid clocks, history, theme, and false preferences. A saved schedule can include a weekly rule or one calendar date. Older schedules and valid templates with invalid calendar metadata load in Manual mode. A running schedule saves a snapshot of its actions. Uninstalling the app or clearing browser data removes local data. Haptic feedback and screen wake lock apply only to mobile. With **Ecran mereu activ** enabled, one wake guard covers any running stopwatch, timer, or schedule.
 
 ## Checks
 

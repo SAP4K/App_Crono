@@ -2,6 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { deleteSchedule, initialPlanning, MAX_NAME_LENGTH, MAX_SCHEDULES, MAX_STEPS, readSchedule, restorePlanning, saveSchedule } from '../src/core/planning.ts';
 import type { Schedule } from '../src/core/planning.ts';
+import { calendarDateTimestamp, dateKeyFromParts, datePartsFromKey, localDateKey, matchesScheduleDate, type ScheduleCalendar } from '../src/core/planningCalendar.ts';
+import { projectNotificationEvents } from '../src/core/notifications.ts';
+import { initialData, restoreData } from '../src/core/stopwatch.ts';
 import { pauseSchedule, reconcileSchedule, resetSchedule, resumeSchedule, scheduleRemaining, startSchedule } from '../src/core/planning.ts';
 
 const schedule = (id = 'study'): Schedule => ({ id, name: 'Studiu', steps: [
@@ -38,6 +41,90 @@ test('restoration filters corrupt and duplicate templates without discarding val
   const restored = restorePlanning({ schedules: [null, schedule(), { ...schedule('bad'), steps: [] }, schedule(), schedule('second')] });
   assert.deepEqual(restored.schedules.map((item) => item.id), ['study', 'second']);
   assert.deepEqual(restorePlanning(null), initialPlanning());
+});
+
+test('calendar rules normalize weekly choices and validate exact civil dates', () => {
+  assert.deepEqual(readSchedule({ ...schedule(), calendar: { kind: 'weekly', weekdays: [7, 1, 4, 1] } })?.calendar,
+    { kind: 'weekly', weekdays: [1, 4, 7] });
+  for (const weekdays of [[], [0], [1, 8], [1.5], ['4'], new Array(1)]) {
+    assert.equal(readSchedule({ ...schedule(), calendar: { kind: 'weekly', weekdays } }), null);
+  }
+  for (const date of ['2027-02-29', '1900-02-29', '2026-04-31', '2026-00-10', '2026-11-00', '2026-2-09', '0000-01-01', '10000-01-01', '2026-11-05\n']) {
+    assert.equal(calendarDateTimestamp(date), null);
+    assert.equal(readSchedule({ ...schedule(), calendar: { kind: 'once', date } }), null);
+  }
+  for (const date of ['0001-01-01', '0099-12-31', '2000-02-29', '2028-02-29', '9999-12-31']) {
+    assert.equal(new Date(calendarDateTimestamp(date)!).toISOString().slice(0, 10), date);
+    assert.deepEqual(readSchedule({ ...schedule(), calendar: { kind: 'once', date } })?.calendar, { kind: 'once', date });
+  }
+});
+
+test('weekly rules recur across weeks and calendar boundaries while a fixed date matches once', () => {
+  const weekly: ScheduleCalendar = { kind: 'weekly', weekdays: [1, 4, 7] };
+  for (const date of ['2026-03-22', '2026-03-29', '2026-04-05', '2026-10-26', '2026-11-02', '2026-11-05', '2026-11-09']) {
+    assert.equal(matchesScheduleDate(weekly, date), true);
+  }
+  for (const date of ['2026-11-04', '2026-11-06', '2026-02-29']) assert.equal(matchesScheduleDate(weekly, date), false);
+  const once: ScheduleCalendar = { kind: 'once', date: '2026-11-05' };
+  assert.equal(matchesScheduleDate(once, '2026-11-05'), true);
+  for (const date of ['2026-11-04', '2026-11-06', '2026-11-12']) assert.equal(matchesScheduleDate(once, date), false);
+  assert.equal(matchesScheduleDate(undefined, '2026-11-05'), false);
+  assert.equal(localDateKey(new Date(2026, 10, 5, 23, 59)), '2026-11-05');
+  assert.equal(localDateKey(new Date(2027, 0, 1, 0, 1)), '2027-01-01');
+});
+
+test('calendar fields accept unpadded day and month and reject incomplete or impossible dates', () => {
+  assert.deepEqual(datePartsFromKey('2028-02-29'), { day: '29', month: '02', year: '2028' });
+  assert.equal(dateKeyFromParts({ day: '5', month: '2', year: '2028' }), '2028-02-05');
+  for (const day of ['', '0', '30', '5x', '05 ']) {
+    assert.equal(dateKeyFromParts({ day, month: '2', year: '2028' }), null);
+  }
+  assert.equal(dateKeyFromParts({ day: '5', month: '2', year: '28' }), null);
+});
+
+test('calendar mode changes preserve schedule identity and normalize no-op saves', () => {
+  const weekly = saveSchedule(initialPlanning(), { ...schedule(), calendar: { kind: 'weekly', weekdays: [4, 1, 4] } });
+  assert.equal(saveSchedule(weekly, { ...schedule(), calendar: { kind: 'weekly', weekdays: [1, 4] } }), weekly);
+  assert.equal(saveSchedule(weekly, { ...schedule(), calendar: { kind: 'once', date: '2026-02-30' } }), weekly);
+  assert.equal(saveSchedule(weekly, { ...schedule(), calendar: null }), weekly);
+  const once = saveSchedule(weekly, { ...schedule(), calendar: { kind: 'once', date: '2026-11-05' } });
+  assert.deepEqual(once.schedules[0], { ...schedule(), calendar: { kind: 'once', date: '2026-11-05' } });
+  const manual = saveSchedule(once, { ...schedule(), calendar: undefined });
+  assert.deepEqual(manual.schedules, [schedule()]);
+});
+
+test('v1 hydration preserves legacy actions and the run when calendar metadata is corrupt', () => {
+  const legacy = startSchedule(saveSchedule(initialPlanning(), schedule()), 'study', 1000, 'run');
+  const data = {
+    ...initialData(),
+    planning: { ...legacy, schedules: [
+      ...legacy.schedules,
+      { ...schedule('corrupt'), calendar: { kind: 'weekly', weekdays: [8] } },
+      { ...schedule('weekly'), calendar: { kind: 'weekly', weekdays: [4, 1, 4] } },
+      { ...schedule('once'), calendar: { kind: 'once', date: '2028-02-29' } },
+    ] },
+  };
+  const restored = restoreData(JSON.stringify(data), 1000);
+  assert.equal(restored.version, 1);
+  assert.deepEqual(restored.planning.schedules, [
+    schedule(), schedule('corrupt'),
+    { ...schedule('weekly'), calendar: { kind: 'weekly', weekdays: [1, 4] } },
+    { ...schedule('once'), calendar: { kind: 'once', date: '2028-02-29' } },
+  ]);
+  assert.deepEqual(restored.planning.run, legacy.run);
+  assert.deepEqual(restoreData(JSON.stringify(restored), 1000), restored);
+});
+
+test('calendar edits preserve active-run protection and its notification projection', () => {
+  const planning = startSchedule(saveSchedule(saveSchedule(initialPlanning(), schedule()), schedule('second')), 'study', 1000, 'run');
+  const calendar: ScheduleCalendar = { kind: 'once', date: '2026-11-05' };
+  assert.equal(saveSchedule(planning, { ...schedule(), calendar }), planning);
+  const edited = saveSchedule(planning, { ...schedule('second'), calendar });
+  assert.notEqual(edited, planning);
+  assert.equal(edited.run, planning.run);
+  const expected = projectNotificationEvents({ ...initialData(), planning }, 1100);
+  assert.ok(expected.length > 0);
+  assert.deepEqual(projectNotificationEvents({ ...initialData(), planning: edited }, 1100), expected);
 });
 
 test('automatic advancement uses cumulative deadlines and emits the final action only once', () => {

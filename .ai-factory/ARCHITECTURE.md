@@ -33,6 +33,8 @@ src/
 │   ├── PlanningRunCard.tsx   # Schedule controls and local display refresh
 │   ├── ScheduleEditorSheet.tsx # Explicit save/discard and virtualized actions
 │   ├── ScheduleStepRow.tsx   # Action name, duration summary and reorder controls
+│   ├── ScheduleCalendarPanel.tsx # Calendar rule draft in the existing editor sheet
+│   ├── CalendarDateFields.tsx # Shared day, month and year entry
 │   ├── EditorBody.tsx / .web.tsx # Covered editor keeps its viewport/layout
 │   ├── PlanningNotice.tsx    # Current boundary/final event feedback
 │   ├── TimingNotices.tsx    # Shared timer/planning notices and playback Stop
@@ -81,6 +83,7 @@ src/
 │   ├── timer.ts              # Pure countdown model and validation
 │   ├── durationPicker.ts     # Numeric parts, bounds, conversion and nearest index
 │   ├── planning.ts           # Schedule CRUD, snapshots, cumulative transitions
+│   ├── planningCalendar.ts   # Civil dates and recurring or one-time rules
 │   ├── language.ts           # Supported IDs/autonyms/locales and default
 │   ├── notifications.ts     # Bounded future events and owned payload validation
 │   ├── notices.ts            # Semantic transient toast/completion/audio codes
@@ -179,6 +182,8 @@ The current storage unit is the complete `AppData` object at `@crono/app-v1`. Ch
 The Timer route holds numeric parts and fresh selection/motion refs. Only a settled, effective, valid change configures the existing timer coordinator; Start uses the latest parts and waits until all columns settle. Running/paused wheels are disabled. Zero stays an invalid local selection; focus and same-value alignment do not mutate a completed timer or cancel its audio.
 
 The schedule editor owns one selected action ID and temporary numeric parts inside its existing Sheet. Apply functionally changes that action's draft; Cancel/Back/close abandons temporary parts. Save remains the only template-persistence boundary. `EditorBody` preserves the outer FlatList's layout while the duration/discard panel covers it: native hides interaction/accessibility, while web also uses inertness and hidden visibility to exclude covered controls from tab order. A captured list offset and stable-ID button map restore the action's viewport/focus. Name inputs and shared notices remain separate; no stacked duration Modal, timing runner or storage owner is added.
+
+Each saved schedule can store an optional calendar rule with ISO weekdays or one civil date. The schedule parser validates new rules and the restoration path recovers a valid template as Manual when its stored rule is invalid. The calendar panel updates the editor draft on Apply and Save persists the template. The Planning date filter uses the same date fields and pure matching, with the active run in the list header. Explicit Start and the replacement confirmation own execution.
 
 `StopwatchFace` owns a local timestamp and refreshes the display approximately every 32 ms while running. It derives the elapsed value from the core and listens for app-state changes. Its display refresh does not update the shared persisted object.
 

@@ -1,14 +1,17 @@
 import { useI18n } from '../hooks/useI18n';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { FlatList, Keyboard, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { MAX_NAME_LENGTH, MAX_STEPS, readSchedule } from '../core/planning';
 import type { Schedule } from '../core/planning';
+import type { ScheduleCalendar } from '../core/planningCalendar';
+import { scheduleCalendarLabel } from '../i18n/formatters';
 import { formatRemaining, parseDuration } from '../core/timer';
 import { useTheme, useThemeStyles } from '../context/ThemeContext';
 import { createTimingId } from '../hooks/createTimingId';
 import { buttonPressedStyle, fonts as f, Palette } from '../theme';
 import { Sheet } from './Sheet';
 import { ScheduleStepRow } from './ScheduleStepRow';
+import { ScheduleCalendarPanel } from './ScheduleCalendarPanel';
 import { DurationPicker } from './DurationPicker';
 import { EditorBody } from './EditorBody';
 import { durationMilliseconds } from '../core/durationPicker';
@@ -17,7 +20,7 @@ import { useCrono } from '../context/CronoContext';
 import type { StepDraft } from './ScheduleStepRow';
 
 function draftOf(schedule: Schedule) {
-  return { name: schedule.name, steps: schedule.steps.map((step): StepDraft => {
+  return { name: schedule.name, calendar: schedule.calendar, steps: schedule.steps.map((step): StepDraft => {
     const seconds = step.durationMs / 1000;
     return { id: step.id, name: step.name, hours: String(Math.floor(seconds / 3600)).padStart(2, '0'),
       minutes: String(Math.floor(seconds / 60) % 60).padStart(2, '0'), seconds: String(seconds % 60).padStart(2, '0') };
@@ -27,13 +30,21 @@ function draftOf(schedule: Schedule) {
 export function ScheduleEditorSheet({ schedule, isNew, onClose, onSave }: {
   schedule: Schedule; isNew: boolean; onClose: () => void; onSave: (schedule: Schedule) => boolean;
 }) {
-  const { messages: m } = useI18n();
+  const { language, messages: m } = useI18n();
   const { colors: c } = useTheme(); const styles = useThemeStyles(createStyles);
   const [initial] = useState(() => draftOf(schedule)); const [draft, setDraft] = useState(initial);
   const [discard, setDiscard] = useState(false); const [saveError, setSaveError] = useState(false);
   const { feedback } = useCrono();
   const [durationEdit, setDurationEdit] = useState<{ stepId: string; parts: DurationParts } | null>(null);
   const [wheelBusy, setWheelBusy] = useState(false);
+  const [calendarEdit, setCalendarEdit] = useState(false);
+  const calendarButton = useRef<View>(null), restoreCalendarFocus = useRef(false);
+  useEffect(() => {
+    if (!calendarEdit && restoreCalendarFocus.current) {
+      restoreCalendarFocus.current = false;
+      calendarButton.current?.focus();
+    }
+  }, [calendarEdit]);
   const temporaryParts = useRef<DurationParts | null>(null), moving = useRef(false);
   const list = useRef<FlatList<StepDraft>>(null), listOffset = useRef(0), returnOffset = useRef(0);
   const durationButtons = useRef(new Map<string, View>()), restoreFocus = useRef<string | null>(null);
@@ -69,13 +80,29 @@ export function ScheduleEditorSheet({ schedule, isNew, onClose, onSave }: {
     }) }));
     closeDuration();
   };
+  const closeCalendar = () => {
+    feedback();
+    Keyboard.dismiss();
+    restoreCalendarFocus.current = true;
+    setCalendarEdit(false);
+  };
+  const applyCalendar = (calendar: ScheduleCalendar | undefined) => {
+    setDraft((previous) => ({ ...previous, calendar }));
+    closeCalendar();
+  };
   const dirty = JSON.stringify(initial) !== JSON.stringify(draft);
-  const candidate = readSchedule({ id: schedule.id, name: draft.name, steps: draft.steps.map((step) => ({
+  const candidate = readSchedule({ id: schedule.id, name: draft.name, calendar: draft.calendar, steps: draft.steps.map((step) => ({
     id: step.id, name: step.name, durationMs: parseDuration(step.hours, step.minutes, step.seconds) ?? 0,
   })) });
   const total = candidate?.steps.reduce((sum, step) => sum + step.durationMs, 0) ?? 0;
   const stepLimit = draft.steps.length >= MAX_STEPS;
-  const close = () => { if (durationEdit) { closeDuration(); return; } if (discard) setDiscard(false); else if (dirty) setDiscard(true); else onClose(); };
+  const close = () => {
+    if (durationEdit) { closeDuration(); return; }
+    if (calendarEdit) { closeCalendar(); return; }
+    if (discard) setDiscard(false);
+    else if (dirty) setDiscard(true);
+    else onClose();
+  };
   const move = (index: number, direction: number) => setDraft((previous) => {
     const next = index + direction;
     if (next < 0 || next >= previous.steps.length) return previous;
@@ -83,14 +110,22 @@ export function ScheduleEditorSheet({ schedule, isNew, onClose, onSave }: {
     return { ...previous, steps };
   });
   const selectedIndex = durationEdit ? draft.steps.findIndex((step) => step.id === durationEdit.stepId) : -1;
-  return <Sheet visible title={durationEdit ? m.durationPickerTitle(selectedIndex + 1) : discard ? m.discardTitle : isNew ? m.newSchedule : m.editScheduleTitle} onClose={close} scrollable={false}>
+  const title = durationEdit ? m.durationPickerTitle(selectedIndex + 1)
+    : calendarEdit ? m.calendarSchedule
+    : discard ? m.discardTitle : isNew ? m.newSchedule : m.editScheduleTitle;
+  return <Sheet visible title={title} onClose={close} scrollable={false}>
     {discard && <View style={styles.discard}>
       <Text style={styles.help}>{m.discardHelp}</Text>
       <Pressable accessibilityRole="button" onPress={onClose} style={({ pressed }) => [styles.secondary, pressed && buttonPressedStyle]}><Text style={styles.danger}>{m.discardChanges}</Text></Pressable>
       <Pressable accessibilityRole="button" onPress={() => setDiscard(false)} style={({ pressed }) => [styles.primary, pressed && buttonPressedStyle]}><Text style={styles.primaryText}>{m.continueEditing}</Text></Pressable>
     </View>}
-    <EditorBody hidden={discard || !!durationEdit}>
+    <EditorBody hidden={discard || !!durationEdit || calendarEdit}>
       <TextInput accessibilityLabel={m.scheduleName} placeholder={m.schedulePlaceholder} placeholderTextColor={c.muted} value={draft.name} maxLength={MAX_NAME_LENGTH} onChangeText={(name) => setDraft((previous) => ({ ...previous, name }))} style={styles.name} selectionColor={c.green} />
+      <Pressable ref={calendarButton} accessibilityRole="button"
+        onPress={() => { feedback(); Keyboard.dismiss(); setCalendarEdit(true); }}
+        style={({ pressed }) => [styles.secondary, styles.calendarButton, pressed && buttonPressedStyle]}>
+        <Text style={styles.secondaryText}>{m.calendarSchedule} · {scheduleCalendarLabel(draft.calendar, language)}</Text>
+      </Pressable>
       <Text style={styles.help}>{m.editorCount(draft.steps.length, MAX_STEPS)} · {candidate ? m.editorTotal(formatRemaining(total)) : m.draftInvalid}</Text>
       <FlatList ref={list} data={draft.steps} onLayout={() => { if (!durationEdit) restoreList(); }}
         onScroll={({ nativeEvent }) => { if (!durationEdit) listOffset.current = nativeEvent.contentOffset.y; }} scrollEventThrottle={32} keyExtractor={(step) => step.id} keyboardShouldPersistTaps="handled" initialNumToRender={4} style={styles.list} renderItem={({ item, index }) => <ScheduleStepRow value={item} index={index} count={draft.steps.length}
@@ -119,11 +154,18 @@ export function ScheduleEditorSheet({ schedule, isNew, onClose, onSave }: {
         <Text style={styles.secondaryText}>{m.cancel}</Text>
       </Pressable>
     </View>}
+    {calendarEdit && <ScrollView style={styles.calendarPanel} contentContainerStyle={styles.calendarContent}
+      keyboardShouldPersistTaps="handled" bounces={false}>
+      <ScheduleCalendarPanel initialCalendar={draft.calendar} onApply={applyCalendar} onCancel={closeCalendar} />
+    </ScrollView>}
   </Sheet>;
 }
 
 const createStyles = (c: Palette) => StyleSheet.create({
   durationPanel: { position: 'absolute', top: 0, bottom: 0, left: 26, right: 26, zIndex: 1, backgroundColor: c.background, justifyContent: 'center', paddingBottom: 16 },
+  calendarPanel: { position: 'absolute', top: 0, bottom: 0, left: 26, right: 26, zIndex: 1, backgroundColor: c.background },
+  calendarContent: { flexGrow: 1, justifyContent: 'center', paddingVertical: 12 },
+  calendarButton: { marginTop: 8, marginBottom: 0, alignItems: 'flex-start' },
   name: { minHeight: 48, borderWidth: 1, borderColor: c.border, borderRadius: 12, paddingHorizontal: 12, fontFamily: f.semibold, color: c.ink, fontSize: 15, backgroundColor: c.surface },
   help: { fontFamily: f.regular, fontSize: 11, lineHeight: 18, color: c.muted, marginVertical: 12 },
   list: { flex: 1 },

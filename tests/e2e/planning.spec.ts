@@ -1,6 +1,11 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 import { audioSpy, duration, expectNoPageErrors, expectTheme, observePageErrors, playCount, seed, selectDuration, settings, stepDuration, stored } from './helpers';
 import { initialData } from '../../src/core/stopwatch';
+import { LANGUAGES } from '../../src/core/language';
+import { pauseSchedule, startSchedule } from '../../src/core/planning';
+import { getMessages } from '../../src/i18n';
+import { planningWeekdayLabel } from '../../src/i18n/formatters';
 
 function scheduleData() {
   const data = initialData();
@@ -58,6 +63,209 @@ test('schedule editor saves ordered actions, validates durations, and preserves 
   await page.getByRole('dialog', { name: 'Ștergi orarul?', exact: true }).getByRole('button', { name: 'Șterge orarul', exact: true }).click();
   await expect.poll(async () => (await stored(page)).planning.schedules.length).toBe(0);
 });
+
+async function enterCalendarDate(dialog: Locator, date: string) {
+  const [year, month, day] = date.split('-');
+  await dialog.getByRole('textbox', { name: 'Zi', exact: true }).fill(day);
+  await dialog.getByRole('textbox', { name: 'Lună', exact: true }).fill(month);
+  await dialog.getByRole('textbox', { name: 'An', exact: true }).fill(year);
+}
+
+test('calendar editor stages weekly and fixed dates and saves them alongside legacy data', async ({ page }) => {
+  const fixture = new URL('../fixtures/app-v1-before-planning.json', import.meta.url);
+  const legacy = JSON.parse(readFileSync(fixture, 'utf8'));
+  await seed(page, legacy);
+  await page.goto('/planning');
+
+  const calendar = page.getByRole('dialog', { name: 'Programare', exact: true });
+  const apply = calendar.getByRole('button', { name: 'Aplică programarea', exact: true });
+  const manual = page.getByRole('button', { name: 'Programare · Manual', exact: true });
+  const weekly = page.getByRole('button', { name: /^Programare · Săptămânal/ });
+  const fixed = page.getByRole('button', { name: /^Programare · Dată fixă/ });
+  const save = page.getByRole('button', { name: 'Salvează orarul', exact: true });
+  const edit = page.getByRole('button', { name: 'Editează orarul Lectură', exact: true });
+
+  await page.getByRole('button', { name: 'Orar nou', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Nume orar', exact: true }).fill('Lectură');
+  await manual.click();
+  await calendar.getByRole('radio', { name: 'Săptămânal', exact: true }).click();
+  await expect(apply).toBeDisabled();
+  await calendar.getByRole('checkbox', { name: 'miercuri', exact: true }).click();
+  await calendar.getByRole('button', { name: 'Renunță', exact: true }).click();
+  await expect(manual).toBeFocused();
+  await manual.click();
+  await calendar.getByRole('radio', { name: 'Săptămânal', exact: true }).click();
+  await calendar.getByRole('checkbox', { name: 'joi', exact: true }).click();
+  await calendar.getByRole('checkbox', { name: 'luni', exact: true }).click();
+  await apply.click();
+  await expect(weekly).toBeFocused();
+  expect(await stored(page)).toEqual(legacy);
+  await save.click();
+  await page.clock.runFor(300);
+  await expect.poll(async () => (await stored(page)).planning.schedules[0]?.calendar)
+    .toEqual({ kind: 'weekly', weekdays: [1, 4] });
+  const before = (await stored(page)).planning.schedules[0];
+  await page.reload();
+  await expect(page.getByText(/^Săptămânal ·/)).toBeVisible();
+
+  await edit.click();
+  await weekly.click();
+  await expect(calendar.getByRole('checkbox', { name: 'luni', exact: true })).toBeChecked();
+  await expect(calendar.getByRole('checkbox', { name: 'joi', exact: true })).toBeChecked();
+  await calendar.getByRole('radio', { name: 'Dată fixă', exact: true }).click();
+  await enterCalendarDate(calendar, '2027-02-29');
+  await expect(calendar.getByText('Introdu o dată validă.', { exact: true })).toBeVisible();
+  await expect(apply).toBeDisabled();
+  await enterCalendarDate(calendar, '2028-02-29');
+  await apply.click();
+  await expect(fixed).toBeFocused();
+  expect((await stored(page)).planning.schedules[0]).toEqual(before);
+  await page.getByRole('button', { name: 'Închide', exact: true }).click();
+  await page.getByRole('button', { name: 'Renunță la modificări', exact: true }).click();
+  await page.clock.runFor(300);
+  expect((await stored(page)).planning.schedules[0]).toEqual(before);
+
+  await edit.click();
+  await weekly.click();
+  await calendar.getByRole('radio', { name: 'Dată fixă', exact: true }).click();
+  await enterCalendarDate(calendar, '2028-02-29');
+  await apply.click();
+  await save.click();
+  await page.clock.runFor(300);
+  await expect.poll(async () => (await stored(page)).planning.schedules[0].calendar)
+    .toEqual({ kind: 'once', date: '2028-02-29' });
+  await page.reload();
+  await expect(page.getByText('Dată fixă · 29 februarie 2028', { exact: true })).toBeVisible();
+  const restored = await stored(page);
+  expect(restored.version).toBe(1);
+  expect(restored.stopwatch).toEqual(legacy.stopwatch);
+  expect(restored.timer).toEqual(legacy.timer);
+  expect(restored.sessions).toEqual(legacy.sessions);
+  expect(restored.planning.schedules[0]).toEqual({ ...before, calendar: { kind: 'once', date: '2028-02-29' } });
+
+  await edit.click();
+  await fixed.click();
+  await calendar.getByRole('radio', { name: 'Manual', exact: true }).click();
+  await apply.click();
+  await save.click();
+  await page.clock.runFor(300);
+  await expect.poll(async () => (await stored(page)).planning.schedules[0].calendar).toBeUndefined();
+  await page.reload();
+  await edit.click();
+  await expect(manual).toBeVisible();
+});
+
+test.describe('device-local calendar date', () => {
+  test.use({ timezoneId: 'America/Los_Angeles' });
+
+  test('calendar filtering matches recurring and fixed dates and preserves a paused legacy run', async ({ page }) => {
+    const now = Date.parse('2026-11-06T00:30:00Z');
+    await page.clock.setSystemTime(now);
+    const data = scheduleData();
+    data.planning.schedules[0].calendar = { kind: 'weekly', weekdays: [1, 4] };
+    data.planning.schedules.push({
+      id: 'appointment', name: 'Consultație', steps: [{ id: 'check', name: 'Verificare', durationMs: 60000 }],
+      calendar: { kind: 'once', date: '2026-11-05' },
+    });
+    data.planning = pauseSchedule(startSchedule(data.planning, 'rest', now - 1000, 'legacy-run'), now - 500);
+    await seed(page, data);
+    await page.goto('/planning');
+
+    const choose = page.getByRole('button', { name: /^Alege o zi/ });
+    const picker = page.getByRole('dialog', { name: 'Alege o zi', exact: true });
+    const show = picker.getByRole('button', { name: 'Afișează orarele', exact: true });
+    const weekly = page.getByRole('button', { name: 'Pornește orarul Studiu', exact: true });
+    const fixed = page.getByRole('button', { name: 'Pornește orarul Consultație', exact: true });
+    const manual = page.getByRole('button', { name: 'Pornește orarul Relaxare', exact: true });
+    const paused = page.getByRole('button', { name: 'Continuă orarul', exact: true });
+    const selectDay = async (date: string) => {
+      await choose.click();
+      await enterCalendarDate(picker, date);
+      await show.click();
+      await page.clock.runFor(300);
+    };
+
+    await expect(manual).toBeVisible();
+    await choose.click();
+    await enterCalendarDate(picker, '2026-11-06');
+    await picker.getByRole('button', { name: 'Astăzi', exact: true }).click();
+    await expect(picker.getByRole('textbox', { name: 'Zi', exact: true })).toHaveValue('05');
+    await show.click();
+    await page.clock.runFor(300);
+    await expect(choose).toContainText('5 noiembrie 2026');
+    await expect(weekly).toBeVisible();
+    await expect(fixed).toBeVisible();
+    await expect(manual).toHaveCount(0);
+
+    await selectDay('2026-11-06');
+    await expect(page.getByText('Niciun orar programat pentru această zi.', { exact: true })).toBeVisible();
+    await expect(weekly).toHaveCount(0);
+    await expect(fixed).toHaveCount(0);
+    await expect(paused).toBeVisible();
+    expect((await stored(page)).planning.run).toEqual(data.planning.run);
+    await page.getByRole('button', { name: 'Orar nou', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Programare · Dată fixă · 6 noiembrie 2026', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Închide', exact: true }).click();
+    await page.clock.runFor(300);
+
+    for (const date of ['2026-11-02', '2026-11-12']) {
+      await selectDay(date);
+      await expect(weekly).toBeVisible();
+      await expect(fixed).toHaveCount(0);
+      await expect(paused).toBeVisible();
+    }
+
+    await weekly.click();
+    const replacement = page.getByRole('dialog', { name: 'Înlocuiești orarul activ?', exact: true });
+    await replacement.getByRole('button', { name: 'Renunță', exact: true }).click();
+    await page.clock.runFor(300);
+    expect((await stored(page)).planning.run).toEqual(data.planning.run);
+    await weekly.click();
+    await replacement.getByRole('button', { name: 'Înlocuiește orarul', exact: true }).click();
+    await page.clock.runFor(300);
+    await expect.poll(async () => (await stored(page)).planning.run?.scheduleId).toBe('study');
+    await page.getByRole('button', { name: 'Toate', exact: true }).click();
+    await expect(manual).toBeVisible();
+    await expect(fixed).toBeVisible();
+  });
+});
+
+for (const [index, { id }] of LANGUAGES.entries()) {
+  test(`calendar controls fit a compact screen in ${id}`, async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 760 });
+    const data = initialData();
+    data.preferences.language = id;
+    data.preferences.theme = index % 2 === 0 ? 'light' : 'dark';
+    await seed(page, data);
+    const m = getMessages(id);
+    await page.goto('/planning');
+    await expectTheme(page, data.preferences.theme === 'dark');
+    await page.getByRole('button', { name: m.newSchedule, exact: true }).click();
+    await page.getByRole('button', { name: `${m.calendarSchedule} · ${m.calendarManual}`, exact: true }).click();
+    const calendar = page.getByRole('dialog', { name: m.calendarSchedule, exact: true });
+    await calendar.getByRole('radio', { name: m.calendarWeekly, exact: true }).click();
+    const checks = calendar.getByRole('checkbox');
+    await expect(checks).toHaveCount(7);
+    const boxes = await checks.evaluateAll((nodes) => nodes.map((node) => {
+      const { left, right, width, height } = node.getBoundingClientRect();
+      return { left, right, width, height };
+    }));
+    for (const box of boxes) {
+      expect(box.left).toBeGreaterThanOrEqual(0);
+      expect(box.right).toBeLessThanOrEqual(320);
+      expect(box.width).toBeGreaterThanOrEqual(44);
+      expect(box.height).toBeGreaterThanOrEqual(44);
+    }
+    await calendar.getByRole('checkbox', { name: planningWeekdayLabel(1, id, 'long'), exact: true }).click();
+    await expect(calendar.getByRole('button', { name: m.calendarApply, exact: true })).toBeEnabled();
+    await calendar.getByRole('radio', { name: m.calendarOnce, exact: true }).click();
+    const day = calendar.getByRole('textbox', { name: m.calendarDay, exact: true });
+    await expect(day).toHaveAttribute('inputmode', 'numeric');
+    await day.press('Tab');
+    await expect(calendar.getByRole('textbox', { name: m.calendarMonth, exact: true })).toBeFocused();
+    await expect(calendar.getByRole('button', { name: m.calendarApply, exact: true })).toBeVisible();
+  });
+}
 
 test('schedule execution pauses exactly, persists, advances automatically, and restarts', async ({ page }) => {
   await seed(page, scheduleData()); await audioSpy(page); await page.goto('/planning');

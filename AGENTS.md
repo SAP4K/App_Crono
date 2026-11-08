@@ -88,7 +88,7 @@ assets/                 App icons, splash images, and four original WAV patterns
 | `src/app/_layout.tsx` | Fonts, providers, navigation shell, settings, and notices |
 | `src/app/index.tsx` | Stopwatch route and user actions |
 | `src/app/timer.tsx` | Countdown editor and controls |
-| `src/app/planning.tsx` | Saved schedules, editor, and confirmed run replacement |
+| `src/app/planning.tsx` | Saved schedules, date filter, editor, and confirmed run replacement |
 | `src/app/history.tsx` | History, details, sharing, and deletion |
 | `src/core/stopwatch.ts` | Types, transitions, limits, validation, and formatting |
 | `src/core/timer.ts` | Pure countdown transitions, validation, and formatting |
@@ -96,6 +96,7 @@ assets/                 App icons, splash images, and four original WAV patterns
 | `src/components/DurationPicker.tsx`, `DurationWheel.tsx`, `.web.tsx` | Shared themed picker, native adjustable columns and web spinbuttons |
 | `src/hooks/durationWheel.ts`, `useDurationWheel.ts` | Injected settling/cancellation controller and committed-prop lifecycle bridge |
 | `src/core/planning.ts` | Schedule bounds, CRUD, snapshot restoration, and cumulative deadlines |
+| `src/core/planningCalendar.ts` | Civil date validation, weekday normalization, and matching saved rules |
 | `src/core/sounds.ts`, `src/audio/sources.ts` | Pure sound preferences and separate asset map |
 | `src/hooks/useStopwatch.ts` | Hydration outcome, accepted-update subscriptions, functional updates, ordered writes |
 | `src/context/CronoContext.tsx` | Shared state, timer/planning runners, one audio owner, haptics, wake lock |
@@ -112,6 +113,7 @@ assets/                 App icons, splash images, and four original WAV patterns
 | `src/audio/notificationSounds.ts`, `src/components/SystemNotificationNotice.tsx` | Native sound names/channels and separate failure/retry feedback |
 | `src/hooks/appActivity.ts` | Shared foreground checks and lifecycle subscription |
 | `src/components/ScheduleEditorSheet.tsx`, `ScheduleStepRow.tsx` | Controlled virtualized action editor with explicit save/discard |
+| `src/components/ScheduleCalendarPanel.tsx`, `CalendarDateFields.tsx` | Weekly and fixed-date editing with shared numeric date fields |
 | `src/components/EditorBody.tsx`, `.web.tsx` | Preserve covered editor layout while hiding interaction/accessibility |
 | `src/components/PlanningRunCard.tsx`, `TimingNotices.tsx` | Run controls and shared feedback/Stop in shell and sheets |
 | `src/core/language.ts`, `src/i18n/`, `src/hooks/useI18n.ts` | Saved language, catalogs, formatting, and shared-state selection |
