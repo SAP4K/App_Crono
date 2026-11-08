@@ -23,7 +23,7 @@ export function SystemNotificationNotice() {
   };
   return <View style={styles.notice} accessibilityLiveRegion="polite">
     <Text style={styles.text}>{notificationStatus(code, m)}</Text>
-    {code !== 'pending' && <Pressable accessibilityRole="button" onPress={act}
+    {code !== 'pending' && code !== 'short-sound' && <Pressable accessibilityRole="button" onPress={act}
       style={({ pressed }) => [styles.retry, pressed && buttonPressedStyle]}><Text style={styles.text}>{label}</Text></Pressable>}
   </View>;
 }

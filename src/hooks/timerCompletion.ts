@@ -4,7 +4,7 @@ import { completeTimer, configureTimer, pauseTimer, remainingTime, resetTimer, r
 import type { TimerState } from '../core/timer.ts';
 
 export type TimerSoundEvent = { runId: string; dueAt: number };
-export type TimerAudio = { play: (allowed: () => boolean, event?: TimerSoundEvent) => Promise<void>; stop: () => void };
+export type TimerAudio = { play: (allowed: () => boolean, event?: TimerSoundEvent) => Promise<void>; stop: () => void; suspend?: () => void };
 type Adapters = TimerAudio & {
   getSnapshot: () => AppData;
   update: (action: (previous: AppData) => AppData) => { changed: boolean; data: AppData };
@@ -32,7 +32,8 @@ export function createTimerCoordinator(a: Adapters) {
     scheduledKey = '';
   }
 
-  function stopSound() {
+  function stopSound(lifecycle = false) {
+    if (lifecycle && a.suspend) { soundingRun = null; a.suspend(); return; }
     audioGeneration++;
     soundingRun = null;
     a.stop();
@@ -73,7 +74,7 @@ export function createTimerCoordinator(a: Adapters) {
     if (disposed) return;
     const current = a.getSnapshot();
     if (soundingRun && (!current.preferences.timerSound || current.timer.runId !== soundingRun || current.timer.status !== 'completed')) stopSound();
-    if (!a.isActive()) { clearSchedule(); if (soundingRun) stopSound(); return; }
+    if (!a.isActive()) { clearSchedule(); if (soundingRun) stopSound(true); return; }
     const timer = current.timer;
     if (timer.status !== 'running') { clearSchedule(); return; }
     const now = a.now();
@@ -113,7 +114,7 @@ export function createTimerCoordinator(a: Adapters) {
     pause: () => act(pauseTimer),
     resume: () => act(resumeTimer),
     reset: () => act(resetTimer),
-    dispose: () => { disposed = true; clearSchedule(); stopSound(); },
+    dispose: () => { disposed = true; clearSchedule(); stopSound(true); },
   };
 }
 

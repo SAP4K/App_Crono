@@ -158,15 +158,24 @@ test('literal pre-planning v1 data retains all clocks, history, theme and false 
   assert.deepEqual(restored.stopwatch, legacy.stopwatch);
   assert.deepEqual(restored.timer, legacy.timer);
   assert.deepEqual(restored.sessions, legacy.sessions);
-  assert.deepEqual(restored.preferences, { ...legacy.preferences, systemNotifications: true, language: 'ro', alertSoundId: 'classic', alertDurationSeconds: 5 });
+  assert.deepEqual(restored.preferences, { ...legacy.preferences, systemNotifications: true, language: 'ro', alertSoundId: 'classic', alertDurationSeconds: 60 });
   assert.deepEqual(restored.planning, { schedules: [], run: null });
   const valid = { id: 'sequence', name: 'Orar', steps: [{ id: 'step', name: 'Respiră', durationMs: 1000 }] };
   const mixed = restoreData(JSON.stringify({ ...legacy, planning: { schedules: [valid, {}], run: {} }, preferences: { ...legacy.preferences, alertSoundId: 'gong', alertDurationSeconds: '30' } }));
   assert.deepEqual(mixed.planning, { schedules: [valid], run: null });
   assert.equal(mixed.preferences.alertSoundId, 'gong');
-  assert.equal(mixed.preferences.alertDurationSeconds, 5);
+  assert.equal(mixed.preferences.alertDurationSeconds, 60);
   assert.equal(mixed.preferences.timerSound, false);
   assert.deepEqual(restoreData(JSON.stringify(mixed)), mixed);
+  for (const duration of [5, 15, 30]) {
+    const saved = { ...legacy, preferences: { ...legacy.preferences, alertDurationSeconds: duration } };
+    const result = restoreData(JSON.stringify(saved));
+    assert.equal(result.preferences.alertDurationSeconds, duration);
+    assert.deepEqual(result.stopwatch, legacy.stopwatch);
+    assert.deepEqual(result.sessions, legacy.sessions);
+    assert.equal(result.preferences.timerSound, false);
+    assert.deepEqual(restoreData(JSON.stringify(result)), result);
+  }
 });
 
 test('system notification opt-in restores independently and preserves the literal legacy data', () => {

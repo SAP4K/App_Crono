@@ -1,0 +1,9 @@
+[
+  { "name": "live replaces preview", "current": { "kind": "preview", "dueAt": 2000 }, "incoming": { "kind": "schedule-step", "dueAt": 1000 }, "wins": true },
+  { "name": "preview cannot replace live", "current": { "kind": "timer-complete", "dueAt": 1000 }, "incoming": { "kind": "preview", "dueAt": 3000 }, "wins": false },
+  { "name": "later boundary wins", "current": { "kind": "timer-complete", "dueAt": 1000 }, "incoming": { "kind": "schedule-step", "dueAt": 2000 }, "wins": true },
+  { "name": "older boundary loses", "current": { "kind": "schedule-step", "dueAt": 2000 }, "incoming": { "kind": "timer-complete", "dueAt": 1000 }, "wins": false },
+  { "name": "timer wins tie", "current": { "kind": "schedule-complete", "dueAt": 1000 }, "incoming": { "kind": "timer-complete", "dueAt": 1000 }, "wins": true },
+  { "name": "final wins step tie", "current": { "kind": "schedule-step", "dueAt": 1000 }, "incoming": { "kind": "schedule-complete", "dueAt": 1000 }, "wins": true },
+  { "name": "step loses final tie", "current": { "kind": "schedule-complete", "dueAt": 1000 }, "incoming": { "kind": "schedule-step", "dueAt": 1000 }, "wins": false }
+]

@@ -5,6 +5,7 @@ export type BackgroundAccess = {
   battery: 'unrestricted' | 'optimized' | 'not-applicable' | 'unknown';
 };
 export type NotificationDelivery = BackgroundAccess & {
+  extendedSound?: boolean | 'unknown';
   platform: 'android' | 'ios' | 'web';
   channel: 'available' | 'blocked' | 'not-applicable' | 'unknown';
   channelSound: 'audible' | 'silent' | 'not-applicable' | 'unknown';
@@ -32,7 +33,7 @@ export async function readBackgroundAccess(read: (() => Promise<unknown>) | null
 }
 
 export type NotificationReadiness = 'storage' | 'off' | 'unsupported' | 'unavailable' | 'permission-needed'
-  | 'permission-blocked' | 'pending' | 'failed' | 'channel-blocked' | 'exact-denied' | 'unknown' | 'limited' | 'sound-disabled' | 'registered';
+  | 'permission-blocked' | 'pending' | 'failed' | 'channel-blocked' | 'exact-denied' | 'unknown' | 'limited' | 'sound-disabled' | 'short-sound' | 'registered';
 
 export function notificationReadiness(input: {
   hydration: string; enabled: boolean; status: 'idle' | 'pending' | 'ready' | 'failed';
@@ -52,5 +53,7 @@ export function notificationReadiness(input: {
   if (delivery.exactAlarm === 'unknown' || delivery.channel === 'unknown') return 'unknown';
   if (permission.status === 'limited') return 'limited';
   if (input.soundEnabled && (!permission.soundAllowed || delivery.channelSound === 'silent')) return 'sound-disabled';
+  if (input.soundEnabled && delivery.extendedSound === 'unknown') return 'unknown';
+  if (input.soundEnabled && delivery.platform === 'android' && delivery.extendedSound === false) return 'short-sound';
   return 'registered';
 }

@@ -6,7 +6,7 @@ import type { AlertPlayback } from './alertPlayback.ts';
 type Adapters = {
   getSnapshot: () => AppData;
   update: (action: (previous: AppData) => AppData) => { changed: boolean; data: AppData };
-  alerts: Pick<AlertPlayback, 'request' | 'cancelOwner'>;
+  alerts: Pick<AlertPlayback, 'request' | 'cancelOwner' | 'suspendOwner'>;
   isActive: () => boolean; now: () => number; createId: () => string;
   notify: (event: ScheduleBoundary) => void;
   schedule: (callback: () => void, delay: number) => ReturnType<typeof setTimeout>;
@@ -26,9 +26,9 @@ export function createPlanningRunner(a: Adapters) {
     pending = null; scheduledKey = '';
   }
 
-  function stopSound() {
+  function stopSound(lifecycle = false) {
     soundingRun = null;
-    a.alerts.cancelOwner('planning');
+    if (lifecycle && a.alerts.suspendOwner) a.alerts.suspendOwner('planning'); else a.alerts.cancelOwner('planning');
   }
 
   function announce(event: ScheduleBoundary, soundAllowed: boolean) {
@@ -40,7 +40,7 @@ export function createPlanningRunner(a: Adapters) {
       return !disposed && a.isActive() && latest.preferences.timerSound && run?.runId === event.runId
         && (event.kind === 'schedule-complete' ? run.status === 'completed' : run.status === 'running' && run.stepIndex === event.stepIndex + 1);
     };
-    const accepted = a.alerts.request({ owner: 'planning', eventId: event.eventId, kind: event.kind, dueAt: event.dueAt,
+    const accepted = a.alerts.request({ owner: 'planning', eventId: event.eventId, runId: event.runId, kind: event.kind, dueAt: event.dueAt,
       soundId: preferences.alertSoundId, durationSeconds: preferences.alertDurationSeconds, allowed });
     if (accepted) soundingRun = event.runId;
   }
@@ -49,7 +49,7 @@ export function createPlanningRunner(a: Adapters) {
     if (disposed) return;
     const current = a.getSnapshot(); const run = current.planning.run;
     if (soundingRun && (!current.preferences.timerSound || run?.runId !== soundingRun || run.status === 'paused')) stopSound();
-    if (!a.isActive()) { clearSchedule(); stopSound(); return; }
+    if (!a.isActive()) { clearSchedule(); stopSound(true); return; }
     if (run?.status !== 'running') { clearSchedule(); return; }
     const now = a.now();
     if (run.deadlineAt !== null && run.deadlineAt <= now) {
@@ -96,7 +96,7 @@ export function createPlanningRunner(a: Adapters) {
     pause: () => { reconcile('deadline'); return act(pauseSchedule); },
     resume: () => act(resumeSchedule),
     reset: () => act(resetSchedule),
-    dispose: () => { disposed = true; clearSchedule(); stopSound(); },
+    dispose: () => { disposed = true; clearSchedule(); stopSound(true); },
   };
 }
 

@@ -57,6 +57,9 @@ src/
 │   ├── usePlanningRunner.ts  # Readiness/lifecycle bridge and boundary feedback
 │   ├── alertPlayback.ts      # Injected arbitration, duration, cancellation
 │   ├── useAlertPlayback.ts   # One shared playback lifecycle and preview
+│   ├── nativeAlertPlayback.ts # Android broker facade, snapshots and scoped Stop
+│   ├── completionAlerts.ts / .web.ts # Optional protocol bridge / native-free fallback
+│   ├── completionNotificationAdapter.ts # Native/ordinary delivery under one owner
 │   ├── useAlertSound.ts      # Explicit native player creation/release
 │   ├── useAlertSound.web.ts  # Source-bound browser media promise/errors
 │   ├── notificationCoordinator.ts # Serialized future OS request reconciliation
@@ -90,6 +93,7 @@ src/
 │   ├── planningCalendar.ts   # Civil dates and recurring or one-time rules
 │   ├── language.ts           # Supported IDs/autonyms/locales and default
 │   ├── notifications.ts     # Bounded future events and owned payload validation
+│   ├── completionAlerts.ts   # Validated completion policy, identity and priority
 │   ├── notices.ts            # Semantic transient toast/completion/audio codes
 │   └── sounds.ts             # Pure sound/duration catalog and validation
 └── theme.ts                 # Shared visual tokens
@@ -105,6 +109,9 @@ tests/
 ├── sounds.test.ts            # Preferences and actual PCM pattern validation
 ├── planning.test.ts          # Template/run validation and pure transitions
 ├── alertPlayback.test.ts     # All choices, timing, priority, and cancellation
+├── completionAlerts.test.ts  # Shared protocol, fixture priority and minute boundary
+├── nativeAlertPlayback.test.ts # Android facade, detached lifecycle and bridge races
+├── completionNotificationAdapter.test.ts # Real composed-adapter reconciliation
 ├── planningRunner.test.ts    # Global execution and lifecycle coordination
 ├── notifications.test.ts     # Projection, payloads, content, permissions, web policy
 ├── notificationCoordinator.test.ts # Injected inventory, async races and failures
@@ -112,6 +119,10 @@ tests/
 ├── fixtures/                 # Literal pre-planning version-1 saved data
 └── e2e/                     # Timing, palettes, languages, notifications, real duration-wheel gestures
 assets/audio/                # Original four WAVs and a byte-identical Android-safe Classic copy
+assets/audio/notifications/  # Four generated 15-second native notification clips
+scripts/generate-notification-sounds.mjs # Deterministic PCM asset generation, separate from runtime
+modules/crono-background-access/ # Read-only Android capability probe
+modules/crono-completion-alerts/ # Atomic delivery ledger, alarm, bounded player/service
 ```
 
 ## Dependency Rules
@@ -126,6 +137,7 @@ assets/audio/                # Original four WAVs and a byte-identical Android-s
 | `src/core/` | Use JavaScript/TypeScript primitives and other pure core functions |
 | `src/audio/` | Map pure sound IDs to static bundled assets; consumed by platform transports |
 | `src/theme.ts` | Export visual constants without depending on application modules |
+| `modules/crono-completion-alerts/` | Android delivery projections/receipts and one native audio owner; never edit app clocks/history |
 
 - Keep platform/storage dependencies outside the pure core.
 - Keep reads and writes to local storage in the persistence layer; UI actions use the shared `update` API.
@@ -152,8 +164,11 @@ flowchart TD
     Context --> Notifications["One OS notification coordinator"]
     Hook -->|Accepted updates| Notifications
     Notifications --> Core
-    Notifications --> Native["Native notification adapter / unsupported web fallback"]
-    Playback --> Audio["Source-bound native/web transports"]
+    Notifications --> Native["Composed native / ordinary notification adapter"]
+    Native --> Broker["Android ledger, next alarm and one playback broker"]
+    Playback --> Broker
+    Playback --> Audio["iOS / older Android / web transports"]
+    Broker --> Service["Bounded Android media-playback service"]
     Audio --> Assets["Static bundled sound map"]
     UI --> Theme["Derived ThemeContext"]
     Theme --> Context
@@ -195,9 +210,11 @@ Each saved schedule can store an optional calendar rule with ISO weekdays or one
 
 `PlanningRunCard` also refreshes locally every 200 ms in the foreground. The global planning runner advances against each preceding deadline, so callback delays do not extend the sequence. It reconciles multiple crossed actions in one accepted update and publishes only the latest boundary. Hydration and foreground catch-up are silent. The last action emits one final event; paused runs retain exact milliseconds. Generation and fresh-state guards reject stale callbacks without resetting the independent clocks.
 
-`alertPlayback` owns one pending/playing request across timer, planning, and preview. Requests carry owner/event identity, deadline, kind, sound ID/duration, and a current-state guard. Live alerts replace previews; later live deadlines win. Exact ties prefer timer completion, then schedule completion, then action boundary. Sounds are never queued. All four patterns loop; the 5/15/30-second limit starts after playback starts, with a separate four-second startup timeout. Stop and owner cancellation invalidate pending callbacks; settings changes and backgrounding cancel playback. Closing Settings cancels only preview, and explicit preview can work while automatic alerts are muted.
+One effective playback owner handles timer, planning and preview. Requests carry owner/run/event identity, deadline, kind, sound ID/duration and a current-state guard. Live alerts replace previews; later live deadlines win. Exact ties prefer timer completion, then final schedule, then action boundary; sounds are never queued. Four patterns loop for 5/15/30/60 seconds from actual audio start, with a separate four-second startup timeout. Missing/invalid duration defaults to 60; every valid saved choice is retained. Explicit Stop, pause/reset/replacement and sound/duration/mute changes invalidate obsolete playback. Closing Settings cancels only preview, which remains available while automatic alerts are muted.
 
-Native audio uses SDK 57 `createAudioPlayer` for each accepted source and explicitly unsubscribes, pauses, and removes it on cancellation/error/unmount. Web uses `expo-asset`, a source-bound `Audio` element, looping, an observed play promise, and error listeners with cleanup. Both transports recheck validity after asynchronous preparation. Playback-only config disables microphone/recording/background behavior and respects native silent mode/mixing. Browser calls/decoding and exports do not prove audible native behavior.
+`useAlertPlayback` selects the optional Android protocol-v1 broker facade when present and disables Expo audio initialization there. `nativeAlertPlayback` mirrors versioned generation/revision snapshots, serializes accepted policy after successful hydration, rejects stale bridge results and never retries potentially accepted audio through Expo. Native timer/planning playback survives lifecycle suspension and provider detach when background delivery is allowed; explicit cancellation remains separate. Preview stops on background. iOS/web and older binaries retain `alertPlayback` with foreground-only lifecycle cancellation.
+
+iOS/older Android audio uses SDK 57 `createAudioPlayer` with explicit source cleanup. Web uses `expo-asset`, a source-bound `Audio` element, an observed play promise and error listeners. Android's broker uses one MediaPlayer, a monotonic duration deadline, audio focus and a bounded partial wake lock. Background delivery promotes a `mediaPlayback` foreground service before requesting focus; a foreground-to-background handoff preserves the same player/start budget. Stop/error/expiry release resources. Silent/DND/channel settings remain authoritative. Expo recording and iOS background modes remain disabled; browser calls, exports and native unit tests do not prove physical audibility.
 
 `TimingNotices` composes timer completion, planning boundary/final feedback, and Stop in both shell and active sheets without closing them. Audio failures are scoped to the matching event/run, separate from generic session-save notices. A new event clears obsolete audio feedback. The schedule editor uses controlled drafts, explicit save/discard, and one keyboard-aware FlatList through Sheet's non-scrolling mode.
 
@@ -215,13 +232,15 @@ Native audio uses SDK 57 `createAudioPlayer` for each accepted source and explic
 
 Deferred stale registrations are cancelled by exact ID; cancellation failure blocks that owner's replacement and remains visible until a relevant change or explicit retry. Delivered/elapsed metadata is consumed in a bounded session set to avoid replay, including clock rollback. Failed hydration never enumerates/removes valid native inventory.
 
-The native adapter registers SDK-57 date requests, four versioned sound channels plus silent on Android, and one-shot bundled sound names. A static foreground handler suppresses system banner/list/sound/badge while in-app completion/playback remains unchanged. Future requests stay armed on backgrounding and ordinary cleanup.
+`completionNotificationAdapter` composes ordinary SDK-57 notifications with the optional Android backend under the same serialized coordinator. Both inventories are validated/cancelled before replacement; an enhanced registration failure is reported without ambiguous ordinary retry. Native capability/duration enter enhanced fingerprints only; unknown capability retains the last known mode. iOS duration-only changes keep ordinary fingerprints unchanged. Existing sound channels/resource basenames remain stable. Ordinary Android fallback and iOS use one-shot 15-second generated clips from `assets/audio/notifications/`; enhanced Android loops the effective channel sound through the broker with a silent notification envelope. Foreground system presentation is suppressed, and future requests survive backgrounding/ordinary cleanup.
 
-Permission is transient, refreshed on foreground, and requested only from accepted user start/resume/restart, enable or explicit permission gestures. Saved opt-in remains independent of denied/limited OS authorization. No push token/server, background JS worker, recording or background audio is used. The web adapter imports no native notification/intent module and reports unsupported; Expo Go/missing native resources report unavailable.
+The Android module atomically persists validated delivery projections/policy, at most 51 pending events, 256 consumed receipts, 256 presented records and the latest response/failure. It never owns editable clocks/history. Main-thread receiver/service/module operations serialize native effects. One immutable explicit `setAlarmClock` request targets the earliest deadline; delivery consumes receipts and arms the next boundary before starting sound. Priority is shared with literal TS/Kotlin fixtures. Audio does not delay schedule deadlines. Failed hydration cannot replace policy or clear armed requests; invalid storage/version fails without overwriting. Cold reopen consumes native status/receipts and does not replay an old minute.
 
-Android exact-alarm special access has a Settings shortcut with app-settings fallback. SDK scheduling can fall back when access is missing; successful registration does not prove access or punctual/audible delivery. Channels and OS settings remain user-controlled. `timerSound` off selects silent visual notifications; 5/15/30-second loops remain in-app only. Failures use a separate retry notice in shell/sheets without replacing timing/audio/session feedback.
+Permission is transient, refreshed on foreground, and requested only from accepted user start/resume/restart, enable or explicit permission gestures. Saved opt-in remains independent of denied/limited authorization. No push token/server, background JS worker, recording or permanent service is used. The web adapter imports no native notification/intent module and reports unsupported; Expo Go/missing native resources report unavailable. The enhanced Android module requires a native rebuild; it adds no iOS alarm/audio mode.
 
-Responses are captured before the shell mounts and buffered until successful hydration, fonts and root navigation are ready. Valid owned default-action metadata maps only to `/timer` or `/planning`; arbitrary URLs/actions are ignored. Initial/live responses are deduplicated and handled initial responses consumed. Stale-run taps only navigate, and open drafts/confirmations are retained. Physical delivery, sound, OS policies and cold-launch behavior require a rebuilt native binary/device; browser tests, exports and CNG configuration checks do not prove them.
+Android exact-alarm special access has a Settings shortcut with app-settings fallback. Missing enhanced capability retains available ordinary notification delivery with explicit short-sound status. Registration/capability does not prove punctual/audible delivery. Channels and OS settings remain user-controlled; `timerSound` off retains silent visual notifications. Readiness distinguishes extended capability, unknown access, blocked/silent channels and native playback failure. Failures use separate retry/audio notices in shell/sheets without replacing timing/session feedback.
+
+Responses are captured before the shell mounts and buffered until successful hydration, fonts and root navigation are ready. Valid owned Open/default-action metadata maps only to `/timer` or `/planning`; arbitrary URLs/actions are ignored. Initial/live responses are deduplicated and consumed by matching identifier. Native Stop/delete actions validate the physical identifier/token and stop only their audible generation without navigating/resetting timing. Stale Open only navigates, retaining drafts/confirmations. Physical delivery, sound and OS policy require a rebuilt binary/device; browser/unit/build checks do not prove them.
 
 The tracked local Expo module in `modules/crono-background-access/` only observes Android exact-alarm access and standard battery optimization. It owns no clock, persistence or alarm registration. Its optional platform wrapper keeps unavailable observations unknown; a missing probe does not disable otherwise valid local notifications. Generated root native projects remain CNG outputs.
 

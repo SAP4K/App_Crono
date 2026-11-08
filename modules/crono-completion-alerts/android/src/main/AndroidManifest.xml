@@ -1,0 +1,11 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+  <uses-permission android:name="android.permission.WAKE_LOCK" />
+  <application>
+    <receiver android:name=".CompletionAlarmReceiver" android:exported="false" />
+    <receiver android:name=".CompletionActionReceiver" android:exported="false" />
+    <service android:name=".CompletionAlertService" android:exported="false" android:foregroundServiceType="mediaPlayback" android:stopWithTask="false" />
+  </application>
+</manifest>

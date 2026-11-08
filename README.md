@@ -28,7 +28,7 @@ When developing on Windows, you can preview the interface on a physical iPhone u
 - Save the latest 50 sessions with up to 1,000 laps each, view details, share results, and delete with confirmation.
 - Run an independent countdown with pause/resume and a completion sound; save multiple action schedules and run one sequence automatically alongside both clocks.
 - Select timer and action durations with scrolling hours/minutes/seconds wheels.
-- Choose from four bundled sounds with 5, 15, or 30 seconds of in-app playback, preview, and Stop controls.
+- Choose from four bundled sounds with 5, 15, 30, or 60 seconds of playback, preview, and Stop controls; rebuilt Android apps also support the selected duration in the background.
 - Schedule native timer/action/final notifications for Home and locked screens, with saved enablement and OS permission controls.
 - Choose white/blue light or navy/blue dark mode and save that preference across launches.
 - Restore the active stopwatch, countdown, schedule, laps, and settings after closing and reopening the app.
@@ -62,17 +62,17 @@ Open **Timer** and scroll **Ore / Minute / Secunde** (hours/minutes/seconds) unt
 
 The default is five minutes; valid durations remain `00:00:01`–`23:59:59`. Wheels are editable while idle or completed and disabled while running or paused. Pause/resume keeps the exact remaining time; reset requires confirmation while running or paused. Reset before editing an active duration. After completion, use **Repornește** to start again. Focusing or returning to the same value preserves completion and its sound. Countdown runs do not create stopwatch history entries.
 
-In **Setări**, **Alerte sonore** controls automatic timer and schedule alerts and defaults on. Choose **Clasic**, **Clopoțel**, **Digital**, or **Gong** under **Sunet**, then **5 s**, **15 s**, or **30 s** under **Durata sunetului**. Clasic and 5 seconds are the defaults. The selected pattern loops for that duration after playback starts. **Ascultă sunetul** previews it even when automatic alerts are muted.
+In **Setări**, **Alerte sonore** controls automatic timer and schedule alerts and defaults on. Choose **Clasic**, **Clopoțel**, **Digital**, or **Gong** under **Sunet**, then **5 s**, **15 s**, **30 s**, or **60 s** under **Durata sunetului**. Clasic and 60 seconds are the defaults for fresh/missing/invalid preferences. Valid saved shorter durations are retained: select **60 s** manually on an upgraded installation. The pattern loops for the selected duration after playback starts. **Ascultă sunetul** previews it even when automatic alerts are muted. See [notification sound behavior](docs/background-notifications.md#sound) for platform differences.
 
 Use **Oprește sunetul**, available in the shell and open sheets, to silence playback without resetting an activity. Changing sound/duration or muting automatic alerts cancels current playback. Closing Settings stops its preview. A live alert replaces a preview; newer live deadlines replace older alerts. Exact ties prefer timer completion, then schedule completion, then an action boundary. Interrupted sounds are not queued.
 
-Looping playback runs while the app is open and active. Overdue timing catches up without replaying in-app sound on return; system notifications are scheduled separately as described below. Completion remains visible inside open sheets. All four original PCM WAV patterns are bundled in `assets/audio/`, including the retained `timer-complete.wav`. Native playback respects silent mode and mixes with other audio. Browser autoplay can be blocked; visible feedback explains unavailable sound while timing still completes. No microphone permission is requested.
+On rebuilt Android apps, one native audio owner handles foreground completion and, with system notifications enabled and required access available, continues playback on Home, in another app or with the screen locked. Its notification offers **Stop** and **Open**; returning does not restart the minute. Preview remains foreground-only. iOS/web looping remains active-app-only; iOS background notifications retain a separate 15-second clip. Overdue timing catches up without replaying old sounds. Completion and Stop remain visible inside open sheets. Native playback respects silent/DND/channel controls and audio-focus interruptions; browser autoplay can be blocked. No microphone permission is requested. Physical Android minute/lock-screen acceptance is still pending.
 
 ## System Notifications
 
 Open **Setări → Notificări de sistem** in a rebuilt Android/iOS app. CRONO registers future timer and schedule alerts with the OS, so they can arrive on Home or while the phone is locked. Permission, exact-alarm access and channel settings are shown separately from the saved enable switch.
 
-See [Background and Lock-Screen Notifications](docs/background-notifications.md) for setup, MIUI/battery guidance, one-shot sound, platform limits and verification. Native build changes require a rebuild; the web preview retains in-app feedback.
+See [Background and Lock-Screen Notifications](docs/background-notifications.md) for Android minute playback, setup, MIUI/battery guidance, platform limits and verification. Native module changes require a rebuild; the web preview retains in-app feedback.
 
 ## Planning Example
 
@@ -84,7 +84,7 @@ Before saving, open **Programare** and choose **Săptămânal** for one or more 
 
 In **Planificare**, tap **Alege o zi**, enter a date or fill it with **Astăzi**, and tap **Afișează orarele**. The date view shows matching weekly and one-time schedules. **Toate** shows the complete list. **Orar nou** starts with the selected date when you open it from a date view. Use **Pornește** to start a sequence.
 
-Actions advance automatically, with the selected sound at each foreground boundary. The last action and schedule ending produce one final alert. **Pauză / Continuă / Resetează / Repornește** control the run; reset retains the saved schedule. Starting another schedule confirms replacement. Running or paused schedules are protected from editing/deletion; other schedules remain editable. Closing an edited draft asks before discarding it.
+Actions advance automatically on their deadlines, without waiting for the selected sound to finish. A later boundary replaces the previous sound; the last action and schedule ending produce one final alert. Android background playback follows the same priority rules. **Pauză / Continuă / Resetează / Repornește** control the run; reset retains the saved schedule. Starting another schedule confirms replacement. Running or paused schedules are protected from editing/deletion; other schedules remain editable. Closing an edited draft asks before discarding it.
 
 Save up to 20 schedules, each with 1–50 ordered actions. Names allow 80 trimmed characters; each action lasts `00:00:01`–`23:59:59`. One schedule can run or pause at a time, independently of stopwatch and timer. Schedule runs do not add stopwatch history entries.
 
@@ -94,7 +94,7 @@ The stopwatch calculates the difference between timestamps instead of accumulati
 
 The countdown and schedule use absolute deadlines, with local foreground display refreshes every 200 ms. Schedule deadlines remain anchored to preceding actions; a delayed callback catches up without replaying every missed sound. Positive fractions round up to the next displayed second. Pausing freezes the exact remaining milliseconds. Device clock changes can affect both activities too.
 
-Data is stored locally using AsyncStorage. Version 1 and `@crono/app-v1` are retained: older data defaults to Romanian, empty schedules, Clasic, 5 seconds, and system notifications enabled while preserving valid clocks, history, theme, and false preferences. A saved schedule can include a weekly rule or one calendar date. Older schedules and valid templates with invalid calendar metadata load in Manual mode. A running schedule saves a snapshot of its actions. Uninstalling the app or clearing browser data removes local data. Haptic feedback and screen wake lock apply only to mobile. With **Ecran mereu activ** enabled, one wake guard covers any running stopwatch, timer, or schedule.
+Data is stored locally using AsyncStorage. Version 1 and `@crono/app-v1` are retained: missing or invalid optional fields default to Romanian, empty schedules, Clasic, 15 seconds, and system notifications enabled while preserving valid clocks, history, theme, and false preferences. Valid saved sound durations of 5, 15 and 30 seconds are preserved. A saved schedule can include a weekly rule or one calendar date. Older schedules and valid templates with invalid calendar metadata load in Manual mode. A running schedule saves a snapshot of its actions. Uninstalling the app or clearing browser data removes local data. Haptic feedback and screen wake lock apply only to mobile. With **Ecran mereu activ** enabled, one wake guard covers any running stopwatch, timer, or schedule.
 
 ## Checks
 
@@ -124,7 +124,7 @@ npm run build:ios
 
 Cloud builds require an Expo account and signing configuration. iOS distribution requires an Apple Developer account and app registration. Creating the source code and running local checks do not publish the app to stores.
 
-Expo Go can preview the interface, but native appearance/audio/notification plugin changes require a rebuilt development or preview app. Use the existing preview profile for a standalone Android test APK. The development-client profile additionally requires SDK-compatible `expo-dev-client`, which is not currently installed. The playback-only configuration disables microphone/recording permissions and background playback.
+Expo Go can preview the interface, but native appearance/audio/notification plugin and local-module changes require a rebuilt development or preview app. Use the existing preview profile for a standalone Android test APK. The development-client profile additionally requires SDK-compatible `expo-dev-client`, which is not currently installed. Expo audio remains playback-only with no recording or iOS background-audio mode; the Android completion module owns a bounded media-playback foreground service.
 
 Official documentation: [Expo Go and setup](https://docs.expo.dev/tutorial/create-your-first-app/), [Expo SDK 57](https://docs.expo.dev/versions/v57.0.0/), [Android/iOS builds](https://docs.expo.dev/build/introduction/), [SDK 57 notifications](https://docs.expo.dev/versions/v57.0.0/sdk/notifications/).
 
@@ -142,6 +142,10 @@ ai-factory update
 Source: [lee-to/ai-factory](https://github.com/lee-to/ai-factory).
 
 ## Verification Status
+
+One-minute completion alerts passed lint/typecheck, **189 Node tests**, **15 native unit tests**, and Android/iOS/web exports. All **157 selected browser cases** have passing results across the main run and targeted reruns, including real-media 60-second playback. Android instrumentation compiled but device execution and acoustic checks were deferred at the user's request after MIUI blocked test-package installation. See the [current evidence and platform limits](docs/background-notifications.md#one-minute-completion-alerts) and [active plan](.ai-factory/plans/feature-one-minute-alerts.md).
+
+Longer completion-sound checks passed lint/typecheck, **171 Node tests**, **149 browser scenarios** in one run, and Android/iOS/web exports. A rebuilt Android APK contains all four verified 15-second notification clips; physical acoustic checks remain pending. See the [sound build evidence](docs/background-notifications.md#longer-completion-sounds) and [implementation plan](.ai-factory/plans/feature-longer-completion-sounds.md).
 
 Background-alert hardening on November 8, 2026 passed lint/typecheck and **156 Node tests**. All **118 selected browser scenarios** have passing evidence across the initial 116/118 run and 47-case layout/calendar rerun after fixing the English filter target size. A rebuilt Android APK was installed and OS delivery was verified on Home, after process reclamation, for a two-action schedule and with the keyguard showing. See the [background guide](docs/background-notifications.md#builds-and-verification) for build identity and remaining native checks.
 
@@ -177,9 +181,11 @@ src/core/         Pure timing, notification projection, language/sound registrie
 src/i18n/         Six typed catalogs (ro/en/ru/es/fr/de), plurals, dates, and sharing
 src/hooks/        Persistence, timing/audio owners, notification scheduling, and platform adapters
 src/audio/        Bundled playback map and native notification sound names
-modules/          Read-only Android notification access probe
+modules/          Android access probe and bounded completion alarm/audio module
 tests/            Logic and UI tests
-assets/           Four original sound patterns, a native Classic copy, icons, and splash screen
+assets/           Original sound patterns, legacy Classic copy, icons, and splash screen
+assets/audio/notifications/ Four 15-second system notification clips
+scripts/          Reproducible notification sound generator
 ```
 
 ## Documentation

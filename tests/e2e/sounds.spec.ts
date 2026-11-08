@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { readFileSync } from 'node:fs';
-import { audioEvents, audioSpy, duration, expectNoPageErrors, observePageErrors, playCount, seed, settings, stored } from './helpers';
+import { audioEvents, audioSpy, duration, expectNoPageErrors, observePageErrors, playCount, seed, settings, stepDuration, stored } from './helpers';
 
 test.beforeEach(async ({ page }) => {
   observePageErrors(page);
@@ -12,11 +12,15 @@ test.afterEach(({ page }) => expectNoPageErrors(page));
 test('sound selections persist and a looping preview lasts the saved 15 seconds', async ({ page }) => {
   await audioSpy(page); await page.goto('/'); let dialog = await settings(page);
   await expect(dialog.getByRole('radio', { name: 'Sunet Clasic', exact: true })).toBeChecked();
-  await expect(dialog.getByRole('radio', { name: 'Durata sunetului 5 secunde', exact: true })).toBeChecked();
+  await expect(dialog.getByRole('radio', { name: 'Durata sunetului 60 secunde', exact: true })).toBeChecked();
   for (const [label, id] of [['Clopoțel', 'bell'], ['Digital', 'digital'], ['Clasic', 'classic'], ['Gong', 'gong']]) {
     await dialog.getByRole('radio', { name: `Sunet ${label}`, exact: true }).click();
     await expect.poll(async () => (await stored(page)).preferences.alertSoundId).toBe(id);
   }
+  await dialog.getByRole('radio', { name: 'Durata sunetului 5 secunde', exact: true }).click();
+  await expect.poll(async () => (await stored(page)).preferences.alertDurationSeconds).toBe(5);
+  await page.reload(); dialog = await settings(page);
+  await expect(dialog.getByRole('radio', { name: 'Durata sunetului 5 secunde', exact: true })).toBeChecked();
   await dialog.getByRole('radio', { name: 'Durata sunetului 15 secunde', exact: true }).click();
   await expect.poll(async () => (await stored(page)).preferences.alertDurationSeconds).toBe(15);
   await page.reload(); dialog = await settings(page);
@@ -87,7 +91,7 @@ for (const ending of ['duration', 'stop'] as const) {
     await expect(warning).toBeVisible();
     expect(await playCount(page)).toBe(1);
     if (ending === 'stop') await dialog.getByRole('button', { name: 'Oprește sunetul', exact: true }).click();
-    else await page.clock.runFor(5000);
+    else await page.clock.runFor(60000);
     await expect(dialog.getByRole('button', { name: 'Oprește sunetul', exact: true })).not.toBeVisible();
     await expect(warning).not.toBeVisible();
     expect((await stored(page)).timer).toEqual(completed);
@@ -144,7 +148,7 @@ test('literal legacy-v1 data survives settings, real Classic playback, completio
   await page.clock.runFor(1000); await expect.poll(() => playCount(page)).toBe(2);
   const result = await stored(page);
   expect(result.stopwatch).toEqual(legacy.stopwatch); expect(result.sessions).toEqual(legacy.sessions);
-  expect(result.preferences).toEqual({ ...legacy.preferences, systemNotifications: true, language: 'ro', timerSound: true, alertSoundId: 'classic', alertDurationSeconds: 5 });
+  expect(result.preferences).toEqual({ ...legacy.preferences, systemNotifications: true, language: 'ro', timerSound: true, alertSoundId: 'classic', alertDurationSeconds: 60 });
   await page.reload(); await expect(page.getByLabel('Temporizator finalizat', { exact: true })).toBeVisible();
   expect(await playCount(page)).toBe(0);
 });
@@ -166,9 +170,51 @@ test('late preview startup cannot revive an obsolete sound or shorten its replac
   await page.evaluate(() => (window as unknown as { pendingStarts: (() => void)[] }).pendingStarts[0]());
   await page.clock.runFor(1500);
   await page.evaluate(() => (window as unknown as { pendingStarts: (() => void)[] }).pendingStarts[1]());
-  await page.clock.runFor(4999);
+  await page.clock.runFor(59999);
   await expect(dialog.getByRole('button', { name: 'Oprește previzualizarea', exact: true })).toBeVisible();
   await page.clock.runFor(1);
   await expect(dialog.getByRole('button', { name: 'Ascultă sunetul', exact: true })).toBeVisible();
   expect(await playCount(page)).toBe(2);
+});
+
+test('legacy data retains Bell and 60 seconds through reload, concurrent timer and two-action schedule', async ({ page }) => {
+  test.setTimeout(90000);
+  const legacy = JSON.parse(readFileSync(new URL('../fixtures/app-v1-before-planning.json', import.meta.url), 'utf8'));
+  await seed(page, legacy); await audioSpy(page); await page.goto('/planning');
+  let dialog = await settings(page);
+  await dialog.getByRole('radio', { name: 'Sunet Clopoțel', exact: true }).click();
+  await dialog.getByRole('radio', { name: 'Durata sunetului 60 secunde', exact: true }).click();
+  await dialog.getByRole('switch', { name: 'Alerte sonore', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Închide', exact: true }).click(); await page.clock.runFor(300);
+  await page.getByRole('button', { name: 'Orar nou', exact: true }).click();
+  dialog = page.getByRole('dialog', { name: 'Orar nou', exact: true });
+  await dialog.getByLabel('Nume orar', { exact: true }).fill('Un minut');
+  await dialog.getByLabel('Nume etapa 1', { exact: true }).fill('Lucru');
+  await stepDuration(page, 1, [0, 0, 3]);
+  await dialog.getByRole('button', { name: 'Adaugă etapă', exact: true }).click();
+  await dialog.getByLabel('Nume etapa 2', { exact: true }).fill('Pauză');
+  await stepDuration(page, 2, [0, 0, 5]);
+  await dialog.getByRole('button', { name: 'Salvează orarul', exact: true }).click(); await page.clock.runFor(300);
+  await expect.poll(async () => (await stored(page)).planning.schedules.length).toBe(1);
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Pornește orarul Un minut', exact: true })).toBeVisible();
+  expect((await stored(page)).preferences).toMatchObject({ alertSoundId: 'bell', alertDurationSeconds: 60, haptics: false, keepAwake: false });
+  await page.getByRole('tab', { name: 'Timer', exact: true }).click();
+  await page.getByRole('button', { name: 'Repornește temporizatorul', exact: true }).click();
+  await page.getByRole('tab', { name: 'Planificare', exact: true }).click();
+  await page.getByRole('button', { name: 'Pornește orarul Un minut', exact: true }).click();
+  const firstDeadline = (await stored(page)).planning.run!.deadlineAt!;
+  await page.clock.runFor(1000); await expect.poll(() => playCount(page)).toBe(1);
+  await page.clock.runFor(2000); await expect.poll(() => playCount(page)).toBe(2);
+  expect((await stored(page)).planning.run).toMatchObject({ stepIndex: 1, deadlineAt: firstDeadline + 5000 });
+  await page.clock.runFor(5000); await expect.poll(() => playCount(page)).toBe(3);
+  expect((await stored(page)).planning.run?.status).toBe('completed');
+  await page.clock.runFor(59999);
+  await expect(page.getByRole('button', { name: 'Oprește sunetul', exact: true })).toBeVisible();
+  await page.clock.runFor(1);
+  await expect(page.getByRole('button', { name: 'Oprește sunetul', exact: true })).not.toBeVisible();
+  expect(await playCount(page)).toBe(3);
+  const saved = await stored(page); expect(saved.stopwatch).toEqual(legacy.stopwatch); expect(saved.sessions).toEqual(legacy.sessions);
+  await page.reload(); await expect.poll(async () => (await stored(page)).preferences.alertDurationSeconds).toBe(60);
+  expect(await playCount(page)).toBe(0);
 });

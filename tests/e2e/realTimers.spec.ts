@@ -14,6 +14,8 @@ const classicUrl = /timer-complete[^/]*\.wav/;
 
 function dataWithPausedStopwatch() {
   const data = initialData();
+  // Keep existing saved five-second selections covered with real native timers.
+  data.preferences.alertDurationSeconds = 5;
   data.stopwatch.accumulatedMs = 1500;
   return data;
 }
@@ -40,6 +42,7 @@ async function audioState(page: Page) {
 
 test('real timers preserve actual preview playback through theme changes, expiry and Stop', async ({ page }) => {
   const data = dataWithPausedStopwatch();
+  data.preferences.alertDurationSeconds = 15;
   // Keep native media/timers and real WAV bytes; isolate Metro's asset-transfer latency.
   await page.route(classicUrl, (route) => route.fulfill({ contentType: 'audio/wav', body: classicWav }));
   await seed(page, data); await observeRealAudio(page); await page.goto('/');
@@ -54,7 +57,7 @@ test('real timers preserve actual preview playback through theme changes, expiry
   const playing = await audioState(page);
   expect(playing).toHaveLength(1);
   expect(playing[0]).toMatchObject({ paused: false, loop: true });
-  await expect(audition).toBeVisible({ timeout: 10000 });
+  await expect(audition).toBeVisible({ timeout: 20000 });
   expect((await audioState(page))[0].paused).toBe(true);
   await audition.click();
   await expect.poll(async () => (await audioState(page))[1]?.currentTime ?? 0).toBeGreaterThan(0);
@@ -64,6 +67,21 @@ test('real timers preserve actual preview playback through theme changes, expiry
   expect(saved.stopwatch).toEqual(data.stopwatch);
   expect(saved.timer).toEqual(data.timer);
   expect(saved.planning).toEqual(data.planning);
+});
+
+test('real media loops for the selected full minute and then releases the player', async ({ page }) => {
+  test.setTimeout(120000);
+  const data = dataWithPausedStopwatch(); data.preferences.alertDurationSeconds = 60;
+  await page.route(classicUrl, (route) => route.fulfill({ contentType: 'audio/wav', body: classicWav }));
+  await seed(page, data); await observeRealAudio(page); await page.goto('/');
+  const dialog = await settings(page); await dialog.getByRole('button', { name: 'Ascultă sunetul', exact: true }).click();
+  await expect.poll(async () => (await audioState(page))[0]?.currentTime ?? 0).toBeGreaterThan(0);
+  const started = Date.now();
+  await expect(dialog.getByRole('button', { name: 'Oprește previzualizarea', exact: true })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Ascultă sunetul', exact: true })).toBeVisible({ timeout: 65000 });
+  expect(Date.now() - started).toBeGreaterThan(58000);
+  expect(Date.now() - started).toBeLessThan(65000);
+  expect((await audioState(page))[0]).toMatchObject({ paused: true, loop: true });
 });
 
 test('real timers recover from a failed media load without uncaught errors', async ({ page }) => {

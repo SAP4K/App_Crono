@@ -30,7 +30,7 @@ function AwakeGuard() {
 
 export function CronoProvider({ children }: PropsWithChildren) {
   const stopwatch = useStopwatch();
-  const alerts = useAlertPlayback(stopwatch.data.preferences);
+  const alerts = useAlertPlayback(stopwatch);
   const { controller } = alerts;
   const { getSnapshot } = stopwatch;
   const [notice, setNotice] = useState<ToastNotice | null>(null);
@@ -48,10 +48,11 @@ export function CronoProvider({ children }: PropsWithChildren) {
     play: async (allowed, event) => {
       if (!event) return;
       const { preferences } = getSnapshot();
-      controller.request({ owner: 'timer', kind: 'timer-complete', eventId: `timer:${event.runId}`, dueAt: event.dueAt,
+      controller.request({ owner: 'timer', kind: 'timer-complete', eventId: `timer:${event.runId}`, runId: event.runId, dueAt: event.dueAt,
         soundId: preferences.alertSoundId, durationSeconds: preferences.alertDurationSeconds, allowed });
     },
     stop: () => controller.cancelOwner('timer'),
+    suspend: () => controller.suspendOwner ? controller.suspendOwner('timer') : controller.cancelOwner('timer'),
   }), [controller, getSnapshot]);
   const timerControls = useTimerCompletion(stopwatch, stopwatch.data, audio, notifyTimer);
   const planning = usePlanningRunner(stopwatch, stopwatch.data, controller);

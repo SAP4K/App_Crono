@@ -11,5 +11,7 @@ export function notificationContent(event: NotificationEvent, preferences: Prefe
     ? m.scheduleFinished(event.scheduleName ?? '') : m.stepFinished(event.stepName ?? '', event.nextStepName ?? '');
   const sound = preferences.timerSound ? notificationSounds[preferences.alertSoundId] : false;
   const channelId = notificationChannelId(preferences.timerSound ? preferences.alertSoundId : 'silent');
-  return { event, title, body, sound, channelId, fingerprint: JSON.stringify([title, body, sound, channelId]) };
+  return { event, title, body, sound, channelId, fingerprint: JSON.stringify([title, body, sound, channelId]),
+    completion: { soundId: preferences.alertSoundId, durationSeconds: preferences.alertDurationSeconds,
+      stopLabel: m.stopSound, openLabel: title } };
 }
