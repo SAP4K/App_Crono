@@ -73,9 +73,14 @@ tests/
   planningRunner.test.ts Global planning lifecycle and boundary coordination
   notifications.test.ts Future projection, payloads, content, permissions, web fallback
   notificationCoordinator.test.ts Native reconciliation, failures, hydration and races
+  notificationReadiness.test.ts Access, channel, permission and registration policy
+  notificationRuntime.test.ts Embedded release/development clients versus Expo Go
+  notificationPresentation.test.ts Activity handoff and sound presentation
+  notificationTrigger.test.ts iOS rounding and elapsed-deadline rejection
   notificationResponses.test.ts Buffered, validated and deduplicated tap navigation
   fixtures/             Literal legacy version-1 saved data
   e2e/                  Timing, themes, languages, sound, planning, notifications, real wheel gestures
+modules/                Read-only Android background-access Expo module
 assets/                 App icons, splash images, and four original WAV patterns plus a native Classic copy
 .agents/skills/         Installed AI Factory workflows
 .ai-factory/            Project context and workflow configuration
@@ -109,6 +114,9 @@ assets/                 App icons, splash images, and four original WAV patterns
 | `src/core/notifications.ts`, `src/i18n/notificationContent.ts` | Future event projection/payload validation and localized OS content |
 | `src/hooks/notificationCoordinator.ts`, `useSystemNotifications.ts` | One serialized OS request owner, hydration guard and accepted-update bridge |
 | `src/hooks/systemNotifications.ts`, `.web.ts`, `notificationTypes.ts` | Native date/channel/permission adapter and native-free web fallback |
+| `modules/crono-background-access/`, `src/hooks/backgroundAccess.ts`, `.web.ts` | Read-only exact-alarm and battery observations |
+| `src/hooks/notificationReadiness.ts`, `notificationPresentation.ts`, `notificationTrigger.ts` | Delivery policy, activity handoff, native date mapping |
+| `src/components/BackgroundNotificationHelp.tsx`, `src/i18n/notificationStatus.ts` | Localized native setup and readiness |
 | `src/hooks/notificationResponses.ts`, `useNotificationNavigation.ts` | Validated, buffered notification taps through Expo Router |
 | `src/audio/notificationSounds.ts`, `src/components/SystemNotificationNotice.tsx` | Native sound names/channels and separate failure/retry feedback |
 | `src/hooks/appActivity.ts` | Shared foreground checks and lifecycle subscription |
@@ -127,6 +135,7 @@ assets/                 App icons, splash images, and four original WAV patterns
 | File | Purpose |
 |---|---|
 | `README.md` | Setup, wheel usage, six languages, themes, schedules, notifications, checks, builds |
+| `docs/background-notifications.md` | Phone setup, notification behavior, limits and verification |
 | `AGENTS.md` | Repository map and authoritative Expo workflow requirements |
 | `.ai-factory/DESCRIPTION.md` | Project purpose, stack, data model, and known follow-ups |
 | `.ai-factory/ARCHITECTURE.md` | Layered architecture, dependencies, and data flow |

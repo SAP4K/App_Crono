@@ -8,6 +8,8 @@ import { Icon } from './Icon';
 import { Sheet } from './Sheet';
 import { LANGUAGES } from '../core/language';
 import { ALERT_DURATIONS, SOUND_CHOICES } from '../core/sounds';
+import { BackgroundNotificationHelp } from './BackgroundNotificationHelp';
+import { notificationStatus } from '../i18n/notificationStatus';
 
 export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const { language, messages: m, setLanguage } = useI18n();
@@ -19,9 +21,6 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
   const capability = notifications.state.capability;
   const notificationAvailable = notifications.supported && capability.status !== 'unavailable' && capability.status !== 'unsupported';
   const canManageNotifications = hydrationStatus === 'loaded' && notificationAvailable;
-  const notificationStatus = { unknown: m.notificationPermissionUnknown, granted: m.notificationPermissionGranted,
-    limited: m.notificationPermissionLimited, denied: m.notificationPermissionDenied,
-    unavailable: m.notificationUnavailable, unsupported: m.notificationsWeb }[capability.status];
   const previewing = alerts.state.request?.owner === 'preview' && alerts.state.status !== 'idle';
   const previewError = alerts.state.request?.owner === 'preview' && alerts.state.error ? m.soundUnavailable : null;
   const previewNotice = alerts.state.status !== 'idle' && alerts.state.request?.owner !== 'preview'
@@ -91,10 +90,7 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
             if (enabled) void notifications.controller.requestPermission(true);
           }} trackColor={{ false: c.border, true: c.lime }} thumbColor={c.surface} ios_backgroundColor={c.border} /></View>
       </View>
-      <Text style={styles.description} accessibilityLiveRegion="polite">{hydrationStatus !== 'loaded' ? m.notificationStorageUnavailable
-        : !notifications.supported ? m.notificationsWeb : !notificationAvailable ? m.notificationUnavailable
-          : !data.preferences.systemNotifications ? m.notificationDisabled : notifications.state.status === 'pending'
-            ? m.notificationSchedulePending : notificationStatus}</Text>
+      <Text style={styles.description} accessibilityLiveRegion="polite">{notificationStatus(notifications.readiness, m)}</Text>
       {canManageNotifications && <>
         <Text style={styles.description}>{m.notificationsSoundHelp}</Text>
         <View style={styles.choices}>
@@ -103,9 +99,9 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
           <Pressable accessibilityRole="button" onPress={() => { feedback(); notifications.openSettings(); }} style={({ pressed }) => [styles.choice, pressed && { opacity: 0.65 }]}><Text style={styles.choiceText}>{m.notificationOpenSettings}</Text></Pressable>
         </View>
         {notifications.exactAlarmSettings && data.preferences.systemNotifications && <>
-          <Text style={styles.description}>{m.notificationExactHelp}</Text>
           <Pressable accessibilityRole="button" onPress={() => { feedback(); notifications.openSettings(true); }} style={({ pressed }) => [styles.choice, pressed && { opacity: 0.65 }]}><Text style={styles.choiceText}>{m.notificationExactSettings}</Text></Pressable>
         </>}
+        {data.preferences.systemNotifications && <BackgroundNotificationHelp />}
       </>}
     </View>
     <View style={styles.row}>

@@ -137,7 +137,7 @@ const createStyles = (c: Palette) => StyleSheet.create({
   primaryText: { color: c.actionText, fontFamily: f.semibold, fontSize: 13 },
   limit: { color: c.muted, fontFamily: f.regular, fontSize: 10, lineHeight: 17, marginVertical: 10 },
   filters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
-  filterButton: { minHeight: 44, flexShrink: 1, borderWidth: 1, borderColor: c.border, borderRadius: 10,
+  filterButton: { minHeight: 44, minWidth: 44, flexShrink: 1, borderWidth: 1, borderColor: c.border, borderRadius: 10,
     backgroundColor: c.secondary, paddingHorizontal: 12, paddingVertical: 6, alignItems: 'center', justifyContent: 'center' },
   filterSelected: { backgroundColor: c.limeSoft, borderColor: c.green },
   calendarSummary: { color: c.green, fontFamily: f.medium, fontSize: 12, marginTop: 6 },

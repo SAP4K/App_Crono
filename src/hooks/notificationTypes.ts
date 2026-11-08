@@ -1,5 +1,6 @@
 import type { AppLanguage } from '../core/language.ts';
 import type { NotificationEvent } from '../core/notifications.ts';
+import type { NotificationDelivery } from './notificationReadiness.ts';
 
 export type NotificationCapability = {
   status: 'unknown' | 'granted' | 'limited' | 'denied' | 'unavailable' | 'unsupported';
@@ -23,7 +24,7 @@ export function notificationCapability(permission: { status: string; granted: bo
   }
   const allowed = permission.granted && permission.status === 'granted';
   return { status: allowed ? 'granted' : permission.status === 'undetermined' ? 'unknown' : 'denied',
-    canSchedule: allowed, canAsk: permission.status === 'undetermined' && permission.canAskAgain, soundAllowed: allowed };
+    canSchedule: allowed, canAsk: !allowed && ['undetermined', 'denied'].includes(permission.status) && permission.canAskAgain, soundAllowed: allowed };
 }
 
 export type NotificationDescriptor = {
@@ -32,17 +33,19 @@ export type NotificationDescriptor = {
 export type NativeNotification = { identifier: string; data: unknown };
 export type NativeNotificationResponse = NativeNotification & { defaultAction: boolean };
 export type SystemNotificationAdapter = {
+  platform: NotificationDelivery['platform'];
   supported: boolean; exactAlarmSettings: boolean;
+  delivery: (channelId: string) => Promise<NotificationDelivery>;
   prepare: (language: AppLanguage) => Promise<void>;
   permission: () => Promise<NotificationCapability>;
-  requestPermission: (language: AppLanguage) => Promise<NotificationCapability>;
+  requestPermission: (language: AppLanguage, canPrompt: () => boolean) => Promise<NotificationCapability | null>;
   pending: () => Promise<NativeNotification[]>;
   presented: () => Promise<NativeNotification[]>;
-  schedule: (identifier: string, descriptor: NotificationDescriptor) => Promise<string>;
+  schedule: (identifier: string, descriptor: NotificationDescriptor) => Promise<string | null>;
   cancel: (identifier: string) => Promise<void>;
   dismiss: (identifier: string) => Promise<void>;
   listen: (received: (notification: NativeNotification) => void, response: (notification: NativeNotificationResponse) => void) => () => void;
   lastResponse: () => Promise<NativeNotificationResponse | null>;
   clearResponse: () => Promise<void>;
-  openSettings: (exact?: boolean) => Promise<void>;
+  openSettings: (target?: boolean | 'battery') => Promise<void>;
 };

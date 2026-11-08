@@ -1,4 +1,5 @@
 import Constants from 'expo-constants';
+import { isRunningInExpoGo } from 'expo';
 import { Linking, Platform } from 'react-native';
 import { notificationData } from '../core/notifications';
 import { notificationChannelId, notificationSounds } from '../audio/notificationSounds';
@@ -7,13 +8,17 @@ import { SOUND_CHOICES } from '../core/sounds';
 import { getMessages } from '../i18n';
 import { notificationCapability, unavailableNotifications } from './notificationTypes';
 import type { NativeNotification, NativeNotificationResponse, SystemNotificationAdapter } from './notificationTypes';
+import { backgroundAccess } from './backgroundAccess';
+import { emptyNotificationDelivery } from './notificationReadiness';
+import { isAppActive } from './appActivity';
+import { notificationPresentation } from './notificationPresentation';
+import { notificationTriggerDate } from './notificationTrigger';
 
 // Expo Go cannot contain CRONO's custom resources. A missing module in an older
 // development binary is also handled without preventing the timing UI from loading.
-const nativeModule = Constants.expoGoConfig ? Promise.resolve(null) : import('expo-notifications').then((module) => {
-  module.setNotificationHandler({ handleNotification: async () => ({
-    shouldShowBanner: false, shouldShowList: false, shouldPlaySound: false, shouldSetBadge: false,
-  }) });
+const nativeModule = isRunningInExpoGo() ? Promise.resolve(null) : import('expo-notifications').then((module) => {
+  module.setNotificationHandler({ handleNotification: async (notification) =>
+    notificationPresentation(isAppActive(), notification.request.content.sound) });
   return module;
 }).catch(() => { console.warn('[notifications] Native module unavailable; rebuild the app.'); return null; });
 
@@ -53,13 +58,16 @@ function response(notification: import('expo-notifications').NotificationRespons
   return { ...nativeNotification(notification.notification.request), defaultAction: notification.actionIdentifier === defaultAction };
 }
 
-let permissionRequest: Promise<import('./notificationTypes').NotificationCapability> | null = null;
-function requestPermission(language: AppLanguage) {
+let permissionRequest: Promise<import('./notificationTypes').NotificationCapability | null> | null = null;
+function requestPermission(language: AppLanguage, canPrompt: () => boolean) {
   if (permissionRequest) return permissionRequest;
   permissionRequest = (async () => {
+    if (!isAppActive() || !canPrompt()) return null;
     await prepare(language);
     const module = await notifications();
     const current = notificationCapability(await module.getPermissionsAsync());
+    // Preparation and permission reads can outlive the initiating gesture.
+    if (!isAppActive() || !canPrompt()) return null;
     if (!current.canAsk) return current;
     return notificationCapability(await module.requestPermissionsAsync({ ios: { allowAlert: true, allowSound: true, allowBadge: false } }));
   })().finally(() => { permissionRequest = null; });
@@ -67,7 +75,19 @@ function requestPermission(language: AppLanguage) {
 }
 
 export const systemNotifications: SystemNotificationAdapter = {
+  platform: Platform.OS === 'android' ? 'android' : 'ios',
   supported: true, exactAlarmSettings: Platform.OS === 'android' && Number(Platform.Version) >= 31,
+  delivery: async (channelId) => {
+    const result = { ...emptyNotificationDelivery(Platform.OS === 'android' ? 'android' : 'ios'), ...await backgroundAccess() };
+    if (Platform.OS !== 'android') return result;
+    const module = await notifications();
+    const channel = await module.getNotificationChannelAsync(channelId);
+    if (channel && channel.importance !== module.AndroidImportance.UNKNOWN) {
+      result.channel = channel.importance === module.AndroidImportance.NONE ? 'blocked' : 'available';
+      result.channelSound = channel.sound === null || channel.importance < module.AndroidImportance.DEFAULT ? 'silent' : 'audible';
+    }
+    return result;
+  },
   prepare,
   permission: async () => {
     const module = await nativeModule;
@@ -78,10 +98,12 @@ export const systemNotifications: SystemNotificationAdapter = {
   presented: async () => (await (await notifications()).getPresentedNotificationsAsync()).map((item) => nativeNotification(item.request)),
   schedule: async (identifier, descriptor) => {
     const module = await notifications();
+    const date = notificationTriggerDate(Platform.OS === 'android' ? 'android' : 'ios', descriptor.event.dueAt, Date.now());
+    if (date === null) return null;
     return module.scheduleNotificationAsync({ identifier,
       content: { title: descriptor.title, body: descriptor.body, sound: descriptor.sound,
         data: notificationData(descriptor.event, descriptor.fingerprint) },
-      trigger: { type: module.SchedulableTriggerInputTypes.DATE, date: descriptor.event.dueAt, channelId: descriptor.channelId },
+      trigger: { type: module.SchedulableTriggerInputTypes.DATE, date, channelId: descriptor.channelId },
     });
   },
   cancel: async (identifier) => (await notifications()).cancelScheduledNotificationAsync(identifier),
@@ -102,8 +124,15 @@ export const systemNotifications: SystemNotificationAdapter = {
     return value && module ? response(value, module.DEFAULT_ACTION_IDENTIFIER) : null;
   },
   clearResponse: async () => { (await nativeModule)?.clearLastNotificationResponse(); },
-  openSettings: async (exact = false) => {
-    if (exact && Platform.OS === 'android' && Number(Platform.Version) >= 31) {
+  openSettings: async (target = false) => {
+    if (target === 'battery' && Platform.OS === 'android') {
+      try {
+        const launcher = await import('expo-intent-launcher');
+        await launcher.startActivityAsync(launcher.ActivityAction.IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
+        return;
+      } catch { console.warn('[notifications] Battery settings unavailable; opening app settings.'); }
+    }
+    if (target === true && Platform.OS === 'android' && Number(Platform.Version) >= 31) {
       try {
         const launcher = await import('expo-intent-launcher');
         const appPackage = Constants.expoConfig?.android?.package;

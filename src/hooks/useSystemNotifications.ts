@@ -6,6 +6,7 @@ import { systemNotifications } from './systemNotifications';
 import { createTimingId } from './createTimingId';
 import { isAppActive, subscribeAppActivity } from './appActivity';
 import type { useStopwatch } from './useStopwatch';
+import { notificationReadiness } from './notificationReadiness';
 
 type Store = Pick<ReturnType<typeof useStopwatch>, 'getSnapshot' | 'subscribeUpdates' | 'getHydrationStatus' | 'hydrationStatus'>;
 
@@ -15,7 +16,7 @@ export function useSystemNotifications({ getSnapshot, subscribeUpdates, getHydra
   const observed = useRef(getSnapshot());
   const controller = useMemo(() => createNotificationCoordinator({
     getSnapshot, getHydration: getHydrationStatus, native: systemNotifications, now: Date.now,
-    createId: createTimingId, changed: setReported,
+    createId: createTimingId, changed: setReported, isActive: isAppActive,
     warn: (operation) => console.warn(`[notifications] ${operation} failed.`),
   }), [getSnapshot, getHydrationStatus]);
 
@@ -53,13 +54,19 @@ export function useSystemNotifications({ getSnapshot, subscribeUpdates, getHydra
       if (last?.identifier === identifier) return systemNotifications.clearResponse();
     }).catch(() => console.warn('[notifications] Response cleanup failed.'));
   }, []);
-  const openSettings = useCallback((exact = false) => {
-    void systemNotifications.openSettings(exact).catch(() => {
+  const openSettings = useCallback((target: boolean | 'battery' = false) => {
+    void systemNotifications.openSettings(target).then(() => {
+      if (isAppActive()) return controller.reconcile(true);
+    }).catch(() => {
       console.warn('[notifications] Settings could not open.');
       setReported({ ...controller.getState(), status: 'failed' });
     });
   }, [controller]);
 
-  return { state: reported ?? controller.getState(), controller, response, consumeResponse, openSettings,
+  const state = reported ?? controller.getState();
+  const preferences = getSnapshot().preferences;
+  const readiness = notificationReadiness({ hydration: hydrationStatus, enabled: preferences.systemNotifications,
+    status: state.status, capability: state.capability, delivery: state.delivery, soundEnabled: preferences.timerSound });
+  return { state, readiness, controller, response, consumeResponse, openSettings,
     supported: systemNotifications.supported, exactAlarmSettings: systemNotifications.exactAlarmSettings };
 }

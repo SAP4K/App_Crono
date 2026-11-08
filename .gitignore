@@ -76,6 +76,11 @@ __pycache__/
 /ios
 /android
 
+# Local Expo module build output
+/modules/**/android/build/
+/modules/**/android/.cxx/
+/modules/**/android/.gradle/
+
 # Test output
 test-results/
 playwright-report/

@@ -27,6 +27,12 @@ export type Messages = {
   notificationPlanningTitle: string;
   notificationSoundDurationHelp: string;
   notificationDisabled: string;
+  notificationBackground: {
+    configured: string; unknown: string; channelBlocked: string; soundDisabled: string;
+    exactGranted: string; exactNotRequired: string; exactUnknown: string;
+    batterySettings: string; batteryOptimized: string; batteryUnrestricted: string; batteryUnknown: string;
+    help: string; usage: string; androidHelp: string; iosHelp: string;
+  };
 
   start: string;
   language: string;

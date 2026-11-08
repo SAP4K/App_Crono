@@ -67,7 +67,8 @@ test('notification payload validation requires owned namespace and coherent boun
 test('notification permissions distinguish undetermined denied and granular iOS capabilities', () => {
   const unknown = { status: 'undetermined', granted: false, canAskAgain: true };
   assert.equal(notificationCapability(unknown).canAsk, true);
-  assert.equal(notificationCapability({ ...unknown, status: 'denied' }).canAsk, false);
+  assert.equal(notificationCapability({ ...unknown, status: 'denied' }).canAsk, true);
+  assert.equal(notificationCapability({ ...unknown, status: 'denied', canAskAgain: false }).canAsk, false);
   assert.equal(notificationCapability({ ...unknown, status: 'granted', granted: true }).canSchedule, true);
   const ios = { status: 2, allowsAlert: true, allowsSound: true, allowsDisplayOnLockScreen: true };
   assert.equal(notificationCapability({ ...unknown, ios }).status, 'granted');
@@ -115,7 +116,7 @@ test('six-language timer action and final content preserve semantic events and s
 test('web adapter reports unsupported without calling any browser permission API', async () => {
   assert.equal(webNotifications.supported, false);
   assert.equal((await webNotifications.permission()).status, 'unsupported');
-  assert.equal((await webNotifications.requestPermission('ro')).canAsk, false);
+  assert.equal((await webNotifications.requestPermission('ro', () => true))?.canAsk, false);
   assert.deepEqual(await webNotifications.pending(), []);
   assert.deepEqual(await webNotifications.presented(), []);
   assert.equal(await webNotifications.lastResponse(), null);
