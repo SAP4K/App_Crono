@@ -26,6 +26,9 @@ export type Messages = {
   notificationTimerTitle: string;
   notificationPlanningTitle: string;
   notificationSoundDurationHelp: string;
+  notificationLongSoundFallback: string;
+  notificationLongSoundReady: string;
+  notificationAlarmIndicator: string;
   notificationDisabled: string;
   notificationBackground: {
     configured: string; unknown: string; channelBlocked: string; soundDisabled: string;

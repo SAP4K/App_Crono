@@ -91,6 +91,10 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
           }} trackColor={{ false: c.border, true: c.lime }} thumbColor={c.surface} ios_backgroundColor={c.border} /></View>
       </View>
       <Text style={styles.description} accessibilityLiveRegion="polite">{notificationStatus(notifications.readiness, m)}</Text>
+      {data.preferences.systemNotifications && notifications.state.delivery.extendedSound === true && <>
+        {data.preferences.timerSound && notifications.readiness === 'registered' && <Text style={styles.description}>{m.notificationLongSoundReady}</Text>}
+        <Text style={styles.description}>{m.notificationAlarmIndicator}</Text>
+      </>}
       {canManageNotifications && <>
         <Text style={styles.description}>{m.notificationsSoundHelp}</Text>
         <View style={styles.choices}>

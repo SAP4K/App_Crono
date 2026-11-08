@@ -3,7 +3,7 @@ import { Asset } from 'expo-asset';
 import { soundSources } from '../audio/sources';
 import type { AlertTransport } from './alertPlayback';
 
-export function useAlertSound(): AlertTransport {
+export function useAlertSound(enabled = true): AlertTransport {
   const current = useRef<{ player: HTMLAudioElement; failed: () => void } | null>(null);
   const stop = useCallback(() => {
     const entry = current.current;
@@ -16,7 +16,7 @@ export function useAlertSound(): AlertTransport {
   }, []);
   useEffect(() => stop, [stop]);
   const play = useCallback<AlertTransport['play']>(async (soundId, allowed, failed) => {
-    if (!allowed()) return;
+    if (!enabled || !allowed()) return;
     stop();
     const player = new Audio(Asset.fromModule(soundSources[soundId]).uri);
     player.loop = true;
@@ -26,6 +26,6 @@ export function useAlertSound(): AlertTransport {
     player.addEventListener('error', entry.failed);
     if (!allowed()) { stop(); return; }
     await player.play();
-  }, [stop]);
+  }, [stop, enabled]);
   return useMemo(() => ({ play, stop }), [play, stop]);
 }

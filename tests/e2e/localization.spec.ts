@@ -102,7 +102,7 @@ for (const { id } of LANGUAGES) {
     expect(saved.version).toBe(1);
     expect(saved.stopwatch).toEqual(legacy.stopwatch); expect(saved.timer).toEqual(legacy.timer);
     expect(saved.sessions).toEqual(legacy.sessions);
-    expect(saved.preferences).toEqual({ ...legacy.preferences, systemNotifications: true, language: id, alertSoundId: 'classic', alertDurationSeconds: 5 });
+    expect(saved.preferences).toEqual({ ...legacy.preferences, systemNotifications: true, language: id, alertSoundId: 'classic', alertDurationSeconds: 60 });
     expect(await playCount(page)).toBe(0);
     expect(readFileSync(fixture, 'utf8')).toBe(raw);
   });

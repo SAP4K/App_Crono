@@ -86,7 +86,7 @@ test('literal legacy-v1 clocks, history and false preferences survive the blue t
   expect(restored.timer).toEqual(legacy.timer);
   expect(restored.sessions).toEqual(legacy.sessions);
   expect(restored.planning).toEqual({ schedules: [], run: null });
-  expect(restored.preferences).toEqual({ ...legacy.preferences, systemNotifications: true, language: 'ro', theme: 'light', alertSoundId: 'classic', alertDurationSeconds: 5 });
+  expect(restored.preferences).toEqual({ ...legacy.preferences, systemNotifications: true, language: 'ro', theme: 'light', alertSoundId: 'classic', alertDurationSeconds: 60 });
 });
 
 for (const owner of ['timer', 'planning']) for (const startup of ['pending', 'playing']) {
@@ -118,7 +118,7 @@ for (const owner of ['timer', 'planning']) for (const startup of ['pending', 'pl
     expect((await stored(page)).stopwatch).toEqual(before.stopwatch);
     if (startup === 'pending') await page.evaluate(() => (window as unknown as { finishThemeAudio: () => void }).finishThemeAudio());
     await expect(dialog.getByRole('button', { name: 'Oprește sunetul', exact: true })).toBeVisible();
-    await page.clock.runFor(4999);
+    await page.clock.runFor(59999);
     expect((await audioEvents(page)).filter((event) => event.type === 'pause')).toHaveLength(0);
     await page.clock.runFor(1);
     await expect(dialog.getByRole('button', { name: 'Oprește sunetul', exact: true })).not.toBeVisible();
@@ -202,7 +202,7 @@ for (const dark of [false, true]) for (const width of [320, 390, 430, 1024]) {
     await expect(details).not.toBeVisible();
     const preferences = await settings(page);
     await page.clock.runFor(300);
-    for (const name of ['Sunet Clasic', 'Durata sunetului 5 secunde']) {
+    for (const name of ['Sunet Clasic', 'Durata sunetului 60 secunde']) {
       const selected = preferences.getByRole('radio', { name, exact: true });
       await expect(selected).toBeChecked();
       await expect(selected).toHaveCSS('background-color', dark ? 'rgb(30, 58, 138)' : 'rgb(219, 234, 254)');

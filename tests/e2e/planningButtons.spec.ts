@@ -144,7 +144,7 @@ for (const dark of [false, true]) {
     const saved = await stored(page);
     expect(saved.stopwatch).toEqual(legacy.stopwatch); expect(saved.timer).toEqual(legacy.timer);
     expect(saved.sessions).toEqual(legacy.sessions);
-    expect(saved.preferences).toEqual({ ...legacy.preferences, systemNotifications: true, language: 'ro', theme: dark ? 'dark' : 'light', alertSoundId: 'classic', alertDurationSeconds: 5 });
+    expect(saved.preferences).toEqual({ ...legacy.preferences, systemNotifications: true, language: 'ro', theme: dark ? 'dark' : 'light', alertSoundId: 'classic', alertDurationSeconds: 60 });
     expect(saved.planning.schedules[0]).toMatchObject({ name: 'Draft păstrat', steps: [{ name: 'A doua' }] });
   });
 }

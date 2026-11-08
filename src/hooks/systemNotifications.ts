@@ -13,6 +13,8 @@ import { emptyNotificationDelivery } from './notificationReadiness';
 import { isAppActive } from './appActivity';
 import { notificationPresentation } from './notificationPresentation';
 import { notificationTriggerDate } from './notificationTrigger';
+import { completionAlerts } from './completionAlerts';
+import { completionNotificationAdapter } from './completionNotificationAdapter';
 
 // Expo Go cannot contain CRONO's custom resources. A missing module in an older
 // development binary is also handled without preventing the timing UI from loading.
@@ -74,7 +76,7 @@ function requestPermission(language: AppLanguage, canPrompt: () => boolean) {
   return permissionRequest;
 }
 
-export const systemNotifications: SystemNotificationAdapter = {
+const expoSystemNotifications: SystemNotificationAdapter = {
   platform: Platform.OS === 'android' ? 'android' : 'ios',
   supported: true, exactAlarmSettings: Platform.OS === 'android' && Number(Platform.Version) >= 31,
   delivery: async (channelId) => {
@@ -144,3 +146,4 @@ export const systemNotifications: SystemNotificationAdapter = {
     await Linking.openSettings();
   },
 };
+export const systemNotifications = completionNotificationAdapter(expoSystemNotifications, completionAlerts);

@@ -4,6 +4,7 @@ import type { AlertDuration, SoundId } from '../core/sounds.ts';
 export type AlertOwner = 'timer' | 'planning' | 'preview';
 export type AlertKind = 'timer-complete' | 'schedule-complete' | 'schedule-step' | 'preview';
 export type AlertRequest = {
+  runId?: string;
   owner: AlertOwner; eventId: string; kind: AlertKind; dueAt: number;
   soundId: SoundId; durationSeconds: AlertDuration; allowed: () => boolean;
 };
@@ -100,4 +101,6 @@ export function createAlertPlayback(a: Adapters) {
   };
 }
 
-export type AlertPlayback = ReturnType<typeof createAlertPlayback>;
+export type AlertPlayback = ReturnType<typeof createAlertPlayback> & {
+  suspendOwner?: (owner: AlertOwner) => void;
+};

@@ -24,6 +24,10 @@ test('registration, permissions and native restrictions remain independent', () 
   assert.equal(notificationReadiness({ ...input, soundEnabled: false, delivery: { ...android, channelSound: 'silent' } }), 'registered');
   assert.equal(notificationReadiness({ ...input, capability: { ...granted, status: 'limited', soundAllowed: false } }), 'limited');
   assert.equal(notificationReadiness({ ...input, delivery: emptyNotificationDelivery('ios') }), 'registered');
+  assert.equal(notificationReadiness({ ...input, delivery: { ...android, extendedSound: false } }), 'short-sound');
+  assert.equal(notificationReadiness({ ...input, delivery: { ...android, extendedSound: 'unknown' } }), 'unknown');
+  assert.equal(notificationReadiness({ ...input, delivery: { ...android, extendedSound: true } }), 'registered');
+  assert.equal(notificationReadiness({ ...input, soundEnabled: false, delivery: { ...android, extendedSound: false } }), 'registered');
   for (const status of ['unsupported', 'unavailable'] as const) {
     assert.equal(notificationReadiness({ ...input, capability: { ...granted, status, canSchedule: false } }), status);
   }

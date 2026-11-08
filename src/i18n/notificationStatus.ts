@@ -10,6 +10,7 @@ export function notificationStatus(code: NotificationReadiness, m: Messages): st
     'channel-blocked': m.notificationBackground.channelBlocked, 'exact-denied': m.notificationExactHelp,
     unknown: m.notificationBackground.unknown, limited: m.notificationPermissionLimited,
     'sound-disabled': m.notificationBackground.soundDisabled, registered: m.notificationBackground.configured,
+    'short-sound': m.notificationLongSoundFallback,
   };
   return messages[code];
 }

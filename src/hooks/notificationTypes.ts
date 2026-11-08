@@ -1,4 +1,5 @@
 import type { AppLanguage } from '../core/language.ts';
+import type { AlertDuration, SoundId } from '../core/sounds.ts';
 import type { NotificationEvent } from '../core/notifications.ts';
 import type { NotificationDelivery } from './notificationReadiness.ts';
 
@@ -28,7 +29,9 @@ export function notificationCapability(permission: { status: string; granted: bo
 }
 
 export type NotificationDescriptor = {
+  backend?: 'native' | 'ordinary';
   event: NotificationEvent; title: string; body: string; sound: string | false; channelId: string; fingerprint: string;
+  completion?: { soundId: SoundId; durationSeconds: AlertDuration; stopLabel: string; openLabel: string };
 };
 export type NativeNotification = { identifier: string; data: unknown };
 export type NativeNotificationResponse = NativeNotification & { defaultAction: boolean };
@@ -46,6 +49,6 @@ export type SystemNotificationAdapter = {
   dismiss: (identifier: string) => Promise<void>;
   listen: (received: (notification: NativeNotification) => void, response: (notification: NativeNotificationResponse) => void) => () => void;
   lastResponse: () => Promise<NativeNotificationResponse | null>;
-  clearResponse: () => Promise<void>;
+  clearResponse: (identifier?: string) => Promise<void>;
   openSettings: (target?: boolean | 'battery') => Promise<void>;
 };

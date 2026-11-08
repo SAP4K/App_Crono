@@ -5,7 +5,7 @@ import { startTimer } from '../src/core/timer.ts';
 import { createTimerCoordinator } from '../src/hooks/timerCompletion.ts';
 import type { TimerSoundEvent } from '../src/hooks/timerCompletion.ts';
 
-function fixture(options: { accept?: boolean; play?: (guard: () => boolean) => Promise<void> } = {}) {
+function fixture(options: { accept?: boolean; play?: (guard: () => boolean) => Promise<void>; suspend?: () => void } = {}) {
   let data = initialData(); let now = 1000; let active = true; let played = 0; let stopped = 0; let id = 0;
   const callbacks: (() => void)[] = []; const guards: (() => boolean)[] = []; const notices: string[] = [];
   const events: TimerSoundEvent[] = [];
@@ -16,6 +16,7 @@ function fixture(options: { accept?: boolean; play?: (guard: () => boolean) => P
     notify: (message) => { notices.push(message); },
     play: async (guard, event) => { guards.push(guard); if (event) events.push(event); if (options.play) await options.play(guard); else if (guard()) played++; },
     stop: () => { stopped++; },
+    suspend: options.suspend,
     schedule: (callback) => { callbacks.push(callback); return callbacks.length as unknown as ReturnType<typeof setTimeout>; },
     cancel: () => {},
   });
@@ -25,6 +26,17 @@ function fixture(options: { accept?: boolean; play?: (guard: () => boolean) => P
     get played() { return played; }, get stopped() { return stopped; },
   };
 }
+
+test('native lifecycle suspension preserves the accepted audio guard across Home and return', () => {
+  let suspended = 0;
+  const f = fixture({ suspend: () => { suspended++; } });
+  f.coordinator.configure(1000); f.coordinator.start(); f.now = 2000; f.coordinator.reconcile('deadline');
+  const allowed = f.guards[0], stopped = f.stopped;
+  f.active = false; f.coordinator.reconcile('foreground'); assert.equal(allowed(), false);
+  assert.equal(suspended, 1); assert.equal(f.stopped, stopped);
+  f.active = true; f.coordinator.reconcile('foreground'); assert.equal(allowed(), true); assert.equal(f.played, 1);
+  f.coordinator.reset(); assert.equal(allowed(), false); assert.ok(f.stopped > stopped);
+});
 
 test('completion is route-independent and duplicate callbacks cannot replay audio', () => {
   const f = fixture(); f.coordinator.configure(1000); f.coordinator.start(); f.now = 2000;

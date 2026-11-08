@@ -28,7 +28,8 @@ export function useSystemNotifications({ getSnapshot, subscribeUpdates, getHydra
       const before = previous.preferences, after = current.preferences;
       if (previous.timer === current.timer && previous.planning.run === current.planning.run
         && before.systemNotifications === after.systemNotifications && before.language === after.language
-        && before.timerSound === after.timerSound && before.alertSoundId === after.alertSoundId) return;
+        && before.timerSound === after.timerSound && before.alertSoundId === after.alertSoundId
+        && before.alertDurationSeconds === after.alertDurationSeconds) return;
       void controller.reconcile();
     });
     const stopActivity = subscribeAppActivity(() => { if (isAppActive()) void controller.reconcile(true); });
@@ -51,7 +52,7 @@ export function useSystemNotifications({ getSnapshot, subscribeUpdates, getHydra
   const consumeResponse = useCallback((identifier: string) => {
     setResponse((current) => current?.identifier === identifier ? null : current);
     void systemNotifications.lastResponse().then((last) => {
-      if (last?.identifier === identifier) return systemNotifications.clearResponse();
+      if (last?.identifier === identifier) return systemNotifications.clearResponse(identifier);
     }).catch(() => console.warn('[notifications] Response cleanup failed.'));
   }, []);
   const openSettings = useCallback((target: boolean | 'battery' = false) => {

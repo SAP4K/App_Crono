@@ -6,7 +6,7 @@ import type { ScheduleBoundary } from '../src/core/planning.ts';
 import type { AlertRequest } from '../src/hooks/alertPlayback.ts';
 import { createPlanningRunner } from '../src/hooks/planningRunner.ts';
 
-function fixture(accept = true) {
+function fixture(accept = true, suspend?: () => void) {
   let data = initialData(); let now = 1000; let active = true; let id = 0;
   const notices: ScheduleBoundary[] = []; const requests: AlertRequest[] = []; const canceled: string[] = [];
   const callbacks: (() => void)[] = [];
@@ -15,7 +15,7 @@ function fixture(accept = true) {
   ] });
   const runner = createPlanningRunner({
     getSnapshot: () => data, update: (action) => { const next = action(data); if (!accept) return { changed: false, data }; const changed = next !== data; data = next; return { changed, data }; },
-    alerts: { request: (request) => { requests.push(request); return true; }, cancelOwner: (owner) => canceled.push(owner) },
+    alerts: { request: (request) => { requests.push(request); return true; }, cancelOwner: (owner) => canceled.push(owner), suspendOwner: suspend },
     now: () => now, isActive: () => active, createId: () => 'run-' + ++id, notify: (event) => notices.push(event),
     schedule: (callback) => { callbacks.push(callback); return callbacks.length as unknown as ReturnType<typeof setTimeout>; }, cancel: () => {},
   });
@@ -24,6 +24,15 @@ function fixture(accept = true) {
     set now(value: number) { now = value; }, set active(value: boolean) { active = value; },
   };
 }
+
+test('native planning suspension leaves audio ownership intact while explicit pause cancels', () => {
+  let suspended = 0; const f = fixture(true, () => { suspended++; });
+  f.runner.start('sequence'); f.now = 2000; f.runner.reconcile('deadline');
+  const canceled = f.canceled.length;
+  f.active = false; f.runner.reconcile('foreground'); assert.equal(suspended, 1); assert.equal(f.canceled.length, canceled);
+  f.active = true; f.runner.reconcile('foreground'); assert.equal(f.requests[0].allowed(), true);
+  f.runner.pause(); assert.equal(f.requests[0].allowed(), false); assert.ok(f.canceled.length > canceled);
+});
 
 test('runner advances independently, deduplicates boundaries, and emits one final sound', () => {
   const f = fixture(); f.runner.start('sequence'); f.now = 2000; f.callbacks.at(-1)!();

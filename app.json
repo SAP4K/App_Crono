@@ -55,10 +55,10 @@
         "expo-notifications",
         {
           "sounds": [
-            "./assets/audio/notification_classic.wav",
-            "./assets/audio/bell.wav",
-            "./assets/audio/digital.wav",
-            "./assets/audio/gong.wav"
+            "./assets/audio/notifications/notification_classic.wav",
+            "./assets/audio/notifications/bell.wav",
+            "./assets/audio/notifications/digital.wav",
+            "./assets/audio/notifications/gong.wav"
           ],
           "enableBackgroundRemoteNotifications": false
         }

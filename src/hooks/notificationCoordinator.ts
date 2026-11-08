@@ -7,6 +7,7 @@ import { unavailableNotifications } from './notificationTypes.ts';
 import { notificationChannelId } from '../audio/notificationSounds.ts';
 import { emptyNotificationDelivery } from './notificationReadiness.ts';
 import type { BackgroundAccess, NotificationDelivery } from './notificationReadiness.ts';
+import { completionFingerprint } from '../core/completionAlerts.ts';
 
 export type NotificationState = { status: 'idle' | 'pending' | 'ready' | 'failed'; capability: NotificationCapability; delivery: NotificationDelivery };
 type Adapters = {
@@ -26,6 +27,7 @@ export function createNotificationCoordinator(a: Adapters) {
   let permissionRefused = false;
   let rearmOnHydration = a.native.platform === 'android';
   let alarmMode: BackgroundAccess['exactAlarm'] = a.native.platform === 'android' ? 'unknown' : 'not-required';
+  let extendedSound = false;
   const rearmIds = new Set<string>();
   let running: Promise<void> | null = null, permissionJob: Promise<void> | null = null;
   let known = new Map<string, Owned>();
@@ -58,7 +60,8 @@ export function createNotificationCoordinator(a: Adapters) {
     return projectNotificationEvents(data, a.now()).filter((event) => !consumed.has(notificationEventKey(event)))
       .map((event) => {
         const content = notificationContent(event, data.preferences);
-        return { ...content, fingerprint: JSON.stringify([content.fingerprint, 'date-v2', alarmMode]) };
+        return { ...content, backend: extendedSound ? 'native' : 'ordinary',
+          fingerprint: JSON.stringify([completionFingerprint(content.fingerprint, extendedSound, data.preferences.alertDurationSeconds), 'date-v2', alarmMode]) };
       });
   }
   function wanted(data: NotificationData) {
@@ -99,6 +102,7 @@ export function createNotificationCoordinator(a: Adapters) {
       if (ticket !== generation || disposed || a.getHydration() !== 'loaded') return;
       // A failed optional probe must not downgrade valid registrations to an unknown mode.
       if (delivery.exactAlarm !== 'unknown') alarmMode = delivery.exactAlarm;
+      if (typeof delivery.extendedSound === 'boolean') extendedSound = delivery.extendedSound;
       publish('pending', state.capability, delivery);
     }
     let pending: Owned[], presented: Owned[];

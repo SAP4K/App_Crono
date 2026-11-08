@@ -12,7 +12,7 @@ test('native notification loading distinguishes Expo Go from embedded release an
       import { existsSync } from 'node:fs';
       globalThis.notificationImports = 0;
       const mocks = {
-        'expo': ${JSON.stringify(`export const isRunningInExpoGo=()=>${expoGo};`)},
+        'expo': ${JSON.stringify(`export const isRunningInExpoGo=()=>${expoGo}; export const requireOptionalNativeModule=()=>null;`)},
         'expo-constants': ${JSON.stringify(`export default { executionEnvironment: ${JSON.stringify(environment)}, expoGoConfig: ${embedded ? '{}' : 'null'} }; export const ExecutionEnvironment = { StoreClient: 'storeClient' };`)},
         'react-native': "export const Platform={OS:'android',Version:31}; export const Linking={openSettings:async()=>{}};",
         './backgroundAccess': "export async function backgroundAccess(){return {exactAlarm:'granted',battery:'optimized'}}",
@@ -69,7 +69,7 @@ for (const boundary of ['android-channels', 'android-permission', 'ios-permissio
           return permission;
         };
         const mocks={
-          'expo':'export const isRunningInExpoGo=()=>false;',
+          'expo':'export const isRunningInExpoGo=()=>false; export const requireOptionalNativeModule=()=>null;',
           'expo-constants':'export default {};',
           'react-native':${JSON.stringify(`export const Platform={OS:'${platform}',Version:33}; export const Linking={openSettings:async()=>{}};`)},
           './appActivity':'export const isAppActive=()=>globalThis.qaActive();',

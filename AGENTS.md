@@ -44,7 +44,7 @@ Docs: https://docs.expo.dev/eas/index.md
 
 CRONO is a Romanian/English/Russian/Spanish/French/German stopwatch, countdown, and action schedule app for iOS and Android with a web preview. Read `.ai-factory/DESCRIPTION.md` for the verified stack, implemented behavior, persistence contract, and open technical findings.
 
-The app uses technical layers with shared pure stopwatch/countdown/schedule cores, one alert playback owner, and a separate OS notification owner. Read `.ai-factory/ARCHITECTURE.md` and `.ai-factory/rules/base.md` before implementation.
+The app uses technical layers with shared pure stopwatch/countdown/schedule cores, one effective audio owner, and a separate OS notification coordinator. Rebuilt Android binaries use the native completion broker for foreground/background audio; iOS/web retain foreground loops. Read `.ai-factory/ARCHITECTURE.md` and `.ai-factory/rules/base.md` before implementation.
 
 ## Project Structure
 
@@ -70,6 +70,9 @@ tests/
   sounds.test.ts        Sound preferences and real PCM asset validation
   planning.test.ts      Schedule CRUD, restoration, and execution transitions
   alertPlayback.test.ts Duration, priority, cancellation, and stale callback tests
+  completionAlerts.test.ts Shared request/policy, priority and minute boundaries
+  nativeAlertPlayback.test.ts Native facade, detached lifecycle and bridge races
+  completionNotificationAdapter.test.ts Composed native/ordinary reconciliation
   planningRunner.test.ts Global planning lifecycle and boundary coordination
   notifications.test.ts Future projection, payloads, content, permissions, web fallback
   notificationCoordinator.test.ts Native reconciliation, failures, hydration and races
@@ -80,8 +83,10 @@ tests/
   notificationResponses.test.ts Buffered, validated and deduplicated tap navigation
   fixtures/             Literal legacy version-1 saved data
   e2e/                  Timing, themes, languages, sound, planning, notifications, real wheel gestures
-modules/                Read-only Android background-access Expo module
-assets/                 App icons, splash images, and four original WAV patterns plus a native Classic copy
+modules/                Android access probe and completion alarm/audio Expo modules
+assets/                 App icons, splash images, original WAV patterns and legacy Classic copy
+assets/audio/notifications/ Four generated 15-second system notification clips
+scripts/                Reproducible notification sound generator
 .agents/skills/         Installed AI Factory workflows
 .ai-factory/            Project context and workflow configuration
 ```
@@ -110,6 +115,9 @@ assets/                 App icons, splash images, and four original WAV patterns
 | `src/hooks/useTimerCompletion.ts` | Readiness and foreground lifecycle bridge |
 | `src/hooks/planningRunner.ts`, `usePlanningRunner.ts` | Global schedule execution, accepted updates, and silent catch-up |
 | `src/hooks/alertPlayback.ts`, `useAlertPlayback.ts` | Shared duration limits, priority, previews, and event-scoped failures |
+| `src/core/completionAlerts.ts`, `src/hooks/nativeAlertPlayback.ts` | Shared protocol/policy and Android snapshots/scoped playback |
+| `src/hooks/completionNotificationAdapter.ts`, `completionAlerts.ts`, `.web.ts` | Composed delivery adapter and optional native bridge |
+| `modules/crono-completion-alerts/` | Atomic delivery ledger, next alarm, bounded player/service, Open/Stop |
 | `src/hooks/useAlertSound.ts`, `.web.ts` | Source-bound native/web players with explicit cleanup |
 | `src/core/notifications.ts`, `src/i18n/notificationContent.ts` | Future event projection/payload validation and localized OS content |
 | `src/hooks/notificationCoordinator.ts`, `useSystemNotifications.ts` | One serialized OS request owner, hydration guard and accepted-update bridge |
@@ -119,6 +127,7 @@ assets/                 App icons, splash images, and four original WAV patterns
 | `src/components/BackgroundNotificationHelp.tsx`, `src/i18n/notificationStatus.ts` | Localized native setup and readiness |
 | `src/hooks/notificationResponses.ts`, `useNotificationNavigation.ts` | Validated, buffered notification taps through Expo Router |
 | `src/audio/notificationSounds.ts`, `src/components/SystemNotificationNotice.tsx` | Native sound names/channels and separate failure/retry feedback |
+| `scripts/generate-notification-sounds.mjs` | Generate the four 15-second notification WAVs from original foreground patterns |
 | `src/hooks/appActivity.ts` | Shared foreground checks and lifecycle subscription |
 | `src/components/ScheduleEditorSheet.tsx`, `ScheduleStepRow.tsx` | Controlled virtualized action editor with explicit save/discard |
 | `src/components/ScheduleCalendarPanel.tsx`, `CalendarDateFields.tsx` | Weekly and fixed-date editing with shared numeric date fields |
@@ -134,8 +143,8 @@ assets/                 App icons, splash images, and four original WAV patterns
 
 | File | Purpose |
 |---|---|
-| `README.md` | Setup, wheel usage, six languages, themes, schedules, notifications, checks, builds |
-| `docs/background-notifications.md` | Phone setup, notification behavior, limits and verification |
+| `README.md` | Setup, sounds, languages, themes, schedules, notifications, checks, builds |
+| `docs/background-notifications.md` | Android minute playback, setup, limits and verification |
 | `AGENTS.md` | Repository map and authoritative Expo workflow requirements |
 | `.ai-factory/DESCRIPTION.md` | Project purpose, stack, data model, and known follow-ups |
 | `.ai-factory/ARCHITECTURE.md` | Layered architecture, dependencies, and data flow |
@@ -150,6 +159,7 @@ assets/                 App icons, splash images, and four original WAV patterns
 - Run shell operations separately when a later action depends on an earlier result, so failures can be inspected before continuing.
 - Use `npm test` for core logic changes and relevant Playwright scenarios for UI changes, alongside the required lint and typecheck.
 - Keep the pure core free of React, native APIs, and persistence imports. Send shared data changes through `useCrono().update`.
+- Completion duration choices are 5/15/30/60 seconds, with 60 for fresh/missing/invalid values; retain valid shorter saves. Android native delivery persists projections/receipts only, never a second editable timing store. Separate lifecycle suspension from explicit cancellation; failed hydration cannot clear armed work. Physical minute/lock acceptance remains pending, deferred by the user on 2026-11-08.
 
 ## Adding a Language
 

@@ -6,7 +6,7 @@ import type { AlertTransport } from './alertPlayback';
 type Player = ReturnType<typeof createAudioPlayer>;
 type Entry = { player: Player; unsubscribe: () => void; cancel: () => void };
 
-export function useAlertSound(): AlertTransport {
+export function useAlertSound(enabled = true): AlertTransport {
   const current = useRef<Entry | null>(null);
   const mounted = useRef(false);
   const mode = useRef<Promise<unknown>>(Promise.resolve());
@@ -21,11 +21,12 @@ export function useAlertSound(): AlertTransport {
     if (cleanupFailed) console.warn('[audio] Could not release playback resource.');
   }, []);
   useEffect(() => {
+    if (!enabled) return;
     mounted.current = true;
     mode.current = setAudioModeAsync({ allowsRecording: false, allowsBackgroundRecording: false,
       shouldPlayInBackground: false, playsInSilentMode: false, interruptionMode: 'mixWithOthers' }).then(() => null, (error: unknown) => error);
     return () => { mounted.current = false; stop(); };
-  }, [stop]);
+  }, [stop, enabled]);
 
   const play = useCallback<AlertTransport['play']>(async (soundId, allowed, failed) => {
     const modeError = await mode.current;
