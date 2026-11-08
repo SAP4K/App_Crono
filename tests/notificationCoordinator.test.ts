@@ -3,21 +3,25 @@ import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
 import { initialData, restoreData } from '../src/core/stopwatch.ts';
 import { LANGUAGES } from '../src/core/language.ts';
-import { configureTimer, startTimer, pauseTimer, resumeTimer, resetTimer } from '../src/core/timer.ts';
+import { configureTimer, startTimer, pauseTimer, resumeTimer, resetTimer, completeTimer } from '../src/core/timer.ts';
 import { startSchedule, reconcileSchedule } from '../src/core/planning.ts';
 import { NOTIFICATION_PREFIX, notificationData } from '../src/core/notifications.ts';
 import { createNotificationCoordinator } from '../src/hooks/notificationCoordinator.ts';
 import { notificationContent } from '../src/i18n/notificationContent.ts';
 import { projectNotificationEvents } from '../src/core/notifications.ts';
 import type { NativeNotification, NotificationCapability, NotificationDescriptor, SystemNotificationAdapter } from '../src/hooks/notificationTypes.ts';
+import { emptyNotificationDelivery } from '../src/hooks/notificationReadiness.ts';
 
-function fixture() {
-  const f = { data: initialData(), now: 1000, hydration: 'loaded' as 'loading' | 'loaded' | 'failed', id: 0,
+function fixture(platform: 'android' | 'ios' = 'ios') {
+  const f = { data: initialData(), now: 1000, hydration: 'loaded' as 'loading' | 'loaded' | 'failed', id: 0, active: true,
     pending: new Map<string, NativeNotification>(), presented: [] as NativeNotification[], scheduled: [] as { identifier: string; descriptor: NotificationDescriptor }[],
     cancelled: [] as string[], dismissed: [] as string[], warnings: [] as string[],
-    capability: { status: 'granted', canSchedule: true, canAsk: false, soundAllowed: true } as NotificationCapability };
+    capability: { status: 'granted', canSchedule: true, canAsk: false, soundAllowed: true } as NotificationCapability,
+    delivery: { ...emptyNotificationDelivery(platform), ...(platform === 'android'
+      ? { exactAlarm: 'granted' as const, channel: 'available' as const, channelSound: 'audible' as const } : {}) } };
   f.data.timer = startTimer(configureTimer(f.data.timer, 10000), f.now, 'timer');
   const native: SystemNotificationAdapter = {
+    platform, delivery: async () => f.delivery,
     supported: true, exactAlarmSettings: true, prepare: async () => {}, permission: async () => f.capability,
     requestPermission: async () => f.capability,
     pending: async () => [...f.pending.values()], presented: async () => f.presented,
@@ -30,9 +34,9 @@ function fixture() {
     dismiss: async (identifier) => { f.dismissed.push(identifier); },
     listen: () => () => {}, lastResponse: async () => null, clearResponse: async () => {}, openSettings: async () => {},
   };
-  const controller = createNotificationCoordinator({ getSnapshot: () => f.data, getHydration: () => f.hydration,
-    native, now: () => f.now, createId: () => `${++f.id}`, changed: () => {}, warn: (operation) => f.warnings.push(operation) });
-  return { f, native, controller };
+  const createController = () => createNotificationCoordinator({ getSnapshot: () => f.data, getHydration: () => f.hydration,
+    native, now: () => f.now, createId: () => `${++f.id}`, isActive: () => f.active, changed: () => {}, warn: (operation) => f.warnings.push(operation) });
+  return { f, native, controller: createController(), createController };
 }
 
 test('OS reconciliation reuses equal requests and isolates timer pause from planning', async () => {
@@ -143,7 +147,7 @@ test('rapid Spanish French German updates discard delayed registrations without 
   assert.notEqual(latest.identifier, first.identifier);
   assert.deepEqual(latest.descriptor.event, first.descriptor.event);
   assert.equal(latest.descriptor.channelId, first.descriptor.channelId);
-  assert.equal(latest.descriptor.fingerprint, notificationContent(latest.descriptor.event, f.data.preferences).fingerprint);
+  assert.equal(JSON.parse(latest.descriptor.fingerprint)[0], notificationContent(latest.descriptor.event, f.data.preferences).fingerprint);
   assert.notEqual(latest.descriptor.fingerprint, first.descriptor.fingerprint);
   assert.deepEqual(f.cancelled, [first.identifier, f.scheduled[1].identifier]);
   assert.equal(prompts, 0);
@@ -190,7 +194,7 @@ test('a stale initial permission query cannot remove valid requests while a user
   const { f, native, controller } = fixture();
   const descriptor = notificationContent(projectNotificationEvents(f.data, f.now)[0], f.data.preferences);
   const identifier = NOTIFICATION_PREFIX + 'previous-session';
-  f.pending.set(identifier, { identifier, data: notificationData(descriptor.event, descriptor.fingerprint) });
+  f.pending.set(identifier, { identifier, data: notificationData(descriptor.event, JSON.stringify([descriptor.fingerprint, 'date-v2', 'not-required'])) });
   const initial = deferred<NotificationCapability>(), gesture = deferred<NotificationCapability>(); let queries = 0;
   native.permission = () => { queries++; return queries === 1 ? initial.promise : queries === 2 ? gesture.promise : Promise.resolve(f.capability); };
   const first = controller.reconcile(); const request = controller.requestPermission();
@@ -271,6 +275,134 @@ test('first-use permission is gesture-only and coalesced; a dialog outliving exp
   await Promise.all([one, two]); assert.equal(f.scheduled.length, 0);
   f.capability = { status: 'denied', canSchedule: false, canAsk: false, soundAllowed: false };
   await controller.requestPermission(true); assert.equal(prompts, 1);
+});
+
+test('Android requestable denial prompts on a gesture once, with explicit retry after refusal', async () => {
+  const { f, native, controller } = fixture();
+  f.capability = { status: 'denied', canSchedule: false, canAsk: true, soundAllowed: false };
+  let prompts = 0;
+  native.requestPermission = async () => { prompts++; return f.capability; };
+  await controller.reconcile(true);
+  assert.equal(prompts, 0, 'hydration/refresh must never prompt');
+  await controller.requestPermission();
+  assert.equal(prompts, 1, 'an accepted start can request denied/requestable permission');
+  await controller.requestPermission();
+  assert.equal(prompts, 1, 'a refusal suppresses repeated implicit prompts');
+  await controller.requestPermission(true);
+  assert.equal(prompts, 2, 'explicit Settings retry remains available');
+  f.capability = { ...f.capability, canAsk: false };
+  await controller.requestPermission(true);
+  assert.equal(prompts, 2, 'permanent denial needs system Settings');
+});
+
+test('a permission read outliving the Home handoff cannot launch a background prompt', async () => {
+  const { f, native, controller } = fixture();
+  f.capability = { status: 'denied', canSchedule: false, canAsk: true, soundAllowed: false };
+  const gate = deferred<NotificationCapability>(); let prompts = 0;
+  native.permission = () => gate.promise;
+  native.requestPermission = async () => { prompts++; return f.capability; };
+  const work = controller.requestPermission(); f.active = false;
+  gate.resolve(f.capability); await work;
+  await controller.requestPermission(true); assert.equal(prompts, 0);
+  f.active = true; await controller.requestPermission(); assert.equal(prompts, 1);
+});
+
+test('limited iOS permission is requested only by an explicit Settings gesture', async () => {
+  const { f, native, controller } = fixture();
+  f.capability = { status: 'limited', canSchedule: true, canAsk: true, soundAllowed: false };
+  let prompts = 0;
+  native.requestPermission = async () => { prompts++; return f.capability; };
+  await controller.reconcile(true); await controller.requestPermission();
+  assert.equal(prompts, 0);
+  await controller.requestPermission(true); assert.equal(prompts, 1);
+});
+
+test('Android cold hydration rearms persisted requests once, without treating inventory as proof of an armed alarm', async () => {
+  const { f, controller, createController } = fixture('android');
+  await controller.reconcile(); const old = f.scheduled[0]; controller.dispose();
+  const restarted = createController(); await restarted.reconcile(true);
+  assert.deepEqual(f.cancelled, [old.identifier]);
+  assert.equal(f.pending.size, 1); assert.equal(f.scheduled.length, 2);
+  assert.deepEqual(f.scheduled[1].descriptor.event, old.descriptor.event);
+  await restarted.reconcile(true); await restarted.reconcile();
+  assert.equal(f.scheduled.length, 2, 'unchanged refresh does not churn requests');
+});
+
+test('Android exact-access changes replace both owners without moving semantic deadlines', async () => {
+  const { f, controller } = fixture('android');
+  f.delivery.exactAlarm = 'denied';
+  f.data.planning.schedules = [{ id: 's', name: 'Study', steps: [{ id: 'a', name: 'Work', durationMs: 20000 }] }];
+  f.data.planning = startSchedule(f.data.planning, 's', f.now, 'sequence');
+  const snapshot = JSON.stringify(f.data);
+  await controller.reconcile(); const initial = [...f.scheduled];
+  f.delivery = { ...f.delivery, exactAlarm: 'granted' }; await controller.reconcile(true);
+  assert.equal(f.pending.size, 2); assert.equal(f.scheduled.length, 4);
+  assert.deepEqual(f.cancelled, initial.map(({ identifier }) => identifier));
+  assert.deepEqual(f.scheduled.slice(2).map(({ descriptor }) => descriptor.event), initial.map(({ descriptor }) => descriptor.event));
+  assert.equal(JSON.stringify(f.data), snapshot);
+  await controller.reconcile(true); assert.equal(f.scheduled.length, 4);
+  f.delivery = { ...f.delivery, exactAlarm: 'denied' }; await controller.reconcile(true);
+  assert.equal(f.scheduled.length, 6); assert.equal(f.pending.size, 2);
+});
+
+test('failed optional access reads leave existing alarms intact and expose unknown capability', async () => {
+  const { f, native, controller } = fixture('android'); await controller.reconcile();
+  const original = native.delivery, id = f.scheduled[0].identifier;
+  native.delivery = async () => { throw Error('access unavailable'); };
+  await controller.reconcile(true);
+  assert.ok(f.pending.has(id)); assert.deepEqual(f.cancelled, []); assert.equal(f.scheduled.length, 1);
+  assert.equal(controller.getState().delivery.exactAlarm, 'unknown');
+  assert.equal(controller.getState().status, 'ready'); assert.deepEqual(f.warnings, ['delivery']);
+  native.delivery = original; await controller.reconcile(true); assert.equal(f.scheduled.length, 1);
+});
+
+test('late capability observations cannot revive a paused run or an opted-out request', async () => {
+  const { f, native, controller } = fixture('android'); await controller.reconcile();
+  const gate = deferred<ReturnType<typeof emptyNotificationDelivery>>(), entered = deferred<void>();
+  const original = native.delivery;
+  native.delivery = async () => { entered.resolve(); return gate.promise; };
+  const work = controller.reconcile(true); await entered.promise;
+  f.data.timer = pauseTimer(f.data.timer, 2000); f.data.preferences.systemNotifications = false;
+  void controller.reconcile(); native.delivery = original;
+  gate.resolve({ ...f.delivery, exactAlarm: 'denied' }); await work;
+  assert.equal(f.pending.size, 0); assert.equal(f.scheduled.length, 1);
+  assert.notEqual(controller.getState().delivery.exactAlarm, 'denied');
+});
+
+test('a user-blocked channel remains blocked without changing IDs or losing the native request', async () => {
+  const { f, controller } = fixture('android'); await controller.reconcile();
+  const first = f.scheduled[0]; f.delivery = { ...f.delivery, channel: 'blocked', channelSound: 'silent' };
+  await controller.reconcile(true);
+  assert.equal(f.scheduled.length, 1); assert.ok(f.pending.has(first.identifier));
+  assert.equal(controller.getState().delivery.channel, 'blocked');
+});
+
+test('a deadline crossed in native preparation skips registration without a false failure', async () => {
+  const { f, native, controller } = fixture();
+  let attempts = 0;
+  native.schedule = async () => { attempts++; f.now = 12000; return null; };
+  await controller.reconcile();
+  assert.equal(f.pending.size, 0); assert.equal(controller.getState().status, 'ready');
+  assert.deepEqual(f.warnings, []);
+  f.now = 1000; await controller.reconcile();
+  assert.equal(attempts, 1, 'clock rollback cannot revive the skipped completion');
+});
+
+test('a literal legacy snapshot can start future silent alerts without changing history, false preferences or old deadlines', async () => {
+  const { f, controller } = fixture('android');
+  const raw = readFileSync(new URL('./fixtures/app-v1-before-planning.json', import.meta.url), 'utf8');
+  f.data = restoreData(raw);
+  const saved = JSON.stringify([f.data.stopwatch, f.data.sessions, f.data.preferences]);
+  await controller.reconcile(); assert.equal(f.pending.size, 0, 'completed legacy timer is not replayed');
+  f.data = { ...f.data, timer: startTimer(configureTimer(resetTimer(f.data.timer), 10000), f.now, 'legacy-future') };
+  await controller.reconcile();
+  const registration = f.scheduled[0]; assert.equal(f.pending.size, 1);
+  assert.equal(registration.descriptor.event.dueAt, 11000);
+  assert.equal(registration.descriptor.sound, false); assert.match(registration.descriptor.channelId, /silent/);
+  f.now = 12000;
+  f.data = { ...f.data, timer: completeTimer(f.data.timer, f.now) }; await controller.reconcile();
+  assert.equal(f.pending.size, 0); assert.equal(f.scheduled.length, 1);
+  assert.equal(JSON.stringify([f.data.stopwatch, f.data.sessions, f.data.preferences]), saved);
 });
 
 test('delivered and duplicate receipt metadata are consumed; reset dismisses only the replaced owned run', async () => {

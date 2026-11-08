@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
+import { notificationStatus } from '../src/i18n/notificationStatus.ts';
 import { LANGUAGES } from '../src/core/language.ts';
 import { getMessages } from '../src/i18n/index.ts';
 import { countPhrase } from '../src/i18n/plurals.ts';
@@ -31,6 +32,22 @@ test('portable plural categories agree with Intl for all supported bounded count
     for (const count of counts) {
       assert.equal(countPhrase(id, count, forms), `${count} ${reference.select(count)}`, `${id}:${count}`);
     }
+  }
+});
+
+test('background setup copy covers every language and distinguishes unknown, blocked and configured delivery', () => {
+  for (const { id } of LANGUAGES) {
+    const m = getMessages(id);
+    assert.deepEqual(Object.keys(m.notificationBackground).sort(), Object.keys(getMessages('ro').notificationBackground).sort());
+    for (const value of Object.values(m.notificationBackground)) assert.ok(value.trim().length > 0);
+    assert.equal(notificationStatus('unknown', m), m.notificationBackground.unknown);
+    assert.equal(notificationStatus('channel-blocked', m), m.notificationBackground.channelBlocked);
+    assert.equal(notificationStatus('registered', m), m.notificationBackground.configured);
+    assert.equal(notificationStatus('exact-denied', m), m.notificationExactHelp);
+    assert.equal(notificationStatus('sound-disabled', m), m.notificationBackground.soundDisabled);
+    assert.equal(notificationStatus('permission-needed', m), m.notificationPermissionUnknown);
+    assert.equal(notificationStatus('permission-blocked', m), m.notificationPermissionDenied);
+    assert.notEqual(notificationStatus('unknown', m), notificationStatus('registered', m));
   }
 });
 

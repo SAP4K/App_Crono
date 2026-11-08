@@ -62,6 +62,10 @@ src/
 │   ├── notificationCoordinator.ts # Serialized future OS request reconciliation
 │   ├── useSystemNotifications.ts # One notification owner and lifecycle bridge
 │   ├── notificationTypes.ts # Native-free platform contract and capability policy
+│   ├── notificationReadiness.ts # Permission, channel, access and registration policy
+│   ├── notificationTrigger.ts # Native-only date quantization; exact semantic deadlines
+│   ├── notificationPresentation.ts # Current-activity system presentation policy
+│   ├── backgroundAccess.ts / .web.ts # Optional read-only capability bridge
 │   ├── systemNotifications.ts / .web.ts # Native adapter and unsupported web fallback
 │   ├── notificationResponses.ts # Validated/deduplicated/buffered tap handling
 │   ├── useNotificationNavigation.ts # Router-ready navigation without run mutations
@@ -218,6 +222,14 @@ Permission is transient, refreshed on foreground, and requested only from accept
 Android exact-alarm special access has a Settings shortcut with app-settings fallback. SDK scheduling can fall back when access is missing; successful registration does not prove access or punctual/audible delivery. Channels and OS settings remain user-controlled. `timerSound` off selects silent visual notifications; 5/15/30-second loops remain in-app only. Failures use a separate retry notice in shell/sheets without replacing timing/audio/session feedback.
 
 Responses are captured before the shell mounts and buffered until successful hydration, fonts and root navigation are ready. Valid owned default-action metadata maps only to `/timer` or `/planning`; arbitrary URLs/actions are ignored. Initial/live responses are deduplicated and handled initial responses consumed. Stale-run taps only navigate, and open drafts/confirmations are retained. Physical delivery, sound, OS policies and cold-launch behavior require a rebuilt native binary/device; browser tests, exports and CNG configuration checks do not prove them.
+
+The tracked local Expo module in `modules/crono-background-access/` only observes Android exact-alarm access and standard battery optimization. It owns no clock, persistence or alarm registration. Its optional platform wrapper keeps unavailable observations unknown; a missing probe does not disable otherwise valid local notifications. Generated root native projects remain CNG outputs.
+
+Native runtime detection uses SDK 57 `isRunningInExpoGo()`, not `Constants.expoGoConfig`: embedded release manifests may expose that property too. The notification adapter remains excluded from web. `notificationReadiness` derives user-facing state separately from reconciliation outcome, channel sound/visibility and exact access. The helper/status catalogs do not persist OS capabilities.
+
+Successful cold hydration rearms future validated Android requests once, since stored SDK inventory alone cannot prove an alarm survived special-access revocation. Effective exact-access changes alter a transport fingerprint without changing semantic IDs or deadlines. Failed optional observations retain the last known registration mode; failed hydration still forbids inventory mutation. Normal backgrounding/disposal leaves armed requests intact.
+
+The native iOS DATE input is rounded upward to a whole second to avoid SDK 57 truncation; the payload deadline remains exact and elapsed semantic events are not reintroduced. A handler invoked during active-to-inactive handoff reads current activity, suppressing foreground duplication while permitting system presentation after leaving. Permission prompts remain gesture-only, coalesced and foreground-guarded; a refusal suppresses repeated implicit prompts in the same controller lifetime.
 
 ## Key Principles
 

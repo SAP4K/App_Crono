@@ -70,15 +70,9 @@ Looping playback runs while the app is open and active. Overdue timing catches u
 
 ## System Notifications
 
-In a rebuilt Android/iOS app, open **Setări → Notificări de sistem** (Settings → System notifications). The saved choice defaults on, including older data; OS permission is separate. Starting/resuming/restarting a timer or schedule, enabling this setting, or pressing the permission button can request authorization. Opening the app or Settings never prompts automatically, and timing starts without waiting for permission.
+Open **Setări → Notificări de sistem** in a rebuilt Android/iOS app. CRONO registers future timer and schedule alerts with the OS, so they can arrive on Home or while the phone is locked. Permission, exact-alarm access and channel settings are shown separately from the saved enable switch.
 
-Future timer completion and remaining schedule boundaries are registered with the OS in advance. The last action produces one schedule-complete notification. Pause/reset, replacement, disabling notifications, or changes to language/sound update the relevant future requests. Timer and planning remain independent. Tapping a recognized notification opens Timer or Planning without starting/resetting a run; an existing editor or confirmation remains open.
-
-The selected sound plays **once** in a system notification. **Alerte sonore** off keeps visual notifications but makes them silent. The 5/15/30-second setting and **Oprește sunetul** apply to playback inside the app. System notification sounds and vibration follow OS/channel settings, independently from button haptics. Foreground system presentation is suppressed so the existing in-app feedback remains the only foreground alert.
-
-Settings shows denied/limited authorization and provides an OS settings shortcut. Android 12+ also offers **Alarme și mementouri** (Alarms & reminders); without exact-alarm access, delivery may be delayed. Focus, silent mode, channel restrictions, power saving, force-stop and other OS policies can affect presentation, sound or timing. Scheduling success is not proof of punctual delivery. Failed native operations show a separate Retry notice in the shell and sheets. Notification management stays disabled after an initial storage-read failure.
-
-Web retains in-app notices/audio and shows a disabled system-notification switch with an explanation. This feature uses local notifications, with no push server or device token. A new native build is required after the plugin/resource changes; an update to JavaScript alone is insufficient. Physical Home/lock delivery, audibility, taps and reboot/OS-policy behavior remain pending device validation; see [Verification Status](#verification-status).
+See [Background and Lock-Screen Notifications](docs/background-notifications.md) for setup, MIUI/battery guidance, one-shot sound, platform limits and verification. Native build changes require a rebuild; the web preview retains in-app feedback.
 
 ## Planning Example
 
@@ -149,6 +143,8 @@ Source: [lee-to/ai-factory](https://github.com/lee-to/ai-factory).
 
 ## Verification Status
 
+Background-alert hardening on November 8, 2026 passed lint/typecheck and **156 Node tests**. All **118 selected browser scenarios** have passing evidence across the initial 116/118 run and 47-case layout/calendar rerun after fixing the English filter target size. A rebuilt Android APK was installed and OS delivery was verified on Home, after process reclamation, for a two-action schedule and with the keyguard showing. See the [background guide](docs/background-notifications.md#builds-and-verification) for build identity and remaining native checks.
+
 Language expansion checks on November 7, 2026 passed lint/typecheck, all **96 Node tests**, all **162 browser scenarios** in one full run (8.0 minutes), and fresh Android/iOS/web exports. All six languages cover both themes at 390px; Spanish, French, German and Russian also cover 320/430/1024px. The three new languages cover enlarged web text and reduced motion. Final catalog characters were checked against all five bundled Inter weights, and representative screenshots were inspected.
 
 Tests cover saved/default choices, literal legacy data, localized sharing/notifications, drafts, clocks, notice lifetimes and real pending/playing audio. The [implementation plan](.ai-factory/plans/feature-additional-languages.md) records source identity and evidence. Native device/accessibility/notification acceptance and independent native-speaker review remain pending; exports do not verify them.
@@ -165,9 +161,9 @@ An earlier verification run passed 55/56 browser scenarios because repeated comp
 
 Coverage includes both palettes at 320/390/430/1024px, saved/legacy preferences, pending/playing alerts during theme changes, independent activities, modal completion/Stop, mute/blocked/stale playback, silent catch-up, and decoding all four effects. Each palette checks 31 foreground/surface contrast pairs; all 12 sound/duration combinations retain controller boundary coverage. Representative screenshots were visually inspected. The earlier baseline passed all 21 Expo Doctor checks; that historical theme refresh added no dependencies.
 
-Exporting JavaScript/Hermes bundles for Android and iOS does not replace physical-phone testing. Audible choices/durations and Stop, silent mode/audio routing, schedule keyboard behavior, press gestures/haptics, native wake lock, cold-launch appearance/status/navigation bars, and locked/background transitions remain pending on devices. Cyrillic/diacritic rendering, large text, translated VoiceOver/TalkBack announcements, selected-language relaunch, and independent native-speaker review also remain pending. System notifications also need physical Android/iOS checks for permission denial/revocation, Home/lock delivery, foreground suppression, all sounds/mute, pause/resume/reset/replacement cancellation, cold/warm/stale taps, retained drafts, Android exact access/Doze/channel/reboot behavior and iOS Focus/silent/lock-screen settings. No device was connected for this validation. No signed APK/IPA builds or app store releases have been produced.
+Exporting JavaScript/Hermes bundles does not replace physical-phone testing. The limited Android delivery checks now completed are recorded in the [background guide](docs/background-notifications.md#builds-and-verification). Other native acceptance remains pending: audible choices/durations and Stop, silent mode/audio routing, schedule keyboard behavior, press gestures/haptics, wake lock, cold-launch appearance/status/navigation bars, Cyrillic/diacritic rendering, large text, translated VoiceOver/TalkBack announcements, selected-language relaunch and independent native-speaker review. Notification checks still needed include Android 33+ denial/retry, exact-access changes, all sound/mute/channel combinations, foreground suppression, cancellation/replacement, native cold/warm/stale taps with retained drafts, Doze, recents, reboot and iOS Focus/silent/lock-screen behavior. The earlier runs had no connected device; current Android build/OS-delivery evidence does not establish iOS or store-release readiness.
 
-Wheel-specific native acceptance also remains pending: slow drags/flings, snapping/endpoints, parent scrolling, immediate Start/Apply, interruption/return, list focus restoration, VoiceOver/TalkBack adjustment, native font scaling and reduced motion. Browser touch emulation and enlarged web text do not establish these results. The earlier notification review's Android permission-request and iOS date-precision findings remain separate follow-ups in [Known Follow-up Work](.ai-factory/DESCRIPTION.md#known-follow-up-work).
+Wheel-specific native acceptance also remains pending: slow drags/flings, snapping/endpoints, parent scrolling, immediate Start/Apply, interruption/return, list focus restoration, VoiceOver/TalkBack adjustment, native font scaling and reduced motion. Browser touch emulation and enlarged web text do not establish these results. The Android permission-request and iOS date-precision findings now have code/regression fixes; the remaining platform checks are recorded in the [background guide](docs/background-notifications.md#builds-and-verification).
 
 During installation, `npm audit` reported vulnerabilities in transitive Expo dependencies and development tools, including `decode-uri-component` and `zod`. Available compatible updates were applied; no migrations to other major SDK versions were forced. The audit must be reassessed before a public release.
 
@@ -181,6 +177,7 @@ src/core/         Pure timing, notification projection, language/sound registrie
 src/i18n/         Six typed catalogs (ro/en/ru/es/fr/de), plurals, dates, and sharing
 src/hooks/        Persistence, timing/audio owners, notification scheduling, and platform adapters
 src/audio/        Bundled playback map and native notification sound names
+modules/          Read-only Android notification access probe
 tests/            Logic and UI tests
 assets/           Four original sound patterns, a native Classic copy, icons, and splash screen
 ```
@@ -189,6 +186,7 @@ assets/           Four original sound patterns, a native Classic copy, icons, an
 
 | Document | Contents |
 |---|---|
+| [Background notifications](docs/background-notifications.md) | Phone setup, behavior, limits and verification |
 | [Repository map](AGENTS.md) | Entry points and authoritative Expo workflow |
 | [Project description](.ai-factory/DESCRIPTION.md) | Stack, persistence, and known follow-ups |
 | [Architecture](.ai-factory/ARCHITECTURE.md) | Modules, timing, playback, and data flow |

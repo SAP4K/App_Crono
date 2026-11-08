@@ -36,6 +36,8 @@ for (const { id: language } of LANGUAGES) for (const theme of ['light', 'dark'] 
     await expect(dialog.getByText(m.notificationsWeb, { exact: true })).toBeVisible();
     await expect(dialog.getByRole('button', { name: m.notificationPermissionRequest, exact: true })).toHaveCount(0);
     await expect(dialog.getByRole('button', { name: m.notificationOpenSettings, exact: true })).toHaveCount(0);
+    await expect(dialog.getByRole('button', { name: m.notificationBackground.batterySettings, exact: true })).toHaveCount(0);
+    await expect(dialog.getByRole('button', { name: m.notificationBackground.help, exact: true })).toHaveCount(0);
     const bounds = await toggle.locator('../..').boundingBox(); expect(bounds!.height).toBeGreaterThanOrEqual(44);
     expect(bounds!.x).toBeGreaterThanOrEqual(0);
     expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(language === 'ru' ? 320 : 390);

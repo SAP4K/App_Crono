@@ -1,7 +1,9 @@
 import type { SystemNotificationAdapter } from './notificationTypes.ts';
 import { unavailableNotifications } from './notificationTypes.ts';
+import { emptyNotificationDelivery } from './notificationReadiness.ts';
 
 export const systemNotifications: SystemNotificationAdapter = {
+  platform: 'web', delivery: async () => emptyNotificationDelivery('web'),
   supported: false, exactAlarmSettings: false,
   prepare: async () => {}, permission: async () => unavailableNotifications('unsupported'),
   requestPermission: async () => unavailableNotifications('unsupported'),
