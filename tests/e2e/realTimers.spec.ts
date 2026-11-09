@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { LANGUAGES } from '../../src/core/language';
 import { getMessages } from '../../src/i18n';
 import { initialData } from '../../src/core/stopwatch';
-import { expectNoPageErrors, expectTheme, observePageErrors, seed, settings, settingsGroup, stored } from './helpers';
+import { selectTheme, expectNoPageErrors, expectTheme, observePageErrors, seed, settings, settingsGroup, stored } from './helpers';
 
 // Fake clocks accept detached clearTimeout calls that Chrome's native timers reject.
 test.beforeEach(({ page }) => observePageErrors(page));
@@ -54,7 +54,7 @@ test('real timers cancel preview on leaving Sounds and retain natural expiry and
   expectNoPageErrors(page);
   await settingsGroup(page, 'appearance');
   expect((await audioState(page))[0].paused).toBe(true);
-  await dialog.getByRole('switch', { name: 'Mod întunecat', exact: true }).click();
+  await selectTheme(dialog, 'dark');
   await settingsGroup(page, 'sounds');
   await audition.click();
   await expect.poll(async () => (await audioState(page))[1]?.currentTime ?? 0).toBeGreaterThan(0);

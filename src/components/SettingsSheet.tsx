@@ -41,8 +41,9 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
     feedback();
     update((previous) => ({ ...previous, preferences: { ...previous.preferences, [key]: enabled } }));
   };
+  const themeLabels = { system: m.systemMode, light: m.lightMode, dark: m.darkMode };
   const summaries: Record<SettingsGroup, string> = {
-    appearance: data.preferences.theme === 'dark' ? m.darkMode : m.lightMode,
+    appearance: themeLabels[data.preferences.theme],
     language: LANGUAGES.find((item) => item.id === language)!.label,
     sounds: data.preferences.timerSound ? `${m.sounds[data.preferences.alertSoundId]} · ${m.soundLength(data.preferences.alertDurationSeconds)}` : m.disabledSetting,
     notifications: notificationStatus(notifications.readiness, m),
@@ -68,13 +69,19 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
     </View>
     </>}
     {section === 'appearance' && <>
-    <View style={styles.row}>
-      <View style={styles.icon}><Icon name="moon" /></View>
-      <View style={styles.copy}><Text style={styles.label}>{m.darkMode}</Text><Text style={styles.description}>{m.themeHelp}</Text></View>
-      <SettingsSwitch accessibilityLabel={m.darkMode} value={data.preferences.theme === 'dark'} onValueChange={(enabled) => {
-        feedback();
-        update((previous) => ({ ...previous, preferences: { ...previous.preferences, theme: enabled ? 'dark' : 'light' } }));
-      }} />
+    <View style={styles.soundOptions}>
+      <Text style={styles.label}>{m.settingsGroups.appearance}</Text><Text style={styles.description}>{m.themeHelp}</Text>
+      <View style={styles.choices}>{(['system', 'light', 'dark'] as const).map((theme) => <Pressable key={theme}
+        accessibilityRole="radio" accessibilityLabel={themeLabels[theme]} disabled={hydrationStatus !== 'loaded'}
+        accessibilityState={{ checked: data.preferences.theme === theme, disabled: hydrationStatus !== 'loaded' }} aria-checked={data.preferences.theme === theme}
+        onPress={() => {
+          if (hydrationStatus !== 'loaded') return;
+          const result = update((previous) => previous.preferences.theme === theme ? previous
+            : { ...previous, preferences: { ...previous.preferences, theme } });
+          if (result.changed) feedback();
+        }} style={({ pressed }) => [styles.choice, data.preferences.theme === theme && styles.chosen, pressed && { opacity: 0.72 }]}>
+        <Text style={styles.choiceText}>{themeLabels[theme]}</Text>
+      </Pressable>)}</View>
     </View>
     </>}
     {section === 'sounds' && <>

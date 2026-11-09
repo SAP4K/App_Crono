@@ -49,7 +49,8 @@ test('preview requires confirmation and merges once into latest live timing with
     timer: { ...f.data.timer, status: 'paused' as const, remainingMs: 1200, runId: 'live' } };
   f.data = live; assert.equal(f.owner.confirm(), true);
   assert.equal(f.data.stopwatch, live.stopwatch); assert.equal(f.data.timer, live.timer); assert.equal(f.data.planning.run, live.planning.run);
-  assert.equal(f.data.preferences.theme, 'light'); assert.equal(f.counts().writes, 1); assert.equal(f.owner.confirm(), false);
+  assert.equal(f.data.preferences, live.preferences); assert.equal(f.data.preferences.theme, 'system');
+  assert.equal(f.counts().writes, 1); assert.equal(f.owner.confirm(), false);
   const again = f.owner.read(); await again; assert.equal(f.owner.confirm(true), true);
   assert.equal(f.data.preferences.theme, 'dark'); assert.equal(f.data.planning.schedules.length, 2);
   assert.notEqual(f.data.planning.schedules[0].id, f.data.planning.schedules[1].id);

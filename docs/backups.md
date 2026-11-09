@@ -41,6 +41,8 @@ The file excludes live stopwatch state, countdown state, running schedule snapsh
 
 Applying preferences is explicit and optional. It may change theme, language and sound settings using the same application owners as Settings. Notification enablement is a saved preference; Android/iOS authorization and phone settings stay under the operating system’s control. Import alone does not request permission.
 
+Theme stores the selected **System, Light or Dark** preference. System follows the receiving device’s appearance; the export does not replace it with the source device’s current palette. Existing version-1 files with Light/Dark remain supported. Older CRONO versions that predate System selection may reject a backup containing `"theme": "system"`; update the receiving app before importing it.
+
 ## File Format
 
 The portable envelope is separate from CRONO’s internal local-storage object:
@@ -54,7 +56,7 @@ The portable envelope is separate from CRONO’s internal local-storage object:
   "sessions": [],
   "preferences": {
     "language": "ro",
-    "theme": "light",
+    "theme": "system",
     "haptics": true,
     "keepAwake": true,
     "timerSound": true,

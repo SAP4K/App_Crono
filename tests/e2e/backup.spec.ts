@@ -4,7 +4,7 @@ import { initialData } from '../../src/core/stopwatch';
 import { MAX_BACKUP_BYTES, parseBackup, serializeBackup } from '../../src/core/backup';
 import { startSchedule } from '../../src/core/planning';
 import { getMessages } from '../../src/i18n';
-import { expectNoPageErrors, observePageErrors, seed, settings, stored } from './helpers';
+import { expectNoPageErrors, expectTheme, observePageErrors, seed, selectTheme, settings, settingsGroup, stored } from './helpers';
 const m = getMessages('ro');
 const legacy = JSON.parse(readFileSync(new URL('../fixtures/app-v1-before-planning.json', import.meta.url), 'utf8'));
 async function upload(page: Page, raw: string) {
@@ -54,6 +54,43 @@ test('real legacy backup download/import preserves original history and clocks t
   expect(reloaded.timer).toEqual(legacy.timer); expect(reloaded.planning.schedules[0].name).toBe('Școală · Учёба');
 });
 
+test('literal legacy data survives System selection and real optional backup imports on a Light device', async ({ page }) => {
+  await seed(page, legacy); await page.emulateMedia({ colorScheme: 'light' }); await page.goto('/');
+  await expectTheme(page, true);
+  await settings(page, 'appearance'); await selectTheme(page, 'system'); await expectTheme(page, false);
+  const preferences = { ...initialData().preferences, ...legacy.preferences, theme: 'system' };
+  await expect.poll(async () => (await stored(page)).preferences).toEqual(preferences);
+  const selected = await stored(page);
+  expect(selected.stopwatch).toEqual(legacy.stopwatch); expect(selected.timer).toEqual(legacy.timer);
+  expect(selected.sessions).toEqual(legacy.sessions);
+  await settingsGroup(page, 'data');
+  const downloading = page.waitForEvent('download');
+  await page.getByRole('button', { name: m.backup.export, exact: true }).click();
+  const download = await downloading;
+  const raw = readFileSync((await download.path())!, 'utf8'); const backup = parseBackup(raw);
+  expect(backup.preferences).toEqual(preferences); expect(backup.sessions).toEqual(legacy.sessions);
+  await settingsGroup(page, 'appearance'); await selectTheme(page, 'dark'); await expectTheme(page, true);
+  await settingsGroup(page, 'data');
+  for (const applyPreferences of [false, true]) {
+    await upload(page, raw);
+    const apply = page.getByRole('switch', { name: m.backup.applyPreferences, exact: true });
+    await expect(apply).not.toBeChecked(); if (applyPreferences) await apply.click();
+    await page.getByRole('button', { name: m.backup.confirm, exact: true }).click();
+    await expect.poll(async () => (await stored(page)).sessions.length).toBe(applyPreferences ? 3 : 2);
+    const imported = await stored(page);
+    expect(imported.preferences).toEqual({ ...preferences, theme: applyPreferences ? 'system' : 'dark' });
+    expect(imported.stopwatch).toEqual(legacy.stopwatch); expect(imported.timer).toEqual(legacy.timer);
+    expect(imported.planning).toEqual(selected.planning);
+    expect(imported.sessions[0]).toEqual(legacy.sessions[0]);
+    expect(new Set(imported.sessions.map((session) => session.id)).size).toBe(imported.sessions.length);
+    for (const copy of imported.sessions.slice(1)) expect(copy).toEqual({ ...legacy.sessions[0], id: copy.id });
+    await expectTheme(page, !applyPreferences);
+  }
+  const beforeReload = await stored(page);
+  await page.reload(); await expectTheme(page, false); expect(await stored(page)).toEqual(beforeReload);
+  await settings(page, 'appearance'); await expect(page.getByRole('radio', { name: m.systemMode, exact: true })).toBeChecked();
+});
+
 test('confirmation preserves clocks that changed during preview and repeated imports create independent schedules', async ({ page }) => {
   await page.clock.install(); const now = Date.now(); const data = initialData(); data.preferences.timerSound = false;
   data.stopwatch.startedAt = now; data.timer = { ...data.timer, durationMs: 15000, remainingMs: 15000, status: 'running', deadlineAt: now + 15000, runId: 'live' };
@@ -66,7 +103,8 @@ test('confirmation preserves clocks that changed during preview and repeated imp
   await expect.poll(async () => (await stored(page)).planning.schedules.length).toBe(2);
   const after = await stored(page);
   expect(after.timer).toEqual(latest.timer); expect(after.stopwatch).toEqual(latest.stopwatch);
-  expect(after.planning.run).toEqual(latest.planning.run); expect(after.preferences.theme).toBe('light');
+  expect(after.planning.run).toEqual(latest.planning.run); expect(after.preferences).toEqual(latest.preferences);
+  expect(after.preferences.theme).toBe('system');
   expect(after.planning.schedules[0]).toEqual(data.planning.schedules[0]);
   expect(after.planning.schedules[1].id).not.toBe('source'); expect(after.planning.schedules[1].steps[0].id).not.toBe('work');
   await upload(page, raw); await page.getByRole('button', { name: m.backup.confirm, exact: true }).click();
@@ -87,6 +125,34 @@ test('preferences apply only by explicit choice and Cancel leaves all saved data
   await expect.poll(async () => (await stored(page)).preferences.language).toBe('en');
   expect((await stored(page)).preferences.theme).toBe('dark');
   await page.reload(); expect((await stored(page)).preferences.language).toBe('en');
+});
+
+for (const theme of ['system', 'light', 'dark'] as const) test(`real ${theme} backup preserves selection across optional import and reload`, async ({ page }) => {
+  const data = source(); data.preferences.theme = theme;
+  await seed(page, data); await page.emulateMedia({ colorScheme: 'dark' }); await page.goto('/'); await settings(page, 'data');
+  const downloading = page.waitForEvent('download');
+  await page.getByRole('button', { name: m.backup.export, exact: true }).click();
+  const download = await downloading; const raw = readFileSync((await download.path())!, 'utf8');
+  expect(parseBackup(raw).preferences.theme).toBe(theme);
+  await page.getByRole('button', { name: m.close, exact: true }).click();
+  await settings(page, 'appearance'); const manual = theme === 'light' ? 'dark' : 'light'; await selectTheme(page, manual);
+  await page.getByRole('button', { name: m.close, exact: true }).click(); await settings(page, 'data');
+  await upload(page, raw); await page.getByRole('button', { name: m.backup.confirm, exact: true }).click();
+  await expect.poll(async () => (await stored(page)).planning.schedules.length).toBe(2);
+  expect((await stored(page)).preferences.theme).toBe(manual);
+  await upload(page, raw); await page.getByRole('switch', { name: m.backup.applyPreferences, exact: true }).click();
+  await page.getByRole('button', { name: m.backup.confirm, exact: true }).click();
+  await expect.poll(async () => (await stored(page)).planning.schedules.length).toBe(3);
+  expect((await stored(page)).preferences.theme).toBe(theme); await expectTheme(page, theme !== 'light');
+  await page.reload(); expect((await stored(page)).preferences.theme).toBe(theme);
+  expect(new Set((await stored(page)).planning.schedules.map((item) => item.id)).size).toBe(3);
+});
+
+test('unknown portable theme rejects the whole real file without applying any records', async ({ page }) => {
+  await seed(page); await page.goto('/'); await settings(page, 'data');
+  const before = await stored(page); const file = JSON.parse(serializeBackup(source(), 1)); file.preferences.theme = 'auto';
+  await upload(page, JSON.stringify(file));
+  await expect(page.getByText(m.backup.errors.invalid, { exact: true })).toBeVisible(); expect(await stored(page)).toEqual(before);
 });
 
 for (const failure of ['invalid', 'version', 'size', 'capacity'] as const) {

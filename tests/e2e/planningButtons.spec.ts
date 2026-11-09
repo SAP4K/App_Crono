@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { initialData } from '../../src/core/stopwatch';
 import { MAX_SCHEDULES, MAX_STEPS, reconcileSchedule, startSchedule } from '../../src/core/planning';
-import { scheduleOptions, audioEvents, audioSpy, expectNoPageErrors, observePageErrors, playCount, seed, settings, stored } from './helpers';
+import { selectTheme, scheduleOptions, audioEvents, audioSpy, expectNoPageErrors, observePageErrors, playCount, seed, settings, stored } from './helpers';
 
 test.beforeEach(({ page }) => observePageErrors(page));
 test.afterEach(({ page }) => expectNoPageErrors(page));
@@ -94,7 +94,7 @@ for (const dark of [false, true]) {
     await seed(page, legacy); await page.goto('/planning');
     if (!dark) {
       const preferences = await settings(page, 'appearance');
-      await preferences.getByRole('switch', { name: 'Mod întunecat', exact: true }).click();
+      await selectTheme(preferences, 'light');
       await preferences.getByRole('button', { name: 'Închide', exact: true }).click();
       await expect(preferences).not.toBeVisible();
     }

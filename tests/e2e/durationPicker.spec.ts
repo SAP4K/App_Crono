@@ -5,7 +5,7 @@ import { initialTimer, startTimer } from '../../src/core/timer';
 import { startSchedule } from '../../src/core/planning';
 import { LANGUAGES } from '../../src/core/language';
 import { getMessages } from '../../src/i18n';
-import { settingsGroup, scheduleOptions, audioSpy, duration, expectNoPageErrors, expectTheme, observePageErrors, playCount, seed, selectDuration, selectWheel, stored } from './helpers';
+import { selectTheme, settingsGroup, scheduleOptions, audioSpy, duration, expectNoPageErrors, expectTheme, observePageErrors, playCount, seed, selectDuration, selectWheel, stored } from './helpers';
 
 // Keep the actual browser clock: CSS snapping and native timer receivers are part of this adapter.
 const warnings = new WeakMap<Page, string[]>();
@@ -345,9 +345,9 @@ for (const { id } of LANGUAGES) for (const theme of ['light', 'dark'] as const) 
     await page.getByRole('radio', { name: LANGUAGES.find((language) => language.id === id)!.label, exact: true }).click();
     await settingsGroup(page, 'appearance', m);
     const settings = page.getByRole('dialog', { name: m.settingsGroups.appearance, exact: true });
-    await settings.getByRole('switch', { name: m.darkMode, exact: true }).click();
+    await selectTheme(settings, theme === 'dark' ? 'light' : 'dark', m);
     await expectTheme(page, theme !== 'dark');
-    await settings.getByRole('switch', { name: m.darkMode, exact: true }).click();
+    await selectTheme(settings, theme, m);
     await settings.getByRole('button', { name: m.close, exact: true }).click(); await expect(settings).not.toBeVisible();
     expect((await stored(page)).timer).toEqual(data.timer);
     await page.screenshot({ path: `previews/wheels-${id}-${theme}-${width}-timer.png`, animations: 'disabled' });

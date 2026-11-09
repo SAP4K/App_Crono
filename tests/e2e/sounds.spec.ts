@@ -136,7 +136,7 @@ test('literal legacy-v1 data survives settings, real Classic playback, completio
   await expect(page.getByLabel('Temporizator finalizat', { exact: true })).toBeVisible();
   expect(await playCount(page)).toBe(0);
   const dialog = await settings(page, 'appearance');
-  await expect(dialog.getByRole('switch', { name: 'Mod întunecat', exact: true })).toBeChecked();
+  await expect(dialog.getByRole('radio', { name: 'Mod întunecat', exact: true })).toBeChecked();
   await settingsGroup(page, 'sounds');
   await expect(dialog.getByRole('switch', { name: 'Alerte sonore', exact: true })).not.toBeChecked();
   await expect(dialog.getByRole('radio', { name: 'Sunet Clasic', exact: true })).toBeChecked();

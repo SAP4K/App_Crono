@@ -1,6 +1,32 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { palettes } from '../src/theme.ts';
+import { DEFAULT_THEME, isThemePreference, resolveThemeMode, restoreThemePreference } from '../src/core/themePreference.ts';
+
+test('theme preferences default to System and strictly preserve supported saved choices', () => {
+  assert.equal(DEFAULT_THEME, 'system');
+  for (const value of ['system', 'light', 'dark'] as const) {
+    assert.equal(isThemePreference(value), true);
+    assert.equal(restoreThemePreference(value), value);
+  }
+  for (const value of [undefined, null, '', 'DARK', 'auto', 'unspecified', true, 1, {}, []]) {
+    assert.equal(isThemePreference(value), false);
+    assert.equal(restoreThemePreference(value), 'system');
+  }
+});
+
+for (const [preference, darkAppearance, otherAppearance] of [
+  ['system', 'dark', 'light'],
+  ['light', 'light', 'light'],
+  ['dark', 'dark', 'dark'],
+] as const) {
+  test(`${preference} resolves against both system modes and unavailable appearance`, () => {
+    assert.equal(resolveThemeMode(preference, 'dark'), darkAppearance);
+    for (const appearance of ['light', null, undefined, 'unspecified', 'unknown']) {
+      assert.equal(resolveThemeMode(preference, appearance), otherAppearance);
+    }
+  });
+}
 
 function luminance(hex: string) {
   const [r, g, b] = hex.slice(1).match(/../g)!.map((part) => {

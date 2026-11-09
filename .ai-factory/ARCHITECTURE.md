@@ -53,6 +53,7 @@ src/
 ├── hooks/
 │   ├── useStopwatch.ts       # Hydration outcome, accepted updates, ordered storage
 │   ├── useI18n.ts            # Saved language projection and shared-state setter
+│   ├── themeAppearance.ts / useSystemTheme.ts # Appearance lifecycle and native background ordering
 │   ├── backupTransfer.ts / useBackupTransfer.ts # Fenced file operations and accepted imports
 │   ├── backupFiles.ts / .web.ts # Native system picker/share and browser upload/download
 │   ├── useForegroundNow.ts   # Presentation ticks only while active
@@ -102,6 +103,7 @@ src/
 │   ├── backup.ts             # Strict portable records and atomic additive merge
 │   ├── planningCalendar.ts   # Civil dates and recurring or one-time rules
 │   ├── language.ts           # Supported IDs/autonyms/locales and default
+│   ├── themePreference.ts    # Saved System/Light/Dark and resolved palette mode
 │   ├── notifications.ts     # Bounded future events and owned payload validation
 │   ├── completionAlerts.ts   # Validated completion policy, identity and priority
 │   ├── notices.ts            # Semantic transient toast/completion/audio codes
@@ -116,6 +118,7 @@ tests/
 ├── durationWheel.test.ts     # Motion, stale callbacks, disposal and geometry changes
 ├── timerCompletion.test.ts   # Coordination, cancellation, and audio races
 ├── theme.test.ts             # Text/surface contrast
+├── themeAppearance.test.ts   # Appearance cache/lifecycle and native background races
 ├── sounds.test.ts            # Preferences and actual PCM pattern validation
 ├── planning.test.ts          # Template/run validation and pure transitions
 ├── alertPlayback.test.ts     # All choices, timing, priority, and cancellation
@@ -234,7 +237,11 @@ iOS/older Android audio uses SDK 57 `createAudioPlayer` with explicit source cle
 
 `TimingNotices` composes timer completion, planning boundary/final feedback, and Stop in both shell and active sheets without closing them. Audio failures are scoped to the matching event/run, separate from generic session-save notices. A new event clears obsolete audio feedback. The schedule editor uses controlled drafts, explicit save/discard, and one keyboard-aware FlatList through Sheet's non-scrolling mode.
 
-`ThemeContext` projects saved preferences into stable semantic palettes and cached styles, supplies the navigation theme, and synchronizes native Appearance/SystemUI and status-bar contrast. It has no independent persistence and does not key/remount routes or clock owners.
+`core/themePreference` separates the saved System/Light/Dark preference from a resolved Light/Dark mode. Fresh/missing/invalid values default to System; valid manual saves remain authoritative. Unavailable system appearance resolves to Light. Portable files store the selected preference and accept all three values without changing either version-1 envelope.
+
+`useSystemTheme` binds an injected `themeAppearance` observer to native/web Appearance and foreground events. Native manual selection applies an app override; System clears it with the installed React Native 0.86 `unspecified` value and explicitly rereads the snapshot. Foreground System refresh also clears/rereads the native cache to recover a missed background change. Web observes its existing media-query adapter without calling a native override API. Subscriptions clean up and stale callbacks cannot publish. Theme selection requires loaded hydration and uses the shared functional update API; device-only changes never update AppData.
+
+`ThemeContext` projects the resolved mode into stable semantic palettes/cached styles and navigation/status contrast. A serialized latest-value native background writer prevents older asynchronous updates from winning; web sets document color scheme and body background directly. It has no independent persistence and does not key/remount routes, clock/audio owners or editor drafts. The pre-hydration native launch image and branding remain separate.
 
 `useI18n` derives stable module catalogs from the saved `language` preference and applies effective changes through the existing functional update API. The registry covers `ro/en/ru/es/fr/de` with complete Romanian, English, Russian, Spanish, French and German catalogs; Romanian is the manual default/fallback and no device locale is detected. The framework-free translation layer owns plural/date/share presentation; `sessionText` lives here rather than in the pure timing core. Catalogs use stable sound IDs and preserve user-entered schedule/action names. Toast, timer-completion and audio-failure values are semantic codes, translated when rendered or announced with a fresh snapshot. Language does not recreate timing/playback controllers, refresh foreground notice lifetimes, or key/remount routes or controlled inputs. It updates future system-notification content through the separate notification owner. Web document language follows selection; native speech voice remains an OS concern.
 

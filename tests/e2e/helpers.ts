@@ -2,6 +2,7 @@ import { expect, type Locator, type Page } from '@playwright/test';
 import { initialData, type AppData } from '../../src/core/stopwatch';
 import { getMessages } from '../../src/i18n';
 import type { Messages } from '../../src/i18n/types';
+import type { ThemePreference } from '../../src/core/themePreference';
 
 const pageErrors = new WeakMap<Page, string[]>();
 export function observePageErrors(page: Page) {
@@ -91,6 +92,13 @@ export async function settings(page: Page, group?: keyof Messages['settingsGroup
 
 export async function expectTheme(page: Page, dark: boolean) {
   await expect(page.locator('body')).toHaveCSS('background-color', dark ? 'rgb(2, 6, 23)' : 'rgb(226, 232, 240)');
+  await expect(page.locator('html')).toHaveCSS('color-scheme', dark ? 'dark' : 'light');
+}
+
+export async function selectTheme(scope: Page | Locator, theme: ThemePreference, messages = getMessages('ro')) {
+  const labels = { system: messages.systemMode, light: messages.lightMode, dark: messages.darkMode };
+  const choice = scope.getByRole('radio', { name: labels[theme], exact: true });
+  await choice.click(); await expect(choice).toBeChecked();
 }
 
 export async function settingsGroup(page: Page, group: keyof Messages['settingsGroups'], messages = getMessages('ro')) {

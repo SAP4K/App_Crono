@@ -4,7 +4,7 @@ import { LANGUAGES, type AppLanguage } from '../../src/core/language';
 import { getMessages } from '../../src/i18n';
 import { initialData } from '../../src/core/stopwatch';
 import { startSchedule } from '../../src/core/planning';
-import { settingsGroup, scheduleOptions, audioEvents, audioSpy, duration, expectNoPageErrors, expectTheme, observePageErrors, playCount, seed, stored } from './helpers';
+import { selectTheme, settingsGroup, scheduleOptions, audioEvents, audioSpy, duration, expectNoPageErrors, expectTheme, observePageErrors, playCount, seed, stored } from './helpers';
 
 test.beforeEach(({ page }) => observePageErrors(page));
 test.afterEach(({ page }) => expectNoPageErrors(page));
@@ -82,9 +82,8 @@ for (const { id } of LANGUAGES) {
     await page.getByRole('button', { name: m.settings, exact: true }).click();
     await page.getByRole('button', { name: m.settingsGroups.appearance, exact: true }).click();
     const preferences = page.getByRole('dialog', { name: m.settingsGroups.appearance, exact: true });
-    const theme = preferences.getByRole('switch', { name: m.darkMode, exact: true });
-    await theme.click(); await expectTheme(page, false);
-    await theme.click(); await expectTheme(page, true);
+    await selectTheme(preferences, 'light', m); await expectTheme(page, false);
+    await selectTheme(preferences, 'dark', m); await expectTheme(page, true);
     await preferences.getByRole('button', { name: m.close, exact: true }).click();
     await expect(preferences).not.toBeVisible();
     await expect(page.locator('#crono-app').getByLabel(m.timerCompleted, { exact: true })).toBeVisible();

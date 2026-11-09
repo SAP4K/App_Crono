@@ -1,6 +1,7 @@
 import { isLanguage } from './language.ts';
 import { MAX_SCHEDULES, readSchedule, validId, type Schedule } from './planning.ts';
 import { ALERT_DURATIONS, isSoundId } from './sounds.ts';
+import { isThemePreference } from './themePreference.ts';
 import { MAX_SESSIONS, readSession, type AppData, type Preferences, type Session } from './stopwatch.ts';
 
 export const MAX_BACKUP_BYTES = 5 * 1024 * 1024;
@@ -28,7 +29,7 @@ export function utf8Bytes(value: string): number {
 function readPreferences(value: unknown): Preferences {
   if (!record(value) || !isLanguage(value.language) || !isSoundId(value.alertSoundId) ||
     !ALERT_DURATIONS.some((duration) => duration === value.alertDurationSeconds) ||
-    (value.theme !== 'light' && value.theme !== 'dark') ||
+    !isThemePreference(value.theme) ||
     typeof value.haptics !== 'boolean' || typeof value.keepAwake !== 'boolean' ||
     typeof value.timerSound !== 'boolean' || typeof value.systemNotifications !== 'boolean') throw new BackupError('invalid');
   return { language: value.language, theme: value.theme, haptics: value.haptics, keepAwake: value.keepAwake,

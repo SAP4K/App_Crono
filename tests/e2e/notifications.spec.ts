@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 import { initialData } from '../../src/core/stopwatch';
 import { LANGUAGES } from '../../src/core/language';
 import { getMessages } from '../../src/i18n';
-import { settingsGroup, expectNoPageErrors, observePageErrors, seed, settings, stored } from './helpers';
+import { selectTheme, settingsGroup, expectNoPageErrors, observePageErrors, seed, settings, stored } from './helpers';
 
 test.beforeEach(async ({ page }) => {
   observePageErrors(page);
@@ -56,7 +56,7 @@ for (const choice of ['missing', 'false'] as const) {
     await expect(toggle).toBeDisabled();
     if (choice === 'false') await expect(toggle).not.toBeChecked(); else await expect(toggle).toBeChecked();
     await settingsGroup(page, 'appearance');
-    await dialog.getByRole('switch', { name: 'Mod întunecat', exact: true }).click();
+    await selectTheme(dialog, 'light');
     await expect.poll(async () => (await stored(page)).preferences.theme).toBe('light');
     await page.reload(); const restored = await stored(page);
     expect(restored.preferences.systemNotifications).toBe(choice === 'missing');

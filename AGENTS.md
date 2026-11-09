@@ -66,7 +66,8 @@ tests/
   durationPicker.test.ts Bounded parts, conversion and snapping geometry
   durationWheel.test.ts Settling, cancellation, disabled state and changed row geometry
   timerCompletion.test.ts Completion/audio coordination tests
-  theme.test.ts         Palette contrast checks
+  theme.test.ts         Preference resolution and palette contrast checks
+  themeAppearance.test.ts Appearance lifecycle, cached snapshots and native background ordering
   sounds.test.ts        Sound preferences and real PCM asset validation
   planning.test.ts      Schedule CRUD, restoration, and execution transitions
   planningTools.test.ts Template, duplicate and bounded repeated-sequence operations
@@ -116,6 +117,7 @@ scripts/                Reproducible notification sound generator
 | `src/hooks/useStopwatch.ts` | Hydration outcome, accepted-update subscriptions, functional updates, ordered writes |
 | `src/context/CronoContext.tsx` | Shared state, timer/planning runners, one audio owner, haptics, wake lock |
 | `src/context/ThemeContext.tsx` | Saved theme, navigation palette, native appearance |
+| `src/core/themePreference.ts`, `src/hooks/themeAppearance.ts`, `useSystemTheme.ts` | Saved System/Light/Dark, resolved palettes and live/foreground appearance |
 | `src/hooks/timerCompletion.ts` | Injectable completion coordinator and fresh-state audio guards |
 | `src/hooks/useTimerCompletion.ts` | Readiness and foreground lifecycle bridge |
 | `src/hooks/planningRunner.ts`, `usePlanningRunner.ts` | Global schedule execution, accepted updates, and silent catch-up |
@@ -154,9 +156,9 @@ scripts/                Reproducible notification sound generator
 
 | File | Purpose |
 |---|---|
-| `README.md` | Setup, inertial wheels, languages, themes, schedules, notifications, checks, builds |
+| `README.md` | Setup, wheels, languages, System/Light/Dark, schedules, notifications, checks, builds |
 | `docs/background-notifications.md` | Android minute playback, setup, limits and verification |
-| `docs/backups.md` | Portable export/import, review, limits and recovery |
+| `docs/backups.md` | Portable export/import, selected theme compatibility, limits and recovery |
 | `AGENTS.md` | Repository map and authoritative Expo workflow requirements |
 | `.ai-factory/DESCRIPTION.md` | Project purpose, stack, data model, and known follow-ups |
 | `.ai-factory/ARCHITECTURE.md` | Layered architecture, dependencies, and data flow |
