@@ -1,15 +1,15 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import type { DurationWheelProps } from '../components/DurationWheel.types';
-import { createDurationWheel } from './durationWheel';
+import { createDurationWheel, type WheelRelease } from './durationWheel';
 import { isAppActive, subscribeAppActivity } from './appActivity';
 
-export function useDurationWheel(props: DurationWheelProps, align: (offset: number) => void) {
+export function useDurationWheel(props: DurationWheelProps, align: (offset: number, cancelMotion?: boolean) => void) {
   const latest = useRef({ props, align });
   const instance = useRef<ReturnType<typeof createDurationWheel> | null>(null);
   useLayoutEffect(() => { latest.current = { props, align }; });
   useLayoutEffect(() => {
     const controller = createDurationWheel({
-      configuration: () => latest.current.props, align: (offset) => latest.current.align(offset),
+      configuration: () => latest.current.props, align: (offset, cancelMotion) => latest.current.align(offset, cancelMotion),
       select: (value) => latest.current.props.onChange(value), busy: (busy) => latest.current.props.onInteractionChange(busy),
       schedule: (callback, delay) => setTimeout(callback, delay), cancel: (handle) => clearTimeout(handle),
     });
@@ -20,8 +20,9 @@ export function useDurationWheel(props: DurationWheelProps, align: (offset: numb
   useEffect(() => subscribeAppActivity(() => { if (!isAppActive()) instance.current?.synchronize(); }), []);
   return useMemo(() => ({
     synchronize: () => instance.current?.synchronize(),
-    beginDrag: () => instance.current?.beginDrag(), beginWheel: () => instance.current?.beginWheel(),
-    scroll: (offset: number) => instance.current?.scroll(offset), release: () => instance.current?.release(),
+    beginDrag: () => instance.current?.beginDrag(), beginWheel: (waitForEnd = false) => instance.current?.beginWheel(waitForEnd),
+    beginMomentum: () => instance.current?.beginMomentum(),
+    scroll: (offset: number) => instance.current?.scroll(offset), release: (options?: WheelRelease) => instance.current?.release(options),
     end: (offset: number) => instance.current?.end(offset), choose: (value: number) => instance.current?.choose(value),
   }), []);
 }

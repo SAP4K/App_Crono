@@ -143,7 +143,7 @@ scripts/                Reproducible notification sound generator
 
 | File | Purpose |
 |---|---|
-| `README.md` | Setup, sounds, languages, themes, schedules, notifications, checks, builds |
+| `README.md` | Setup, inertial wheels, languages, themes, schedules, notifications, checks, builds |
 | `docs/background-notifications.md` | Android minute playback, setup, limits and verification |
 | `AGENTS.md` | Repository map and authoritative Expo workflow requirements |
 | `.ai-factory/DESCRIPTION.md` | Project purpose, stack, data model, and known follow-ups |
