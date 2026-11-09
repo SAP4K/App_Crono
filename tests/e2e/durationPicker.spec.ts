@@ -24,6 +24,19 @@ async function openTimer(page: Page) {
 async function wheelBy(page: Page, wheel: Locator, delta: number) {
   await wheel.hover(); await page.mouse.wheel(0, delta);
 }
+async function observeBusy(action: Locator) {
+  const record = await action.evaluateHandle((node) => {
+    const result = { seen: false, observer: new MutationObserver((changes) => {
+      if (node.getAttribute('aria-disabled') === 'true' || changes.some((change) => change.oldValue === 'true')) result.seen = true;
+    }) };
+    result.observer.observe(node, { attributes: true, attributeFilter: ['aria-disabled'], attributeOldValue: true });
+    return result;
+  });
+  return async () => {
+    expect(await record.evaluate((result) => { result.observer.disconnect(); return result.seen; })).toBe(true);
+    await record.dispose();
+  };
+}
 async function centered(wheel: Locator) {
   await expect.poll(() => wheel.evaluate((element) => {
     const row = element.querySelectorAll('button')[Number(element.getAttribute('aria-valuenow'))];
@@ -35,6 +48,13 @@ async function noNumericKeyboard(page: Page) {
   expect(await page.evaluate(() => ({ tag: document.activeElement?.tagName, numeric: document.querySelectorAll('input[inputmode="numeric"], input[type="number"]').length })))
     .toEqual({ tag: 'DIV', numeric: 0 });
 }
+async function parentOffsets(wheel: Locator) {
+  return wheel.evaluate((node) => {
+    const offsets = [window.scrollY];
+    for (let parent = node.parentElement; parent; parent = parent.parentElement) offsets.push(parent.scrollTop);
+    return offsets;
+  });
+}
 
 test('real wheel motion gates Start, combines columns, snaps and preserves running and paused clocks', async ({ page }) => {
   const start = await openTimer(page);
@@ -45,12 +65,12 @@ test('real wheel motion gates Start, combines columns, snaps and preserves runni
     while (parent && !(parent.scrollHeight > parent.clientHeight && getComputedStyle(parent).overflowY === 'auto')) parent = parent.parentElement;
     return parent?.scrollTop ?? 0;
   });
+  const wasBusy = await observeBusy(start);
   await wheelBy(page, minutes, 44);
   await wheelBy(page, seconds, 88);
-  await expect(start).toBeDisabled();
   await expect(minutes).toHaveAttribute('aria-valuenow', '1');
   await expect(seconds).toHaveAttribute('aria-valuenow', '3');
-  await expect(start).toBeEnabled(); await centered(minutes); await centered(seconds);
+  await expect(start).toBeEnabled(); await wasBusy(); await centered(minutes); await centered(seconds);
   expect(await seconds.evaluate((node) => {
     let parent = node.parentElement;
     while (parent && !(parent.scrollHeight > parent.clientHeight && getComputedStyle(parent).overflowY === 'auto')) parent = parent.parentElement;
@@ -102,7 +122,7 @@ test('real touch dragging and a quick cancelled gesture settle without moving th
   await selectWheel(seconds, 20); const box = (await seconds.boundingBox())!;
   const session = await context.newCDPSession(page);
   const x = box.x + box.width / 2, y = box.y + box.height * 0.85;
-  const top = box.y;
+  const outer = await parentOffsets(seconds);
   try {
     await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
     for (let index = 1; index <= 6; index++) {
@@ -114,7 +134,7 @@ test('real touch dragging and a quick cancelled gesture settle without moving th
     await expect(start).toBeEnabled(); await centered(seconds); await noNumericKeyboard(page);
     const selected = Number(await seconds.getAttribute('aria-valuenow'));
     expect((await stored(page)).timer.durationMs).toBe(selected * 1000);
-    expect((await seconds.boundingBox())!.y).toBe(top);
+    expect(await parentOffsets(seconds)).toEqual(outer);
     await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
     await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: y - 70 }] });
     await session.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
@@ -123,7 +143,7 @@ test('real touch dragging and a quick cancelled gesture settle without moving th
   } finally { await session.detach(); }
 });
 
-test('Planning cancels moving temporary selection and applies only settled values to its local action draft', async ({ page }) => {
+test('Planning discards temporary selection and applies only settled values to its local action draft', async ({ page }) => {
   const data = initialData(); data.planning.schedules = [{ id: 'plan', name: 'Secvență', steps: [
     { id: 'a', name: 'Prima', durationMs: 1000 }, { id: 'b', name: 'A doua', durationMs: 2000 },
   ] }];
@@ -132,15 +152,17 @@ test('Planning cancels moving temporary selection and applies only settled value
   const edit = page.getByRole('button', { name: 'Modifică durata etapei 2', exact: true });
   await edit.click();
   const seconds = page.getByRole('spinbutton', { name: 'Secunde etapa 2', exact: true });
+  const apply = page.getByRole('button', { name: 'Aplică durata', exact: true });
+  const cancelledBusy = await observeBusy(apply);
   await wheelBy(page, seconds, 440);
-  await expect(page.getByRole('button', { name: 'Aplică durata', exact: true })).toBeDisabled();
+  await expect(apply).toBeEnabled(); await cancelledBusy();
   await page.getByRole('button', { name: 'Renunță', exact: true }).click();
   await expect(edit).toContainText('00:00:02'); await edit.click();
   await expect(seconds).toHaveAttribute('aria-valuenow', '2');
+  const appliedBusy = await observeBusy(apply);
   await wheelBy(page, seconds, 44);
-  const apply = page.getByRole('button', { name: 'Aplică durata', exact: true });
-  await expect(apply).toBeDisabled(); await expect(seconds).toHaveAttribute('aria-valuenow', '3');
-  await expect(apply).toBeEnabled(); await apply.click();
+  await expect(seconds).toHaveAttribute('aria-valuenow', '3');
+  await expect(apply).toBeEnabled(); await appliedBusy(); await apply.click();
   await expect(edit).toContainText('00:00:03');
   expect((await stored(page)).planning).toEqual(data.planning);
   await page.getByRole('button', { name: 'Mută etapa 2 mai sus', exact: true }).click();

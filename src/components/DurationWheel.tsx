@@ -24,11 +24,13 @@ export function DurationWheel(props: DurationWheelProps) {
       <ScrollView ref={scroll} style={{ height: rowHeight * 3 }} contentContainerStyle={{ paddingVertical: rowHeight }}
         accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants"
         scrollEnabled={!disabled} nestedScrollEnabled bounces={false} overScrollMode="never" showsVerticalScrollIndicator={false}
-        snapToInterval={rowHeight} snapToAlignment="start" decelerationRate="fast" scrollEventThrottle={16}
+        snapToInterval={rowHeight} snapToAlignment="start" decelerationRate="normal" scrollEventThrottle={16}
         onContentSizeChange={() => controller.synchronize()}
+        onTouchStart={() => controller.beginDrag()} onTouchEnd={() => controller.release()}
         onTouchCancel={() => controller.release()}
-        onScrollBeginDrag={() => controller.beginDrag()} onScrollEndDrag={() => controller.release()}
-        onMomentumScrollBegin={() => controller.beginWheel()}
+        onScrollBeginDrag={() => controller.beginDrag()}
+        onScrollEndDrag={({ nativeEvent }) => controller.release({ position: nativeEvent.contentOffset.y })}
+        onMomentumScrollBegin={() => controller.beginMomentum()}
         onMomentumScrollEnd={({ nativeEvent }) => controller.end(nativeEvent.contentOffset.y)}
         onScroll={({ nativeEvent }) => controller.scroll(nativeEvent.contentOffset.y)}>
         {Array.from({ length: maximum + 1 }, (_, index) => <Pressable key={index} accessible={false} disabled={disabled}
