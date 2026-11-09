@@ -78,6 +78,8 @@ See [Background and Lock-Screen Notifications](docs/background-notifications.md)
 
 Open **Planificare**, next to Timer, and tap **Orar nou**. Name it “Studiu”, set the first action to “Lucru”, and tap its **Durată** value to open the wheels. Select 25 minutes and tap **Aplică durata**, then use **Adaugă etapă** for “Pauză” lasting 5 minutes. Move actions with the arrow buttons and tap **Salvează orarul**, then **Pornește**. Planning controls fade and shrink slightly while pressed.
 
+Scroll the **Planificare** page to move its controls, any active run and saved schedules together. Scroll back to the top for **Orar nou** and the date filters.
+
 **Aplică durata** changes only the action draft; **Salvează orarul** saves the whole schedule. Apply waits for scrolling to settle and rejects zero duration. **Renunță**, the close button, or Back returns to the editor without applying the temporary selection. The action list retains its position and returns focus to that action. Schedule/action names still use the text keyboard, and completion notices and **Oprește sunetul** remain available inside the duration panel.
 
 Before saving, open **Programare** and choose **Săptămânal** for one or more weekdays or **Dată fixă** for a single calendar date. Use **Manual** for a schedule you want to find in the full list. Tap **Aplică programarea** to apply the rule to the draft, then **Salvează orarul** to save it.
