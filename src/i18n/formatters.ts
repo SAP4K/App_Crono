@@ -8,6 +8,7 @@ import { getMessages } from './index.ts';
 const formatOptions = {
   date: { day: 'numeric', month: 'long', year: 'numeric' },
   time: { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' },
+  dayKey: { year: 'numeric', month: '2-digit', day: '2-digit' },
   weekdayShort: { weekday: 'short' },
   weekdayLong: { weekday: 'long' },
 } as const;
@@ -25,6 +26,12 @@ function dateFormatter(language: AppLanguage, kind: keyof typeof formatOptions, 
 }
 export const sessionDate = (timestamp: number, language: AppLanguage, timeZone?: string) => dateFormatter(language, 'date', timeZone).format(timestamp);
 export const sessionTime = (timestamp: number, language: AppLanguage, timeZone?: string) => dateFormatter(language, 'time', timeZone).format(timestamp);
+
+export function deadlineLabel(deadline: number, now: number, language: AppLanguage, timeZone?: string): string {
+  const day = dateFormatter(language, 'dayKey', timeZone);
+  const clock = sessionTime(deadline, language, timeZone);
+  return day.format(deadline) === day.format(now) ? clock : `${sessionDate(deadline, language, timeZone)} · ${clock}`;
+}
 
 export function planningDateLabel(date: string, language: AppLanguage): string {
   const timestamp = calendarDateTimestamp(date);

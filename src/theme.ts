@@ -1,3 +1,5 @@
+export const textSizes = { small: 12, caption: 13, body: 14, input: 16, heading: 24 } as const;
+
 export const lightPalette = {
   background: '#FFFFFF', surface: '#F8FAFC', ink: '#0F172A',
   muted: '#475569', subtle: '#64748B', border: '#CBD5E1',

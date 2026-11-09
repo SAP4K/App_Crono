@@ -1,4 +1,4 @@
-[Back to README](../README.md)
+[Back to README](../README.md) · [Backups →](backups.md)
 
 # Background and Lock-Screen Notifications
 
@@ -7,11 +7,11 @@ CRONO schedules local timer and schedule alerts with Android/iOS before their de
 ## Usage
 
 1. Install a rebuilt native app. Expo Go and the web preview cannot use CRONO's native notification resources.
-2. Open **Setări → Notificări de sistem** (Settings → System notifications). The saved choice defaults on, including legacy data. Phone permission is separate.
+2. Open **Setări → Notificări** (Settings → Notifications), then use **Notificări de sistem**. The saved choice defaults on, including legacy data. Phone permission is separate.
 3. Allow notifications from an accepted Start/Resume/Restart action, the enable switch or **Permite notificările**. Opening the app or Settings does not prompt automatically. Timing starts even if permission is unavailable.
 4. On Android 12+, check **Alarme și mementouri** (Alarms and reminders). Granting this special access permits more precise alarms; it does not remove every power-management restriction.
 5. Start the timer or a schedule and wait for notification preparation to finish before relying on a background alert.
-6. For a full minute, choose **Setări → Durata sunetului → 60 s**. A previously saved 5-, 15- or 30-second preference is preserved after upgrading. Check the Android extended-sound status; a rebuilt native app is required.
+6. For a full minute, choose **Setări → Sunete → Durata sunetului → 60 s**. A previously saved 5-, 15- or 30-second preference is preserved after upgrading. Check the Android extended-sound status; a rebuilt native app is required.
 
 The timer registers one completion. A schedule registers its remaining action boundaries, with one schedule-complete notification for the final action. Timer and planning run independently; one schedule can run at a time. Calendar weekday/date rules organize saved templates: **Pornește** still starts a sequence manually.
 
@@ -140,4 +140,4 @@ MIUI rejected the dedicated instrumentation test package with `INSTALL_FAILED_US
 
 - [README](../README.md) — setup, features and builds.
 - [Architecture](../.ai-factory/ARCHITECTURE.md) — state, timing and notification ownership.
-- [Project description](../.ai-factory/DESCRIPTION.md) — persistence and open follow-ups.
+- [Backups and import](backups.md) — portable saved data and live-clock preservation.

@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { readCompletionRequest, completionWins, playbackRemaining, completionFingerprint, completionPolicy } from '../src/core/completionAlerts.ts';
 import { initialData } from '../src/core/stopwatch.ts';
-import { configureTimer, startTimer, completeTimer, pauseTimer, resumeTimer, resetTimer } from '../src/core/timer.ts';
+import { configureTimer, extendTimer, startTimer, completeTimer, pauseTimer, resumeTimer, resetTimer } from '../src/core/timer.ts';
 import { startSchedule, reconcileSchedule, pauseSchedule, resumeSchedule } from '../src/core/planning.ts';
 
 const request = { owner: 'timer', kind: 'timer-complete', eventId: 'timer:run', runId: 'run', dueAt: 1000,
@@ -62,4 +62,16 @@ test('schedule policy retains one timeline through natural advance and completio
   assert.deepEqual(resumed.events, [{ eventId: 'planning:plan:0', dueAt: 4500 }, { eventId: 'planning:plan:1', dueAt: 6500 }]);
   data.planning = reconcileSchedule(data.planning, 6500).state;
   assert.deepEqual(completionPolicy(data, resumed).events, resumed.events);
+});
+
+
+test('native policy updates an extended timer deadline without replacing its run or Planning timeline', () => {
+  const data = initialData(); data.timer = startTimer(initialData().timer, 1000, 'extend');
+  data.planning.schedules = [{ id: 'p', name: 'Plan', steps: [{ id: 's', name: 'Work', durationMs: 10000 }] }];
+  data.planning = startSchedule(data.planning, 'p', 1000, 'planning');
+  const before = completionPolicy(data); data.timer = extendTimer(data.timer, 2000);
+  const after = completionPolicy(data, before);
+  assert.equal(after.timerRunId, before.timerRunId);
+  assert.deepEqual(after.events.filter((event) => event.eventId.startsWith('planning:')), before.events.filter((event) => event.eventId.startsWith('planning:')));
+  assert.equal(after.events.find((event) => event.eventId === 'timer:extend')!.dueAt, 361000);
 });

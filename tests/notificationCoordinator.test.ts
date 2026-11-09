@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
 import { initialData, restoreData } from '../src/core/stopwatch.ts';
 import { LANGUAGES } from '../src/core/language.ts';
-import { configureTimer, startTimer, pauseTimer, resumeTimer, resetTimer, completeTimer } from '../src/core/timer.ts';
+import { configureTimer, extendTimer, startTimer, pauseTimer, resumeTimer, resetTimer, completeTimer } from '../src/core/timer.ts';
 import { startSchedule, reconcileSchedule } from '../src/core/planning.ts';
 import { NOTIFICATION_PREFIX, notificationData } from '../src/core/notifications.ts';
 import { createNotificationCoordinator } from '../src/hooks/notificationCoordinator.ts';
@@ -517,4 +517,22 @@ test('late registration for a replaced run cannot remove its replacement request
   assert.deepEqual([...f.pending.keys()], [replacement.identifier]);
   assert.equal(JSON.stringify(f.data), expected, 'A stale native result cannot alter the replacement timer');
   assert.equal(controller.getState().status, 'ready'); assert.deepEqual(f.warnings, []);
+});
+
+
+test('a late old-deadline registration is replaced by the extended deadline without permission prompts', async () => {
+  const { f, native, controller } = fixture();
+  const original = native.schedule; let release!: () => void, enter!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  const entered = new Promise<void>((resolve) => { enter = resolve; });
+  let calls = 0, prompts = 0;
+  native.requestPermission = async () => { prompts++; return f.capability; };
+  native.schedule = async (...args) => { if (++calls === 1) { enter(); await gate; } return original(...args); };
+  const work = controller.reconcile(); await entered;
+  f.data = { ...f.data, timer: extendTimer(f.data.timer, f.now) }; void controller.reconcile();
+  release(); await work;
+  assert.equal(f.pending.size, 1); assert.equal(prompts, 0);
+  assert.equal(f.scheduled.at(-1)!.descriptor.event.dueAt, 71000);
+  assert.ok(f.cancelled.includes(f.scheduled[0].identifier));
+  assert.ok(f.pending.has(f.scheduled.at(-1)!.identifier));
 });

@@ -41,7 +41,11 @@ src/
 │   ├── SystemNotificationNotice.tsx # Independent native failure/retry feedback
 │   ├── LapList.tsx           # Lap rows and statistics
 │   ├── Sheet.tsx             # Modal and confirmation primitives
-│   ├── SettingsSheet.tsx     # User preferences
+│   ├── ActiveActivities.tsx  # Other-tab Timer/Planning controls and local display
+│   ├── ScheduleCard.tsx      # Primary Start and secondary action disclosure
+│   ├── ScheduleRepeatPanel.tsx # Explicit flat repeated-sequence draft preview
+│   ├── BackupSettings.tsx    # File transfer review and optional preferences
+│   ├── SettingsSheet.tsx     # Grouped user preferences
 │   └── Icon.tsx              # Shared SVG icons
 ├── context/
 │   ├── CronoContext.tsx      # Shared state, global runners/audio, mobile feedback
@@ -49,6 +53,10 @@ src/
 ├── hooks/
 │   ├── useStopwatch.ts       # Hydration outcome, accepted updates, ordered storage
 │   ├── useI18n.ts            # Saved language projection and shared-state setter
+│   ├── backupTransfer.ts / useBackupTransfer.ts # Fenced file operations and accepted imports
+│   ├── backupFiles.ts / .web.ts # Native system picker/share and browser upload/download
+│   ├── useForegroundNow.ts   # Presentation ticks only while active
+│   ├── sheetIsolation.ts / .web.ts # Native Modal / reference-counted web isolation
 │   ├── durationWheel.ts      # Injected bounded settling/generation controller
 │   ├── useDurationWheel.ts   # Committed props, alignment and lifecycle cleanup
 │   ├── timerCompletion.ts    # Framework-free injected completion coordinator
@@ -90,6 +98,8 @@ src/
 │   ├── timer.ts              # Pure countdown model and validation
 │   ├── durationPicker.ts     # Numeric parts, bounds, conversion and nearest index
 │   ├── planning.ts           # Schedule CRUD, snapshots, cumulative transitions
+│   ├── planningTools.ts      # Templates, duplicate IDs and flat bounded repetitions
+│   ├── backup.ts             # Strict portable records and atomic additive merge
 │   ├── planningCalendar.ts   # Civil dates and recurring or one-time rules
 │   ├── language.ts           # Supported IDs/autonyms/locales and default
 │   ├── notifications.ts     # Bounded future events and owned payload validation
@@ -132,7 +142,7 @@ modules/crono-completion-alerts/ # Atomic delivery ledger, alarm, bounded player
 | `src/app/` | Compose UI, use context actions, call pure core helpers, and define Expo Router navigation |
 | `src/components/` | Render UI using props, theme, pure core helpers, and shared context when needed |
 | `src/context/` | Compose persistence, global timing runners, shared audio, one OS notification owner, notices, mobile feedback, and a derived theme provider |
-| `src/hooks/` | Manage state, lifecycle, persistence, timing coordinators, playback arbitration, serialized OS scheduling, and platform audio/notification adapters |
+| `src/hooks/` | Manage state, lifecycle, persistence, timing coordinators, playback arbitration, serialized OS scheduling, file transfer lifecycle, and platform file/audio/notification adapters |
 | `src/i18n/` | Framework-free catalogs and Intl presentation helpers; may import pure core types/formatting, never owns state/storage |
 | `src/core/` | Use JavaScript/TypeScript primitives and other pure core functions |
 | `src/audio/` | Map pure sound IDs to static bundled assets; consumed by platform transports |
@@ -144,6 +154,12 @@ modules/crono-completion-alerts/ # Atomic delivery ledger, alarm, bounded player
 - Keep dependencies directed toward shared lower-level functionality. Core modules do not import translation/presentation, hooks, context, components, or routes.
 - Keep reusable modules outside `src/app/`; components and hooks do not import screen implementations.
 - Use the existing relative import style. Additional abstraction layers should solve a concrete problem before being introduced.
+
+## Portable Data Transfers
+
+`BackupSettings` uses `useBackupTransfer` / the injected `backupTransfer` owner for one file operation at a time. Platform adapters own picker/share/download resources. Native file modules load on demand, so a missing module in an older binary reports an unavailable operation without being required during startup.
+
+`core/backup.ts` projects saved records and preferences only, validates its independent portable envelope strictly, and merges fresh-ID copies additively. The transfer owner generates IDs outside the pure core and confirms through the existing functional `update` against the latest loaded state. Current stopwatch/timer/run references stay owned by the existing store and coordinators. File selection, preview, cancellation and display ticks do not write data. Accepted updates and durable storage writes remain distinct; existing storage failure feedback is retained.
 
 ## Data Flow and Communication
 

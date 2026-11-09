@@ -1,24 +1,38 @@
 import { useI18n } from '../hooks/useI18n';
-import { PropsWithChildren } from 'react';
+import { PropsWithChildren, useCallback, useEffect, useRef } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { buttonPressedStyle, fonts as f, Palette } from '../theme';
+import { buttonPressedStyle, fonts as f, textSizes, Palette } from '../theme';
 import { useThemeStyles } from '../context/ThemeContext';
 import { Icon } from './Icon';
+import { isolateSheetBackground } from '../hooks/sheetIsolation';
 import { TimingNotices } from './TimingNotices';
 
-export function Sheet({ visible, title, onClose, children, scrollable = true }: PropsWithChildren<{
-  visible: boolean; title: string; onClose: () => void; scrollable?: boolean;
+export function Sheet({ visible, title, onClose, onBack, children, scrollable = true }: PropsWithChildren<{
+  visible: boolean; title: string; onClose: () => void; onBack?: () => void; scrollable?: boolean;
 }>) {
   const { messages: m } = useI18n();
   const styles = useThemeStyles(createStyles);
   const insets = useSafeAreaInsets();
-  return <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
-    <KeyboardAvoidingView style={styles.overlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+  const isolation = useRef<(() => void) | null>(null);
+  const releaseIsolation = useCallback(() => {
+    isolation.current?.(); isolation.current = null;
+  }, []);
+  useEffect(() => {
+    if (visible && isolation.current === null) isolation.current = isolateSheetBackground();
+    else if (!visible && Platform.OS !== 'web') releaseIsolation();
+  }, [visible, releaseIsolation]);
+  useEffect(() => () => releaseIsolation(), [releaseIsolation]);
+  return <Modal visible={visible} transparent animationType="fade" accessibilityLabel={title} onDismiss={() => { if (!visible) releaseIsolation(); }} onRequestClose={onBack ?? onClose} statusBarTranslucent>
+    <KeyboardAvoidingView aria-hidden={!visible} pointerEvents={visible ? 'auto' : 'none'} style={styles.overlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityRole="button" accessibilityLabel={m.closeWindow} />
-      <View style={[styles.sheet, !scrollable && styles.tallSheet, { paddingBottom: Math.max(insets.bottom, 20) }]} role="dialog" aria-modal accessibilityLabel={title} accessibilityViewIsModal onAccessibilityEscape={onClose}>
+      <View testID="sheet-surface" style={[styles.sheet, !scrollable && styles.tallSheet, { paddingBottom: Math.max(insets.bottom, 20) }]}
+        role={Platform.OS === 'web' ? undefined : 'dialog'} accessibilityLabel={Platform.OS === 'web' ? undefined : title}
+        accessibilityViewIsModal onAccessibilityEscape={onBack ?? onClose}>
         <View style={styles.handle} />
         <View style={styles.heading}>
+          {onBack && <Pressable onPress={onBack} accessibilityLabel={m.back} accessibilityRole="button"
+            style={({ pressed }) => [styles.close, pressed && { opacity: 0.5 }]}><Icon name="arrow" size={20} /></Pressable>}
           <Text accessibilityRole="header" style={styles.title}>{title}</Text>
           <Pressable onPress={onClose} accessibilityLabel={m.close} accessibilityRole="button" style={({ pressed }) => [styles.close, pressed && { opacity: 0.5 }]}><Icon name="close" size={20} /></Pressable>
         </View>
@@ -48,8 +62,8 @@ const createStyles = (c: Palette) => StyleSheet.create({
   staticContent: { flex: 1, minHeight: 0 },
   handle: { alignSelf: 'center', width: 34, height: 4, backgroundColor: c.handle, borderRadius: 3, marginTop: 11, marginBottom: 10 },
   heading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 26, paddingBottom: 10, gap: 10 },
-  title: { fontFamily: f.bold, fontSize: 23, color: c.ink, flex: 1, letterSpacing: -0.7 },
-  close: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: c.iconSurface, borderRadius: 22 },
+  title: { fontFamily: f.bold, fontSize: textSizes.heading, color: c.ink, flex: 1, flexShrink: 1, minWidth: 0, letterSpacing: -0.7 },
+  close: { width: 44, height: 44, flexShrink: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: c.iconSurface, borderRadius: 22 },
   content: { paddingHorizontal: 26, paddingBottom: 6 },
   description: { fontFamily: f.regular, color: c.muted, fontSize: 14, lineHeight: 23, marginBottom: 25 },
   confirm: { backgroundColor: c.dangerSoft, alignItems: 'center', justifyContent: 'center', padding: 18, borderRadius: 16 },

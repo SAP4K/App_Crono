@@ -1,15 +1,16 @@
 import { useI18n } from '../hooks/useI18n';
-import { useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useCrono } from '../context/CronoContext';
 import { useTheme, useThemeStyles } from '../context/ThemeContext';
 import { durationMilliseconds, durationParts } from '../core/durationPicker';
 import type { DurationParts } from '../core/durationPicker';
+import { MAX_TIMER_MS, TIMER_EXTENSION_MS } from '../core/timer';
 import { DurationPicker } from '../components/DurationPicker';
 import { TimerFace } from '../components/TimerFace';
 import { ConfirmSheet } from '../components/Sheet';
 import { Icon } from '../components/Icon';
-import { fonts as f, Palette } from '../theme';
+import { textSizes, fonts as f, Palette } from '../theme';
 
 export default function TimerScreen() {
   const { messages: m } = useI18n();
@@ -21,6 +22,12 @@ export default function TimerScreen() {
   const selected = useRef(parts); const moving = useRef(false);
   const [wheelBusy, setWheelBusy] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+  useLayoutEffect(() => {
+    // Editing owns its draft, including a transient zero and rapid key choices.
+    // Only active-run changes (+1 minute) need to synchronize this hidden editor.
+    if (timer.status === 'idle' || timer.status === 'completed' || durationMilliseconds(selected.current) === timer.durationMs) return;
+    const next = durationParts(timer.durationMs); selected.current = next; setParts(next);
+  }, [timer.durationMs, timer.status]);
   const editable = timer.status === 'idle' || timer.status === 'completed';
   const duration = durationMilliseconds(parts);
   const running = timer.status === 'running';
@@ -41,11 +48,27 @@ export default function TimerScreen() {
   return <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
     <Text accessibilityRole="header" style={styles.title}>{m.timerTitle}</Text>
     <Text style={styles.subtitle}>{m.timerSubtitle}</Text>
-    <TimerFace timer={timer} />
-    <DurationPicker value={parts} onChange={changeDuration} disabled={!editable} onInteractionChange={(busy) => {
+    <TimerFace timer={timer} compact={editable} />
+    {editable && <>
+    <Text style={styles.presetTitle}>{m.timerPresets}</Text>
+    <View style={styles.presets}>{[1, 5, 10, 25].map((minutes) => <Pressable key={minutes} accessibilityRole="button"
+      accessibilityLabel={m.presetMinutes(minutes)} disabled={wheelBusy} onPress={() => {
+        if (moving.current) return;
+        feedback(); changeDuration(durationParts(minutes * 60000));
+      }} style={({ pressed }) => [styles.preset, timer.durationMs === minutes * 60000 && styles.selectedPreset,
+        wheelBusy && styles.disabled, pressed && styles.pressed]}>
+      <Text style={styles.resetText}>{minutes} {m.minutesShort}</Text>
+    </Pressable>)}</View>
+    <DurationPicker value={parts} onChange={changeDuration} onInteractionChange={(busy) => {
       moving.current = busy; setWheelBusy(busy);
     }} />
+    </>}
     <Text style={styles.help}>{duration === null ? m.durationInvalid : m.timerSoundHelp}</Text>
+    {!editable && <Pressable accessibilityRole="button" accessibilityLabel={m.addMinute}
+      disabled={timer.durationMs > MAX_TIMER_MS - TIMER_EXTENSION_MS} onPress={() => { feedback(); timerControls.extend(); }}
+      style={({ pressed }) => [styles.addMinute, timer.durationMs > MAX_TIMER_MS - TIMER_EXTENSION_MS && styles.disabled, pressed && styles.pressed]}>
+      <Text style={styles.resetText}>+1 {m.minutesShort}</Text>
+    </Pressable>}
     <View style={styles.actions}>
       <Pressable accessibilityRole="button" accessibilityLabel={m.resetTimer} disabled={timer.status === 'idle'} onPress={() => { if (running || paused) { feedback(); setConfirmReset(true); } else reset(); }} style={({ pressed }) => [styles.reset, timer.status === 'idle' && styles.disabled, pressed && styles.pressed]}><Icon name="reset" size={20} /><Text style={styles.resetText}>{m.reset}</Text></Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel={actionLabel} disabled={editable && (duration === null || wheelBusy)} onPress={() => {
@@ -69,15 +92,20 @@ export default function TimerScreen() {
 
 const createStyles = (c: Palette) => StyleSheet.create({
   content: { paddingHorizontal: 26, paddingTop: 8, paddingBottom: 24, flexGrow: 1 },
-  title: { fontFamily: f.bold, color: c.ink, fontSize: 23, letterSpacing: -0.7 },
-  subtitle: { fontFamily: f.regular, color: c.muted, fontSize: 12, lineHeight: 19, marginTop: 9 },
-  help: { fontFamily: f.regular, color: c.muted, fontSize: 11, lineHeight: 18, textAlign: 'center', marginVertical: 18 },
+  title: { fontFamily: f.bold, color: c.ink, fontSize: textSizes.heading, letterSpacing: -0.7 },
+  subtitle: { fontFamily: f.regular, color: c.muted, fontSize: textSizes.caption, lineHeight: 21, marginTop: 9 },
+  help: { fontFamily: f.regular, color: c.muted, fontSize: textSizes.small, lineHeight: 21, textAlign: 'center', marginVertical: 18 },
+  presetTitle: { fontFamily: f.semibold, color: c.muted, fontSize: textSizes.caption, marginBottom: 8 },
+  presets: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
+  preset: { flex: 1, minWidth: 55, minHeight: 44, paddingHorizontal: 6, paddingVertical: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.border, borderRadius: 12, backgroundColor: c.surface },
+  selectedPreset: { backgroundColor: c.selected, borderColor: c.green },
+  addMinute: { minHeight: 44, padding: 10, marginBottom: 12, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: c.secondary },
   actions: { flexDirection: 'row', gap: 12 },
   primary: { flex: 1, minHeight: 56, borderRadius: 17, backgroundColor: c.action, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  primaryText: { fontFamily: f.semibold, color: c.actionText, fontSize: 13 },
+  primaryText: { fontFamily: f.semibold, color: c.actionText, fontSize: textSizes.body },
   reset: { flex: 1, minHeight: 56, borderRadius: 17, backgroundColor: c.secondary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  resetText: { fontFamily: f.semibold, color: c.ink, fontSize: 13 },
+  resetText: { fontFamily: f.semibold, color: c.ink, fontSize: textSizes.body },
   disabled: { opacity: 0.5 },
   pressed: { opacity: 0.65 },
-  note: { fontFamily: f.regular, color: c.muted, fontSize: 10, lineHeight: 17, textAlign: 'center', marginTop: 22 },
+  note: { fontFamily: f.regular, color: c.muted, fontSize: textSizes.small, lineHeight: 21, textAlign: 'center', marginTop: 22 },
 });

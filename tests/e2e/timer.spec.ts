@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { initialData } from '../../src/core/stopwatch';
 import { initialTimer, startTimer } from '../../src/core/timer';
-import { audioSpy, duration, expectNoPageErrors, observePageErrors, playCount, seed, selectWheel, settings, stored } from './helpers';
+import { settingsGroup, audioSpy, duration, expectNoPageErrors, observePageErrors, playCount, seed, selectWheel, settings, stored } from './helpers';
 
 test.beforeEach(async ({ page }) => {
   observePageErrors(page);
@@ -29,9 +29,8 @@ test('bounds duration wheels and preserves fractional remaining time across paus
   await page.clock.runFor(1001);
   await page.getByRole('button', { name: 'Pauză temporizator', exact: true }).click();
   await expect(page.getByLabel('Timp rămas 00:00:02')).toBeVisible();
-  await expect(seconds).toHaveAttribute('aria-disabled', 'true');
-  await seconds.press('ArrowUp');
-  await expect(seconds).toHaveAttribute('aria-valuenow', '3');
+  await expect(page.getByRole('spinbutton')).toHaveCount(0);
+  expect((await stored(page)).timer.durationMs).toBe(3000);
   const paused = (await stored(page)).timer;
   expect(paused.remainingMs).toBeGreaterThan(0); expect(paused.remainingMs).toBeLessThan(2000);
   await page.clock.runFor(10000); await page.reload();
@@ -62,11 +61,12 @@ test('running timer persists and completes once in settings while stopwatch rema
   await page.reload(); await expect(page.getByText('Numărătoare inversă', { exact: true })).toBeVisible();
   expect((await stored(page)).timer).toEqual(running);
   await page.getByRole('tab', { name: 'Istoric', exact: true }).click();
-  const dialog = await settings(page);
+  const dialog = await settings(page, 'appearance');
   await dialog.getByRole('switch', { name: 'Mod întunecat', exact: true }).click();
   await page.clock.runFor(10000);
   await expect(dialog.getByLabel('Temporizator finalizat', { exact: true })).toBeVisible();
   await expect.poll(() => playCount(page)).toBe(1);
+  await settingsGroup(page, 'sounds');
   await dialog.getByRole('switch', { name: 'Alerte sonore', exact: true }).click();
   await dialog.getByRole('switch', { name: 'Alerte sonore', exact: true }).click();
   expect(await playCount(page)).toBe(1);
@@ -114,9 +114,9 @@ for (const target of ['details', 'delete', 'reset'] as const) {
 test('muted preference persists; blocked playback falls back without an unhandled rejection', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', (error) => errors.push(error.message));
   await audioSpy(page, true); await page.goto('/timer');
-  await settings(page); await page.getByRole('switch', { name: 'Alerte sonore', exact: true }).click();
+  await settings(page, 'sounds'); await page.getByRole('switch', { name: 'Alerte sonore', exact: true }).click();
   await expect.poll(async () => (await stored(page)).preferences.timerSound).toBe(false);
-  await page.reload(); const dialog = await settings(page);
+  await page.reload(); const dialog = await settings(page, 'sounds');
   await expect(dialog.getByRole('switch', { name: 'Alerte sonore', exact: true })).not.toBeChecked();
   await dialog.getByRole('button', { name: 'Închide', exact: true }).click();
   await page.clock.runFor(300);
@@ -124,7 +124,7 @@ test('muted preference persists; blocked playback falls back without an unhandle
   await duration(page, '01'); await page.getByRole('button', { name: 'Pornește temporizatorul', exact: true }).click();
   await page.clock.runFor(1000); await expect(page.getByLabel('Temporizator finalizat', { exact: true })).toBeVisible();
   expect(await playCount(page)).toBe(0);
-  await settings(page); await page.getByRole('switch', { name: 'Alerte sonore', exact: true }).click();
+  await settings(page, 'sounds'); await page.getByRole('switch', { name: 'Alerte sonore', exact: true }).click();
   expect(await playCount(page)).toBe(0);
   await page.getByRole('button', { name: 'Închide', exact: true }).click();
   await page.clock.runFor(300);
@@ -184,7 +184,7 @@ test('completed timer survives focusing duration wheels without edits', async ({
   expect(completed.status).toBe('completed');
 
   await page.getByLabel('Secunde', { exact: true }).focus();
-  const dialog = await settings(page);
+  const dialog = await settings(page, 'sounds');
   await page.clock.runFor(300);
   await expect(dialog.getByLabel('Temporizator finalizat', { exact: true })).toBeVisible();
   expect((await stored(page)).timer).toEqual(completed);

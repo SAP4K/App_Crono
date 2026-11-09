@@ -69,6 +69,9 @@ tests/
   theme.test.ts         Palette contrast checks
   sounds.test.ts        Sound preferences and real PCM asset validation
   planning.test.ts      Schedule CRUD, restoration, and execution transitions
+  planningTools.test.ts Template, duplicate and bounded repeated-sequence operations
+  backup.test.ts        Strict portable records, limits and additive imports
+  backupTransfer.test.ts Transfer cancellation, hydration and latest-state confirmation
   alertPlayback.test.ts Duration, priority, cancellation, and stale callback tests
   completionAlerts.test.ts Shared request/policy, priority and minute boundaries
   nativeAlertPlayback.test.ts Native facade, detached lifecycle and bridge races
@@ -97,7 +100,7 @@ scripts/                Reproducible notification sound generator
 |---|---|
 | `src/app/_layout.tsx` | Fonts, providers, navigation shell, settings, and notices |
 | `src/app/index.tsx` | Stopwatch route and user actions |
-| `src/app/timer.tsx` | Countdown editor and controls |
+| `src/app/timer.tsx` | Compact setup, presets and active countdown controls |
 | `src/app/planning.tsx` | Saved schedules, date filter, editor, and confirmed run replacement |
 | `src/app/history.tsx` | History, details, sharing, and deletion |
 | `src/core/stopwatch.ts` | Types, transitions, limits, validation, and formatting |
@@ -106,6 +109,8 @@ scripts/                Reproducible notification sound generator
 | `src/components/DurationPicker.tsx`, `DurationWheel.tsx`, `.web.tsx` | Shared themed picker, native adjustable columns and web spinbuttons |
 | `src/hooks/durationWheel.ts`, `useDurationWheel.ts` | Injected settling/cancellation controller and committed-prop lifecycle bridge |
 | `src/core/planning.ts` | Schedule bounds, CRUD, snapshot restoration, and cumulative deadlines |
+| `src/core/planningTools.ts` | Pure templates, independent copies and bounded repeated steps |
+| `src/core/backup.ts` | Strict portable projection/parser and additive fresh-ID merge |
 | `src/core/planningCalendar.ts` | Civil date validation, weekday normalization, and matching saved rules |
 | `src/core/sounds.ts`, `src/audio/sources.ts` | Pure sound preferences and separate asset map |
 | `src/hooks/useStopwatch.ts` | Hydration outcome, accepted-update subscriptions, functional updates, ordered writes |
@@ -133,6 +138,12 @@ scripts/                Reproducible notification sound generator
 | `src/components/ScheduleCalendarPanel.tsx`, `CalendarDateFields.tsx` | Weekly and fixed-date editing with shared numeric date fields |
 | `src/components/EditorBody.tsx`, `.web.tsx` | Preserve covered editor layout while hiding interaction/accessibility |
 | `src/components/PlanningRunCard.tsx`, `TimingNotices.tsx` | Run controls and shared feedback/Stop in shell and sheets |
+| `src/components/ActiveActivities.tsx`, `src/hooks/useForegroundNow.ts` | Cross-tab owner controls with local foreground display ticks |
+| `src/components/ScheduleCard.tsx`, `ScheduleRepeatPanel.tsx` | Card disclosure and explicit repeated-sequence preview |
+| `src/components/SettingsSheet.tsx`, `BackupSettings.tsx` | Grouped preferences and reviewed file transfers |
+| `src/hooks/backupTransfer.ts`, `useBackupTransfer.ts` | Transfer lifecycle, stale-operation guards and one import update |
+| `src/hooks/backupFiles.ts`, `.web.ts` | Optional native file modules and browser download/upload |
+| `src/hooks/sheetIsolation.ts`, `.web.ts` | Modal background interaction/accessibility isolation |
 | `src/core/language.ts`, `src/i18n/`, `src/hooks/useI18n.ts` | Saved language, catalogs, formatting, and shared-state selection |
 | `src/core/notices.ts` | Semantic transient toast/completion/audio codes |
 | `app.json` | Expo app identity, plugins, and native configuration |
@@ -145,6 +156,7 @@ scripts/                Reproducible notification sound generator
 |---|---|
 | `README.md` | Setup, inertial wheels, languages, themes, schedules, notifications, checks, builds |
 | `docs/background-notifications.md` | Android minute playback, setup, limits and verification |
+| `docs/backups.md` | Portable export/import, review, limits and recovery |
 | `AGENTS.md` | Repository map and authoritative Expo workflow requirements |
 | `.ai-factory/DESCRIPTION.md` | Project purpose, stack, data model, and known follow-ups |
 | `.ai-factory/ARCHITECTURE.md` | Layered architecture, dependencies, and data flow |

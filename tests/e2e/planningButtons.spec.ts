@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { initialData } from '../../src/core/stopwatch';
 import { MAX_SCHEDULES, MAX_STEPS, reconcileSchedule, startSchedule } from '../../src/core/planning';
-import { audioEvents, audioSpy, expectNoPageErrors, observePageErrors, playCount, seed, settings, stored } from './helpers';
+import { scheduleOptions, audioEvents, audioSpy, expectNoPageErrors, observePageErrors, playCount, seed, settings, stored } from './helpers';
 
 test.beforeEach(({ page }) => observePageErrors(page));
 test.afterEach(({ page }) => expectNoPageErrors(page));
@@ -52,6 +52,7 @@ for (const dark of [false, true]) {
     data.planning.schedules = [schedule('Studiu'), schedule('Relaxare')];
     await seed(page, data); await page.goto('/planning');
     for (const name of ['Orar nou', 'Editează orarul Studiu', 'Șterge orarul Studiu']) {
+      if (name !== 'Orar nou') await scheduleOptions(page, 'Studiu');
       await cancelPress(page, page.getByRole('button', { name, exact: true }));
       await expect(page.getByRole('dialog')).toHaveCount(0);
     }
@@ -63,7 +64,8 @@ for (const dark of [false, true]) {
     await expect(pause).toBeVisible();
     const running = (await stored(page)).planning.run!;
     for (const name of ['Pornește orarul Studiu', 'Editează orarul Studiu', 'Șterge orarul Studiu']) {
-      await disabledPress(page, page.getByRole('button', { name, exact: true }));
+      await scheduleOptions(page, 'Studiu');
+      await disabledPress(page, page.getByRole('button', { name, exact: true }), '0.45');
     }
     await hold(page, pause); await pressed(pause);
     expect((await stored(page)).planning.run).toEqual(running);
@@ -91,7 +93,7 @@ for (const dark of [false, true]) {
     const legacy = JSON.parse(readFileSync(new URL('../fixtures/app-v1-before-planning.json', import.meta.url), 'utf8'));
     await seed(page, legacy); await page.goto('/planning');
     if (!dark) {
-      const preferences = await settings(page);
+      const preferences = await settings(page, 'appearance');
       await preferences.getByRole('switch', { name: 'Mod întunecat', exact: true }).click();
       await preferences.getByRole('button', { name: 'Închide', exact: true }).click();
       await expect(preferences).not.toBeVisible();
@@ -155,6 +157,7 @@ test('template and action limits keep disabled buttons inert while pressed', asy
   await seed(page, data); await page.goto('/planning');
   await disabledPress(page, page.getByRole('button', { name: 'Orar nou', exact: true }));
   await expect(page.getByRole('dialog')).toHaveCount(0);
+  await scheduleOptions(page, 'Orar 1');
   await page.getByRole('button', { name: 'Editează orarul Orar 1', exact: true }).click();
   const editor = page.getByRole('dialog', { name: 'Editează orarul', exact: true });
   await disabledPress(page, editor.getByRole('button', { name: 'Adaugă etapă', exact: true }));
@@ -185,7 +188,7 @@ test('shared Cancel and audio Stop retain their actions outside Planning', async
   await cancelPress(page, cancel); await expect(confirm).toBeVisible();
   await hold(page, cancel); await pressed(cancel); await page.mouse.up();
   await expect(confirm).not.toBeVisible();
-  const preferences = await settings(page);
+  const preferences = await settings(page, 'sounds');
   await preferences.getByRole('button', { name: 'Ascultă sunetul', exact: true }).click();
   const stop = preferences.getByRole('button', { name: 'Oprește sunetul', exact: true });
   await cancelPress(page, stop); expect(await playCount(page)).toBe(1);

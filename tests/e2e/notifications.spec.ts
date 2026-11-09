@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 import { initialData } from '../../src/core/stopwatch';
 import { LANGUAGES } from '../../src/core/language';
 import { getMessages } from '../../src/i18n';
-import { expectNoPageErrors, observePageErrors, seed, settings, stored } from './helpers';
+import { settingsGroup, expectNoPageErrors, observePageErrors, seed, settings, stored } from './helpers';
 
 test.beforeEach(async ({ page }) => {
   observePageErrors(page);
@@ -29,7 +29,8 @@ for (const { id: language } of LANGUAGES) for (const theme of ['light', 'dark'] 
     const m = getMessages(language);
     await seed(page, data); await page.goto('/');
     await page.getByRole('button', { name: m.settings, exact: true }).click();
-    const dialog = page.getByRole('dialog', { name: m.settingsTitle, exact: true });
+    await page.getByRole('button', { name: m.settingsGroups.notifications, exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: m.settingsGroups.notifications, exact: true });
     const toggle = dialog.getByRole('switch', { name: m.systemNotifications, exact: true });
     await toggle.scrollIntoViewIfNeeded();
     await expect(toggle).toBeDisabled(); await expect(toggle).toBeChecked();
@@ -50,17 +51,18 @@ for (const choice of ['missing', 'false'] as const) {
   test(`legacy notifications ${choice} preference survives an unrelated save and reload`, async ({ page }) => {
     const legacy = JSON.parse(readFileSync(new URL('../fixtures/app-v1-before-planning.json', import.meta.url), 'utf8'));
     if (choice === 'false') legacy.preferences.systemNotifications = false;
-    await seed(page, legacy); await page.goto('/'); const dialog = await settings(page);
+    await seed(page, legacy); await page.goto('/'); const dialog = await settings(page, 'notifications');
     const toggle = dialog.getByRole('switch', { name: 'Notificări de sistem', exact: true });
     await expect(toggle).toBeDisabled();
     if (choice === 'false') await expect(toggle).not.toBeChecked(); else await expect(toggle).toBeChecked();
+    await settingsGroup(page, 'appearance');
     await dialog.getByRole('switch', { name: 'Mod întunecat', exact: true }).click();
     await expect.poll(async () => (await stored(page)).preferences.theme).toBe('light');
     await page.reload(); const restored = await stored(page);
     expect(restored.preferences.systemNotifications).toBe(choice === 'missing');
     expect(restored.stopwatch).toEqual(legacy.stopwatch); expect(restored.timer).toEqual(legacy.timer);
     expect(restored.sessions).toEqual(legacy.sessions); expect(restored.preferences.timerSound).toBe(false);
-    const reloaded = await settings(page);
+    const reloaded = await settings(page, 'notifications');
     await expect(reloaded.getByRole('switch', { name: 'Notificări de sistem', exact: true })).toBeDisabled();
   });
 }
@@ -79,7 +81,7 @@ test('a failed initial read keeps notification management disabled after dismiss
   await page.goto('/');
   const m = getMessages('ro'); await expect(page.getByText(m.storageWarning, { exact: true })).toBeVisible();
   await page.getByRole('button', { name: m.dismissStorage, exact: true }).click();
-  const dialog = await settings(page);
+  const dialog = await settings(page, 'notifications');
   await expect(dialog.getByText(m.notificationStorageUnavailable, { exact: true })).toBeVisible();
   await expect(dialog.getByRole('switch', { name: m.systemNotifications, exact: true })).toBeDisabled();
   await page.evaluate(() => (window as unknown as { restoreStorageRead: () => void }).restoreStorageRead());

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { initialData } from '../../src/core/stopwatch';
-import { audioEvents, audioSpy, duration, expectNoPageErrors, expectTheme, observePageErrors, playCount, seed, settings, stored } from './helpers';
+import { settingsGroup, scheduleOptions, audioEvents, audioSpy, duration, expectNoPageErrors, expectTheme, observePageErrors, playCount, seed, settings, stored } from './helpers';
 
 test.beforeEach(({ page }) => observePageErrors(page));
 test.afterEach(({ page }) => expectNoPageErrors(page));
@@ -11,21 +11,21 @@ test('manual theme defaults light, survives rapid toggles and ignores OS appeara
   await page.goto('/');
   await expectTheme(page, false);
   await expect(page.getByRole('button', { name: 'Pornește', exact: true })).toHaveCSS('background-color', 'rgb(37, 99, 235)');
-  const dialog = await settings(page);
-  await expect(dialog).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+  const dialog = await settings(page, 'appearance');
+  await expect(dialog.getByTestId('sheet-surface')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
   const toggle = dialog.getByRole('switch', { name: 'Mod întunecat', exact: true });
   await expect(toggle).not.toBeChecked();
   for (let index = 0; index < 5; index++) await toggle.click();
   await expect(toggle).toBeChecked();
   await expectTheme(page, true);
-  await expect(dialog).toHaveCSS('background-color', 'rgb(15, 23, 42)');
+  await expect(dialog.getByTestId('sheet-surface')).toHaveCSS('background-color', 'rgb(15, 23, 42)');
   await expect.poll(async () => (await stored(page)).preferences.theme).toBe('dark');
   await page.reload();
   await expectTheme(page, true);
   await expect(page.getByRole('button', { name: 'Pornește', exact: true })).toHaveCSS('background-color', 'rgb(96, 165, 250)');
   await page.emulateMedia({ colorScheme: 'light' });
   await expectTheme(page, true);
-  await settings(page);
+  await settings(page, 'appearance');
   await page.getByRole('switch', { name: 'Mod întunecat', exact: true }).click();
   await expect.poll(async () => (await stored(page)).preferences.theme).toBe('light');
   await page.reload();
@@ -43,7 +43,7 @@ test('legacy running stopwatch, laps and history survive theme changes and reloa
   await page.clock.setFixedTime(now + 1234);
   await page.getByRole('button', { name: 'Înregistrează o tură' }).click();
   const before = (await stored(page)).stopwatch;
-  await settings(page);
+  await settings(page, 'appearance');
   await page.getByRole('switch', { name: 'Mod întunecat', exact: true }).click();
   await page.clock.setFixedTime(now + 4000);
   await page.getByRole('button', { name: 'Închide', exact: true }).click();
@@ -54,7 +54,7 @@ test('legacy running stopwatch, laps and history survive theme changes and reloa
   expect((await stored(page)).stopwatch).toEqual(before);
   expect((await stored(page)).sessions).toEqual(data.sessions);
   await page.getByRole('button', { name: 'Pauză', exact: true }).click();
-  await settings(page);
+  await settings(page, 'appearance');
   await page.getByRole('switch', { name: 'Mod întunecat', exact: true }).click();
   await page.getByRole('button', { name: 'Închide', exact: true }).click();
   await expect(page.getByLabel('Timp total 00:04.00')).toBeVisible();
@@ -65,13 +65,14 @@ test('legacy running stopwatch, laps and history survive theme changes and reloa
 test('literal legacy-v1 clocks, history and false preferences survive the blue theme refresh', async ({ page }) => {
   const legacy = JSON.parse(readFileSync(new URL('../fixtures/app-v1-before-planning.json', import.meta.url), 'utf8'));
   await seed(page, legacy); await page.goto('/'); await expectTheme(page, true);
-  const dialog = await settings(page);
-  for (const name of ['Alerte sonore', 'Feedback tactil', 'Ecran mereu activ']) {
-    await expect(dialog.getByRole('switch', { name, exact: true })).not.toBeChecked();
-  }
+  const dialog = await settings(page, 'sounds');
+  await expect(dialog.getByRole('switch', { name: 'Alerte sonore', exact: true })).not.toBeChecked();
+  await settingsGroup(page, 'device');
+  for (const name of ['Feedback tactil', 'Ecran mereu activ']) await expect(dialog.getByRole('switch', { name, exact: true })).not.toBeChecked();
+  await settingsGroup(page, 'appearance');
   await dialog.getByRole('switch', { name: 'Mod întunecat', exact: true }).click();
   await expectTheme(page, false);
-  await expect(dialog).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+  await expect(dialog.getByTestId('sheet-surface')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
   await dialog.getByRole('button', { name: 'Închide', exact: true }).click();
   await expect(dialog).not.toBeVisible();
   await page.getByRole('tab', { name: 'Timer', exact: true }).click();
@@ -107,7 +108,7 @@ for (const owner of ['timer', 'planning']) for (const startup of ['pending', 'pl
       await duration(page, '01');
       await page.getByRole('button', { name: 'Pornește temporizatorul', exact: true }).click();
     } else await page.getByRole('button', { name: 'Pornește orarul Respirație', exact: true }).click();
-    const dialog = await settings(page); await page.clock.runFor(1000);
+    const dialog = await settings(page, 'appearance'); await page.clock.runFor(1000);
     await expect.poll(() => playCount(page)).toBe(1);
     const before = await stored(page); const events = await audioEvents(page);
     const toggle = dialog.getByRole('switch', { name: 'Mod întunecat', exact: true });
@@ -143,7 +144,7 @@ for (const dark of [false, true]) for (const width of [320, 390, 430, 1024]) {
     await page.getByRole('button', { name: 'Resetează cronometrul', exact: true }).click();
     await page.clock.runFor(300);
     const reset = page.getByRole('dialog', { name: 'Un nou început?', exact: true });
-    await expect(reset).toHaveCSS('background-color', dark ? 'rgb(15, 23, 42)' : 'rgb(255, 255, 255)');
+    await expect(reset.getByTestId('sheet-surface')).toHaveCSS('background-color', dark ? 'rgb(15, 23, 42)' : 'rgb(255, 255, 255)');
     await reset.getByRole('button', { name: 'Renunță', exact: true }).click();
     await page.clock.runFor(300);
     // Browser CSS dismissal outlives the fake JS clock; its focus trap must be gone.
@@ -165,19 +166,20 @@ for (const dark of [false, true]) for (const width of [320, 390, 430, 1024]) {
     }
     await page.getByRole('tab', { name: 'Planificare', exact: true }).click();
     if (width === 320) await page.screenshot({ path: `previews/planning-${dark ? 'dark' : 'light'}-320.png`, fullPage: true, animations: 'disabled' });
+    await scheduleOptions(page, longName);
     await page.getByRole('button', { name: `Editează orarul ${longName}`, exact: true }).click();
     const editor = page.getByRole('dialog', { name: 'Editează orarul', exact: true });
     await page.clock.runFor(300);
     await editor.getByLabel('Nume orar', { exact: true }).focus();
     await expect(editor.getByLabel('Nume orar', { exact: true })).toBeFocused();
-    await expect(editor).toHaveCSS('background-color', dark ? 'rgb(15, 23, 42)' : 'rgb(255, 255, 255)');
+    await expect(editor.getByTestId('sheet-surface')).toHaveCSS('background-color', dark ? 'rgb(15, 23, 42)' : 'rgb(255, 255, 255)');
     await expect(editor.getByLabel('Nume orar', { exact: true })).toHaveValue(longName);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     if (width === 320) await page.screenshot({ path: `previews/planning-editor-${dark ? 'dark' : 'light'}-320.png`, fullPage: true, animations: 'disabled' });
     await editor.getByLabel('Nume orar', { exact: true }).fill(longName + '!');
     await editor.getByRole('button', { name: 'Închide', exact: true }).click();
     const discard = page.getByRole('dialog', { name: 'Renunți la modificări?', exact: true });
-    await expect(discard).toHaveCSS('background-color', dark ? 'rgb(15, 23, 42)' : 'rgb(255, 255, 255)');
+    await expect(discard.getByTestId('sheet-surface')).toHaveCSS('background-color', dark ? 'rgb(15, 23, 42)' : 'rgb(255, 255, 255)');
     await discard.getByRole('button', { name: 'Continuă editarea', exact: true }).click();
     await expect(editor.getByLabel('Nume orar', { exact: true })).toHaveValue(longName + '!');
     await editor.getByRole('button', { name: 'Închide', exact: true }).click();
@@ -190,17 +192,17 @@ for (const dark of [false, true]) for (const width of [320, 390, 430, 1024]) {
     const details = page.getByRole('dialog', { name: 'Sesiunea ta.' });
     await page.clock.runFor(300);
     await expect(details).toBeVisible();
-    await expect(details).toHaveCSS('background-color', dark ? 'rgb(15, 23, 42)' : 'rgb(255, 255, 255)');
+    await expect(details.getByTestId('sheet-surface')).toHaveCSS('background-color', dark ? 'rgb(15, 23, 42)' : 'rgb(255, 255, 255)');
     await details.getByRole('button', { name: 'Șterge sesiunea', exact: true }).click();
     await page.clock.runFor(300);
     const deletion = page.getByRole('dialog', { name: 'Ștergi sesiunea?' });
     await expect(deletion.getByRole('button', { name: 'Șterge sesiunea', exact: true })).toHaveCSS('background-color', dark ? 'rgb(69, 10, 10)' : 'rgb(254, 242, 242)');
-    await expect(deletion).toHaveCSS('background-color', dark ? 'rgb(15, 23, 42)' : 'rgb(255, 255, 255)');
+    await expect(deletion.getByTestId('sheet-surface')).toHaveCSS('background-color', dark ? 'rgb(15, 23, 42)' : 'rgb(255, 255, 255)');
     await page.getByRole('button', { name: 'Renunță', exact: true }).click();
     await page.clock.runFor(300);
     await expect(page.getByRole('dialog', { name: 'Ștergi sesiunea?' })).not.toBeVisible();
     await expect(details).not.toBeVisible();
-    const preferences = await settings(page);
+    const preferences = await settings(page, 'sounds');
     await page.clock.runFor(300);
     for (const name of ['Sunet Clasic', 'Durata sunetului 60 secunde']) {
       const selected = preferences.getByRole('radio', { name, exact: true });
@@ -226,19 +228,22 @@ for (const dark of [false, true]) for (const width of [320, 390, 430, 1024]) {
     await seed(page, data); await audioSpy(page); await page.goto('/planning');
     await page.getByRole('button', { name: 'Pornește orarul Concentrare', exact: true }).click();
     await expect(page.getByLabel('Progres orar', { exact: true })).toContainText('Etapa 1/2');
+    await scheduleOptions(page, 'Concentrare');
     await expect(page.getByRole('button', { name: 'Editează orarul Concentrare', exact: true })).toBeDisabled();
-    await expect(page.getByRole('button', { name: 'Editează orarul Concentrare', exact: true })).toHaveCSS('opacity', '0.4');
+    await scheduleOptions(page, 'Concentrare');
+    await expect(page.getByRole('button', { name: 'Editează orarul Concentrare', exact: true })).toHaveCSS('opacity', '0.45');
     if (width === 320) await page.screenshot({ path: `previews/blue-run-${dark ? 'dark' : 'light'}.png`, fullPage: true, animations: 'disabled' });
     for (const [button, title] of [
       ['Resetează orarul', 'Resetezi orarul?'],
       ['Pornește orarul Relaxare', 'Înlocuiești orarul activ?'],
       ['Șterge orarul Relaxare', 'Ștergi orarul?'],
     ]) {
+      if (button.startsWith('Șterge orarul ')) await scheduleOptions(page, 'Relaxare');
       const trigger = page.getByRole('button', { name: button, exact: true });
       await trigger.scrollIntoViewIfNeeded(); await trigger.click();
       const dialog = page.getByRole('dialog', { name: title, exact: true });
       await expect(dialog).toBeVisible(); await page.clock.runFor(300);
-      await expect(dialog).toHaveCSS('background-color', dark ? 'rgb(15, 23, 42)' : 'rgb(255, 255, 255)');
+      await expect(dialog.getByTestId('sheet-surface')).toHaveCSS('background-color', dark ? 'rgb(15, 23, 42)' : 'rgb(255, 255, 255)');
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await dialog.getByRole('button', { name: 'Renunță', exact: true }).click(); await page.clock.runFor(300);
       await expect(dialog).not.toBeVisible();
@@ -250,9 +255,9 @@ for (const dark of [false, true]) for (const width of [320, 390, 430, 1024]) {
     await expect(start).toBeEnabled(); await start.click();
     await page.getByRole('button', { name: 'Resetează temporizatorul', exact: true }).click(); await page.clock.runFor(300);
     const reset = page.getByRole('dialog', { name: 'Resetezi temporizatorul?', exact: true });
-    await expect(reset).toHaveCSS('background-color', dark ? 'rgb(15, 23, 42)' : 'rgb(255, 255, 255)');
+    await expect(reset.getByTestId('sheet-surface')).toHaveCSS('background-color', dark ? 'rgb(15, 23, 42)' : 'rgb(255, 255, 255)');
     await reset.getByRole('button', { name: 'Renunță', exact: true }).click(); await page.clock.runFor(300);
-    const dialog = await settings(page); await page.clock.runFor(10000);
+    const dialog = await settings(page, 'appearance'); await page.clock.runFor(10000);
     await expect(dialog.getByLabel('Temporizator finalizat', { exact: true })).toBeVisible();
     await dialog.getByRole('button', { name: 'Oprește sunetul', exact: true }).click();
     const run = (await stored(page)).planning.run!;

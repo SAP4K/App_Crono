@@ -14,9 +14,10 @@ import { Inter_700Bold } from '@expo-google-fonts/inter/700Bold';
 import { Inter_800ExtraBold } from '@expo-google-fonts/inter/800ExtraBold';
 import { CronoProvider, useCrono } from '../context/CronoContext';
 import { Icon, IconName } from '../components/Icon';
+import { ActiveActivities } from '../components/ActiveActivities';
 import { SettingsSheet } from '../components/SettingsSheet';
 import { TimingNotices } from '../components/TimingNotices';
-import { fonts as f, Palette } from '../theme';
+import { textSizes, fonts as f, Palette } from '../theme';
 import { ThemeProvider, useTheme, useThemeStyles } from '../context/ThemeContext';
 
 if (Platform.OS !== 'web') {
@@ -52,14 +53,14 @@ const tabItems: Record<string, { title: 'stopwatchTab' | 'timerTab' | 'planningT
   history: { title: 'historyTab', icon: 'history' },
 };
 
-function TabBar({ state, navigation }: TabBarProps) {
+function TabBar({ state, navigation, onHeight }: TabBarProps & { onHeight: (height: number) => void }) {
   const { messages: m } = useI18n();
   const compact = useWindowDimensions().width < 360;
   const { colors: c } = useTheme();
   const styles = useThemeStyles(createStyles);
   const insets = useSafeAreaInsets();
   const { data, feedback } = useCrono();
-  return <View style={[styles.tabBar, compact && styles.compactTabBar, { paddingBottom: Math.max(insets.bottom, 14) }]}>
+  return <View onLayout={(event) => onHeight(event.nativeEvent.layout.height)}><ActiveActivities currentTab={state.routes[state.index]?.name} /><View style={[styles.tabBar, compact && styles.compactTabBar, { paddingBottom: Math.max(insets.bottom, 14) }]}>
     {state.routes.map((route, index) => {
       const selected = state.index === index;
       const history = route.name === 'history';
@@ -76,7 +77,7 @@ function TabBar({ state, navigation }: TabBarProps) {
         {running && <View style={styles.runningDot} />}
       </Pressable>;
     })}
-  </View>;
+  </View></View>;
 }
 
 function AppShell() {
@@ -87,23 +88,24 @@ function AppShell() {
   const insets = useSafeAreaInsets();
   const { ready, notice, storageError, dismissStorageError, feedback } = useCrono();
   const [settings, setSettings] = useState(false);
+  const [tabBarHeight, setTabBarHeight] = useState(100);
   const compact = useWindowDimensions().height < 740;
   if (!ready) return <View style={styles.loading}><ActivityIndicator color={c.green} accessibilityLabel={m.loadingSession} /></View>;
-  return <View style={styles.desktop}><View style={styles.app}>
+  return <View nativeID="crono-app" style={styles.desktop}><View style={styles.app}>
     <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) }, compact && { paddingBottom: 16 }]}>
       <View style={styles.logoGroup}><View style={styles.logo}><Icon name="clock" size={22} color={c.onAccent} /></View><Text style={styles.wordmark}>CRONO<Text style={{ color: c.green }}>.</Text></Text></View>
       <Pressable accessibilityLabel={m.settings} accessibilityRole="button" onPress={() => { feedback(); setSettings(true); }} style={({ pressed }) => [styles.settings, pressed && { opacity: 0.55 }]}><Icon name="settings" size={19} /></Pressable>
     </View>
     {storageError && <Pressable onPress={dismissStorageError} accessibilityRole="button" accessibilityLabel={m.dismissStorage} style={styles.warning}><Text style={styles.warningText}>{m.storageWarning}</Text><Icon name="close" size={15} color={c.danger} /></Pressable>}
     <TimingNotices />
-    <Tabs initialRouteName="index" backBehavior="initialRoute" tabBar={(props) => <TabBar {...props} />} screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: c.background }, animation: 'none' }}>
+    <Tabs initialRouteName="index" backBehavior="initialRoute" tabBar={(props) => <TabBar {...props} onHeight={setTabBarHeight} />} screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: c.background }, animation: 'none' }}>
       <Tabs.Screen name="index" options={{ title: m.stopwatchTab }} />
       <Tabs.Screen name="timer" options={{ title: m.timerTab }} />
       <Tabs.Screen name="planning" options={{ title: m.planningTab }} />
       <Tabs.Screen name="history" options={{ title: m.historyTab }} />
     </Tabs>
     <SettingsSheet visible={settings} onClose={() => setSettings(false)} />
-    {notice && <View pointerEvents="none" style={styles.toast} accessibilityLiveRegion="polite"><Icon name="check" size={17} color={c.lime} /><Text style={styles.toastText}>{m[notice]}</Text></View>}
+    {notice && <View pointerEvents="none" style={[styles.toast, { bottom: tabBarHeight + 12 }]} accessibilityLiveRegion="polite"><Icon name="check" size={17} color={c.lime} /><Text style={styles.toastText}>{m[notice]}</Text></View>}
   </View></View>;
 }
 
@@ -121,13 +123,13 @@ const createStyles = (c: Palette) => StyleSheet.create({
   tab: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: 58, borderRadius: 14, paddingHorizontal: 4, paddingVertical: 9 },
   compactTab: { paddingHorizontal: 0 },
   selectedTab: { backgroundColor: c.selected },
-  tabText: { fontFamily: f.medium, fontSize: 11, color: c.muted, maxWidth: '100%', flexShrink: 1, textAlign: 'center' },
+  tabText: { fontFamily: f.medium, fontSize: textSizes.small, color: c.muted, maxWidth: '100%', flexShrink: 1, textAlign: 'center' },
   selectedTabText: { color: c.ink, fontFamily: f.semibold },
   badge: { position: 'absolute', top: 5, right: 8, backgroundColor: c.badge, paddingHorizontal: 5, minWidth: 18, borderRadius: 5, height: 17, alignItems: 'center', justifyContent: 'center' },
-  badgeText: { fontFamily: f.semibold, fontSize: 9, color: c.green },
+  badgeText: { fontFamily: f.semibold, fontSize: textSizes.small, color: c.green },
   runningDot: { position: 'absolute', top: 9, right: 12, width: 5, height: 5, backgroundColor: c.green, borderRadius: 3 },
   toast: { position: 'absolute', bottom: 100, left: 26, right: 26, borderRadius: 16, backgroundColor: c.toast, padding: 17, flexDirection: 'row', alignItems: 'center', gap: 10, boxShadow: c.shadow },
-  toastText: { fontFamily: f.medium, color: c.toastText, fontSize: 12, flex: 1, lineHeight: 18 },
+  toastText: { fontFamily: f.medium, color: c.toastText, fontSize: textSizes.caption, flex: 1, lineHeight: 21 },
   warning: { marginHorizontal: 26, marginBottom: 12, padding: 12, backgroundColor: c.dangerSoft, borderRadius: 12, flexDirection: 'row', gap: 8, alignItems: 'center' },
-  warningText: { color: c.danger, fontFamily: f.regular, fontSize: 11, lineHeight: 17, flex: 1 },
+  warningText: { color: c.danger, fontFamily: f.regular, fontSize: textSizes.small, lineHeight: 21, flex: 1 },
 });

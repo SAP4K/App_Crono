@@ -5,7 +5,7 @@ import { initialTimer, startTimer } from '../../src/core/timer';
 import { startSchedule } from '../../src/core/planning';
 import { LANGUAGES } from '../../src/core/language';
 import { getMessages } from '../../src/i18n';
-import { audioSpy, duration, expectNoPageErrors, expectTheme, observePageErrors, playCount, seed, selectDuration, selectWheel, stored } from './helpers';
+import { settingsGroup, scheduleOptions, audioSpy, duration, expectNoPageErrors, expectTheme, observePageErrors, playCount, seed, selectDuration, selectWheel, stored } from './helpers';
 
 // Keep the actual browser clock: CSS snapping and native timer receivers are part of this adapter.
 const warnings = new WeakMap<Page, string[]>();
@@ -82,13 +82,11 @@ test('real wheel motion gates Start, combines columns, snaps and preserves runni
   expect(running).toMatchObject({ status: 'running', durationMs: 63000, remainingMs: 63000 });
   expect(running.deadlineAt).toBeGreaterThanOrEqual(before + 63000);
   expect(running.deadlineAt).toBeLessThanOrEqual(await page.evaluate(() => Date.now()) + 63000);
-  await seconds.press('End'); await wheelBy(page, seconds, 440);
-  await expect(seconds).toHaveAttribute('aria-disabled', 'true');
-  await expect(seconds).toHaveAttribute('aria-valuenow', '3');
+  await expect(page.getByRole('spinbutton')).toHaveCount(0);
   expect((await stored(page)).timer).toEqual(running);
   await page.getByRole('button', { name: 'Pauză temporizator', exact: true }).click();
   const paused = (await stored(page)).timer;
-  await minutes.press('Home'); await wheelBy(page, minutes, -440);
+  await expect(page.getByRole('spinbutton')).toHaveCount(0);
   expect((await stored(page)).timer).toEqual(paused);
 });
 
@@ -148,6 +146,7 @@ test('Planning discards temporary selection and applies only settled values to i
     { id: 'a', name: 'Prima', durationMs: 1000 }, { id: 'b', name: 'A doua', durationMs: 2000 },
   ] }];
   await seed(page, data); await page.goto('/planning');
+  await scheduleOptions(page, 'Secvență');
   await page.getByRole('button', { name: 'Editează orarul Secvență', exact: true }).click();
   const edit = page.getByRole('button', { name: 'Modifică durata etapei 2', exact: true });
   await edit.click();
@@ -249,6 +248,7 @@ test('fifty-action editing restores list position and focus and preserves IDs th
     id: `step-${index + 1}`, name: `Acțiune ${index + 1}`, durationMs: 1000,
   })) }];
   await seed(page, data); await page.goto('/planning');
+  await scheduleOptions(page, 'Cincizeci');
   await page.getByRole('button', { name: 'Editează orarul Cincizeci', exact: true }).click();
   const first = page.getByRole('button', { name: 'Modifică durata etapei 1', exact: true });
   const list = await first.evaluateHandle((node) => {
@@ -303,6 +303,7 @@ test('timer and schedule completions remain visible and stoppable inside an unsa
   ];
   data.planning = startSchedule(data.planning, 'run', now, 'parallel-schedule');
   await seed(page, data); await audioSpy(page); await page.goto('/planning');
+  await scheduleOptions(page, 'Schiță');
   await page.getByRole('button', { name: 'Editează orarul Schiță', exact: true }).click();
   await page.getByRole('button', { name: 'Modifică durata etapei 1', exact: true }).click();
   const panel = page.getByRole('dialog', { name: 'Durata etapei 1', exact: true });
@@ -338,10 +339,12 @@ for (const { id } of LANGUAGES) for (const theme of ['light', 'dark'] as const) 
       await expect(wheel).toHaveAttribute('aria-valuenow', String(value)); await centered(wheel);
     }
     await page.getByRole('button', { name: m.settings, exact: true }).click();
+    await page.getByRole('button', { name: m.settingsGroups.language, exact: true }).click();
     const next = LANGUAGES.find((language) => language.id !== id)!;
     await page.getByRole('radio', { name: next.label, exact: true }).click();
     await page.getByRole('radio', { name: LANGUAGES.find((language) => language.id === id)!.label, exact: true }).click();
-    const settings = page.getByRole('dialog', { name: m.settingsTitle, exact: true });
+    await settingsGroup(page, 'appearance', m);
+    const settings = page.getByRole('dialog', { name: m.settingsGroups.appearance, exact: true });
     await settings.getByRole('switch', { name: m.darkMode, exact: true }).click();
     await expectTheme(page, theme !== 'dark');
     await settings.getByRole('switch', { name: m.darkMode, exact: true }).click();
@@ -349,6 +352,7 @@ for (const { id } of LANGUAGES) for (const theme of ['light', 'dark'] as const) 
     expect((await stored(page)).timer).toEqual(data.timer);
     await page.screenshot({ path: `previews/wheels-${id}-${theme}-${width}-timer.png`, animations: 'disabled' });
     await page.getByRole('tab', { name: m.planningTab, exact: true }).click();
+    await scheduleOptions(page, name, m);
     await page.getByRole('button', { name: m.editSchedule(name), exact: true }).click();
     await page.getByRole('button', { name: m.editStepDuration(1), exact: true }).click();
     const panel = page.getByRole('dialog', { name: m.durationPickerTitle(1), exact: true });

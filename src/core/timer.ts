@@ -1,5 +1,6 @@
 export const DEFAULT_TIMER_MS = 5 * 60 * 1000;
 export const MAX_TIMER_MS = 86_399_000;
+export const TIMER_EXTENSION_MS = 60_000;
 export type TimerState = {
   status: 'idle' | 'running' | 'paused' | 'completed';
   durationMs: number;
@@ -52,6 +53,15 @@ export function pauseTimer(timer: TimerState, now = Date.now()): TimerState {
 export function resumeTimer(timer: TimerState, now = Date.now()): TimerState {
   return timer.status !== 'paused' ? timer
     : { ...timer, status: 'running', deadlineAt: now + timer.remainingMs };
+}
+
+export function extendTimer(timer: TimerState, now = Date.now()): TimerState {
+  if ((timer.status !== 'running' && timer.status !== 'paused') || !Number.isSafeInteger(now) || now < 0
+    || !validDuration(timer.durationMs + TIMER_EXTENSION_MS)) return timer;
+  const remainingMs = remainingTime(timer, now);
+  if (remainingMs <= 0 || (timer.deadlineAt !== null && !Number.isSafeInteger(timer.deadlineAt + TIMER_EXTENSION_MS))) return timer;
+  return { ...timer, durationMs: timer.durationMs + TIMER_EXTENSION_MS, remainingMs: remainingMs + TIMER_EXTENSION_MS,
+    deadlineAt: timer.deadlineAt === null ? null : timer.deadlineAt + TIMER_EXTENSION_MS };
 }
 
 export function resetTimer(timer: TimerState): TimerState {
