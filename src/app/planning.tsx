@@ -49,32 +49,35 @@ export default function PlanningScreen() {
     if (accepted) { feedback(); notify('scheduleSaved'); }
     return accepted;
   };
-  return <View style={styles.content}>
-    <Text accessibilityRole="header" style={styles.title}>{m.planningTab}</Text>
-    <Text style={styles.subtitle}>{m.planningSubtitle}</Text>
-    <Pressable accessibilityRole="button" disabled={scheduleLimit} onPress={() => {
-      feedback();
-      setEditor({ isNew: true, schedule: {
-        id: createTimingId(),
-        name: '',
-        steps: [{ id: createTimingId(), name: m.stepNumber(1), durationMs: 300000 }],
-        calendar: selectedDate === null ? undefined : { kind: 'once', date: selectedDate },
-      } });
-    }} style={({ pressed }) => [styles.primary, pressed && !scheduleLimit && buttonPressedStyle, scheduleLimit && styles.disabled]}><Text style={styles.primaryText}>{m.newSchedule}</Text></Pressable>
-    <Text style={styles.limit}>{m.scheduleLimit(schedules.length, MAX_SCHEDULES)}</Text>
-    <View style={styles.filters}>
-      <Pressable accessibilityRole="button" onPress={() => { feedback(); setSelectedDate(null); }}
-        style={({ pressed }) => [styles.filterButton, selectedDate === null && styles.filterSelected, pressed && buttonPressedStyle]}>
-        <Text style={styles.secondaryText}>{m.calendarAll}</Text>
-      </Pressable>
-      <Pressable accessibilityRole="button"
-        accessibilityLabel={selectedDateLabel ? `${m.calendarChooseDay} · ${selectedDateLabel}` : m.calendarChooseDay}
-        onPress={() => { feedback(); setDateDraft(datePartsFromKey(selectedDate ?? localDateKey(new Date()))); }}
-        style={({ pressed }) => [styles.filterButton, selectedDate !== null && styles.filterSelected, pressed && buttonPressedStyle]}>
-        <Text style={styles.secondaryText}>{selectedDateLabel ?? m.calendarChooseDay}</Text>
-      </Pressable>
-    </View>
-    <FlatList data={visibleSchedules} keyExtractor={(item) => item.id} contentContainerStyle={styles.list} ListHeaderComponent={<PlanningRunCard />}
+  return <View style={styles.screen}>
+    <FlatList style={styles.list} data={visibleSchedules} keyExtractor={(item) => item.id} contentContainerStyle={styles.content}
+      ListHeaderComponent={<>
+        <Text accessibilityRole="header" style={styles.title}>{m.planningTab}</Text>
+        <Text style={styles.subtitle}>{m.planningSubtitle}</Text>
+        <Pressable accessibilityRole="button" disabled={scheduleLimit} onPress={() => {
+          feedback();
+          setEditor({ isNew: true, schedule: {
+            id: createTimingId(),
+            name: '',
+            steps: [{ id: createTimingId(), name: m.stepNumber(1), durationMs: 300000 }],
+            calendar: selectedDate === null ? undefined : { kind: 'once', date: selectedDate },
+          } });
+        }} style={({ pressed }) => [styles.primary, pressed && !scheduleLimit && buttonPressedStyle, scheduleLimit && styles.disabled]}><Text style={styles.primaryText}>{m.newSchedule}</Text></Pressable>
+        <Text style={styles.limit}>{m.scheduleLimit(schedules.length, MAX_SCHEDULES)}</Text>
+        <View style={styles.filters}>
+          <Pressable accessibilityRole="button" onPress={() => { feedback(); setSelectedDate(null); }}
+            style={({ pressed }) => [styles.filterButton, selectedDate === null && styles.filterSelected, pressed && buttonPressedStyle]}>
+            <Text style={styles.secondaryText}>{m.calendarAll}</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button"
+            accessibilityLabel={selectedDateLabel ? `${m.calendarChooseDay} · ${selectedDateLabel}` : m.calendarChooseDay}
+            onPress={() => { feedback(); setDateDraft(datePartsFromKey(selectedDate ?? localDateKey(new Date()))); }}
+            style={({ pressed }) => [styles.filterButton, selectedDate !== null && styles.filterSelected, pressed && buttonPressedStyle]}>
+            <Text style={styles.secondaryText}>{selectedDateLabel ?? m.calendarChooseDay}</Text>
+          </Pressable>
+        </View>
+        <PlanningRunCard />
+      </>}
       ListEmptyComponent={<Text style={styles.empty}>{selectedDate === null ? m.planningEmpty : m.calendarEmpty}</Text>}
       renderItem={({ item }) => {
         const protectedTemplate = isProtectedSchedule(data.planning, item.id);
@@ -130,7 +133,8 @@ export default function PlanningScreen() {
 }
 
 const createStyles = (c: Palette) => StyleSheet.create({
-  content: { flex: 1, paddingHorizontal: 26, paddingTop: 8 },
+  screen: { flex: 1 },
+  content: { flexGrow: 1, paddingHorizontal: 26, paddingTop: 8, paddingBottom: 24 },
   title: { fontFamily: f.bold, color: c.ink, fontSize: 23, letterSpacing: -0.7 },
   subtitle: { fontFamily: f.regular, color: c.muted, fontSize: 12, lineHeight: 19, marginTop: 8 },
   primary: { backgroundColor: c.action, borderRadius: 14, minHeight: 48, alignItems: 'center', justifyContent: 'center', marginTop: 18 },
@@ -143,7 +147,7 @@ const createStyles = (c: Palette) => StyleSheet.create({
   calendarSummary: { color: c.green, fontFamily: f.medium, fontSize: 12, marginTop: 6 },
   dateControls: { gap: 12, paddingBottom: 14 },
   datePrimary: { marginTop: 0 },
-  list: { paddingBottom: 24 }, empty: { color: c.muted, fontFamily: f.regular, lineHeight: 22, marginVertical: 22 },
+  list: { flex: 1 }, empty: { color: c.muted, fontFamily: f.regular, lineHeight: 22, marginVertical: 22 },
   card: { borderWidth: 1, borderColor: c.border, borderRadius: 17, padding: 16, marginBottom: 12, backgroundColor: c.surface },
   name: { fontFamily: f.semibold, color: c.ink, fontSize: 16 }, actions: { flexDirection: 'row', gap: 10, marginTop: 12 },
   secondary: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: c.secondary },
