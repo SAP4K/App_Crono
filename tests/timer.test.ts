@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { completeTimer, configureTimer, formatRemaining, initialTimer, MAX_TIMER_MS, parseDuration, pauseTimer, remainingTime, resetTimer, restoreTimer, resumeTimer, startTimer, validDuration } from '../src/core/timer.ts';
+import { completeTimer, configureTimer, extendTimer, formatRemaining, initialTimer, MAX_TIMER_MS, parseDuration, pauseTimer, remainingTime, resetTimer, restoreTimer, resumeTimer, startTimer, validDuration } from '../src/core/timer.ts';
 
 test('duration bounds and strict input parsing reject invalid configuration', () => {
   assert.equal(initialTimer().durationMs, 300000);
@@ -49,4 +49,28 @@ test('remaining-time display rounds positive fractions up and handles rollovers'
   for (const [value, expected] of [[0,'00:00:00'],[1,'00:00:01'],[999,'00:00:01'],[1000,'00:00:01'],[1001,'00:00:02'],[60000,'00:01:00'],[3600000,'01:00:00'],[MAX_TIMER_MS,'23:59:59']] as const) {
     assert.equal(formatRemaining(value), expected);
   }
+});
+
+test('a minute extension preserves elapsed time, run identity and exact paused milliseconds', () => {
+  const running = startTimer(initialTimer(5000), 1000, 'run');
+  const extended = extendTimer(running, 2250);
+  assert.deepEqual(extended, { status: 'running', durationMs: 65000, remainingMs: 63750, deadlineAt: 66000, runId: 'run' });
+  assert.deepEqual(restoreTimer(extended), extended);
+  const paused = extendTimer(pauseTimer(running, 2251), 10000);
+  assert.equal(paused.remainingMs, 63749); assert.equal(paused.deadlineAt, null);
+  assert.equal(resumeTimer(paused, 20000).deadlineAt, 83749);
+  assert.deepEqual(resetTimer(extended), initialTimer(65000));
+  assert.equal(startTimer(completeTimer(extended, 66000), 70000, 'restart').durationMs, 65000);
+});
+
+test('a minute extension rejects overflow, expiry and non-active states without mutation', () => {
+  const running = startTimer(initialTimer(1000), 1000, 'run');
+  for (const now of [2000, 2001, NaN, Infinity, -1, 1.5]) assert.equal(extendTimer(running, now), running);
+  for (const timer of [initialTimer(), completeTimer(running, 2000), startTimer(initialTimer(MAX_TIMER_MS), 1000, 'max')]) {
+    assert.equal(extendTimer(timer, 1500), timer);
+  }
+  const below = startTimer(initialTimer(MAX_TIMER_MS - 60000), 0, 'limit');
+  assert.equal(extendTimer(below, 1).durationMs, MAX_TIMER_MS);
+  const unsafe = { ...running, deadlineAt: Number.MAX_SAFE_INTEGER };
+  assert.equal(extendTimer(unsafe, 1500), unsafe);
 });

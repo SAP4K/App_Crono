@@ -3,31 +3,50 @@ import { useState } from 'react';
 import { FlatList, Keyboard, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useCrono } from '../context/CronoContext';
 import { useThemeStyles } from '../context/ThemeContext';
-import { deleteSchedule, isProtectedSchedule, MAX_SCHEDULES, saveSchedule } from '../core/planning';
+import { deleteSchedule, isProtectedSchedule, MAX_NAME_LENGTH, MAX_SCHEDULES, saveSchedule } from '../core/planning';
 import type { Schedule } from '../core/planning';
 import { dateKeyFromParts, datePartsFromKey, localDateKey, matchesScheduleDate, type CalendarDateParts } from '../core/planningCalendar';
-import { planningDateLabel, scheduleCalendarLabel } from '../i18n/formatters';
-import { formatRemaining } from '../core/timer';
+import { planningDateLabel } from '../i18n/formatters';
+import { duplicateSchedule, PLANNING_TEMPLATES, scheduleFromTemplate, type PlanningTemplateId } from '../core/planningTools';
 import { ScheduleEditorSheet } from '../components/ScheduleEditorSheet';
 import { ConfirmSheet, Sheet } from '../components/Sheet';
 import { CalendarDateFields } from '../components/CalendarDateFields';
 import { createTimingId } from '../hooks/createTimingId';
 import { PlanningRunCard } from '../components/PlanningRunCard';
-import { buttonPressedStyle, fonts as f, Palette } from '../theme';
+import { ScheduleCard } from '../components/ScheduleCard';
+import { textSizes, buttonPressedStyle, fonts as f, Palette } from '../theme';
 
 export default function PlanningScreen() {
   const { language, messages: m } = useI18n();
-  const { data, update, feedback, notify, planning, notifications } = useCrono(); const styles = useThemeStyles(createStyles);
+  const { data, update, getSnapshot, feedback, notify, planning, notifications } = useCrono(); const styles = useThemeStyles(createStyles);
   const [editor, setEditor] = useState<{ schedule: Schedule; isNew: boolean } | null>(null);
   const [deleting, setDeleting] = useState<Schedule | null>(null);
   const [replacing, setReplacing] = useState<Schedule | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [dateDraft, setDateDraft] = useState<CalendarDateParts | null>(null);
+  const [templatesOpen, setTemplatesOpen] = useState(false), [menuId, setMenuId] = useState<string | null>(null);
   const schedules = data.planning.schedules;
   const scheduleLimit = schedules.length >= MAX_SCHEDULES;
   const visibleSchedules = selectedDate === null ? schedules : schedules.filter((item) => matchesScheduleDate(item.calendar, selectedDate));
   const selectedDateLabel = selectedDate === null ? null : planningDateLabel(selectedDate, language);
   const dateCandidate = dateDraft && dateKeyFromParts(dateDraft);
+  const openTemplate = (template: PlanningTemplateId) => {
+    const copy = m.planningTemplateNames[template];
+    const schedule = scheduleFromTemplate({ template, id: createTimingId(), stepIds: PLANNING_TEMPLATES[template].map(() => createTimingId()),
+      name: copy.name, stepNames: copy.steps });
+    if (!schedule || getSnapshot().planning.schedules.length >= MAX_SCHEDULES) return;
+    feedback(); setTemplatesOpen(false); setMenuId(null);
+    setEditor({ isNew: true, schedule: selectedDate ? { ...schedule, calendar: { kind: 'once', date: selectedDate } } : schedule });
+  };
+  const duplicate = (id: string) => {
+    const current = getSnapshot().planning;
+    const source = current.schedules.find((item) => item.id === id);
+    if (!source || current.schedules.length >= MAX_SCHEDULES) return;
+    const suffix = ` (${m.scheduleCopySuffix})`;
+    const schedule = duplicateSchedule(source, { id: createTimingId(), stepIds: source.steps.map(() => createTimingId()),
+      name: source.name.slice(0, MAX_NAME_LENGTH - suffix.length).trimEnd() + suffix });
+    if (schedule) { feedback(); setMenuId(null); setEditor({ isNew: true, schedule }); }
+  };
   const closeDatePicker = () => {
     feedback();
     Keyboard.dismiss();
@@ -63,6 +82,16 @@ export default function PlanningScreen() {
             calendar: selectedDate === null ? undefined : { kind: 'once', date: selectedDate },
           } });
         }} style={({ pressed }) => [styles.primary, pressed && !scheduleLimit && buttonPressedStyle, scheduleLimit && styles.disabled]}><Text style={styles.primaryText}>{m.newSchedule}</Text></Pressable>
+        <Pressable accessibilityRole="button" accessibilityState={{ expanded: templatesOpen }} aria-expanded={templatesOpen} disabled={scheduleLimit}
+          onPress={() => { feedback(); setTemplatesOpen((open) => !open); }}
+          style={({ pressed }) => [styles.filterButton, styles.templateToggle, scheduleLimit && styles.disabled, pressed && buttonPressedStyle]}>
+          <Text style={styles.secondaryText}>{m.planningTemplates}</Text>
+        </Pressable>
+        {templatesOpen && <View style={styles.templateChoices}>{(Object.keys(PLANNING_TEMPLATES) as PlanningTemplateId[]).map((id) =>
+          <Pressable key={id} accessibilityRole="button" accessibilityLabel={m.planningTemplateNames[id].name} onPress={() => openTemplate(id)} style={({ pressed }) => [styles.filterButton, pressed && buttonPressedStyle]}>
+            <Text style={styles.secondaryText}>{m.planningTemplateNames[id].name}</Text>
+            <Text style={styles.subtitle}>{m.planningTemplateNames[id].steps.join(' → ')}</Text>
+          </Pressable>)}</View>}
         <Text style={styles.limit}>{m.scheduleLimit(schedules.length, MAX_SCHEDULES)}</Text>
         <View style={styles.filters}>
           <Pressable accessibilityRole="button" onPress={() => { feedback(); setSelectedDate(null); }}
@@ -81,17 +110,10 @@ export default function PlanningScreen() {
       ListEmptyComponent={<Text style={styles.empty}>{selectedDate === null ? m.planningEmpty : m.calendarEmpty}</Text>}
       renderItem={({ item }) => {
         const protectedTemplate = isProtectedSchedule(data.planning, item.id);
-        return <View style={styles.card}>
-          <Text style={styles.name}>{item.name}</Text>
-          <Text style={styles.subtitle}>{m.stepCount(item.steps.length)} · {formatRemaining(item.steps.reduce((sum, step) => sum + step.durationMs, 0))}</Text>
-          {item.calendar && <Text style={styles.calendarSummary}>{scheduleCalendarLabel(item.calendar, language)}</Text>}
-          {protectedTemplate && <Text style={styles.limit}>{m.protectedSchedule}</Text>}
-          <View style={styles.actions}>
-            <Pressable accessibilityRole="button" accessibilityLabel={m.startSchedule(item.name)} disabled={protectedTemplate} onPress={() => start(item)} style={({ pressed }) => [styles.secondary, pressed && !protectedTemplate && buttonPressedStyle, protectedTemplate && styles.disabled]}><Text style={styles.secondaryText}>{m.start}</Text></Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel={m.editSchedule(item.name)} disabled={protectedTemplate} onPress={() => { feedback(); setEditor({ schedule: item, isNew: false }); }} style={({ pressed }) => [styles.secondary, pressed && !protectedTemplate && buttonPressedStyle, protectedTemplate && styles.disabled]}><Text style={styles.secondaryText}>{m.edit}</Text></Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel={m.deleteSchedule(item.name)} disabled={protectedTemplate} onPress={() => { feedback(); setDeleting(item); }} style={({ pressed }) => [styles.secondary, pressed && !protectedTemplate && buttonPressedStyle, protectedTemplate && styles.disabled]}><Text style={styles.danger}>{m.delete}</Text></Pressable>
-          </View>
-        </View>;
+        return <ScheduleCard schedule={item} protectedTemplate={protectedTemplate} canDuplicate={!scheduleLimit} expanded={menuId === item.id}
+          onToggle={() => { feedback(); setMenuId((id) => id === item.id ? null : item.id); }} onStart={() => { setMenuId(null); start(item); }}
+          onEdit={() => { feedback(); setMenuId(null); setEditor({ schedule: item, isNew: false }); }}
+          onDelete={() => { feedback(); setMenuId(null); setDeleting(item); }} onDuplicate={() => duplicate(item.id)} />;
       }} />
     {dateDraft && <Sheet visible title={m.calendarChooseDay} onClose={closeDatePicker}>
       <View style={styles.dateControls}>
@@ -135,21 +157,18 @@ export default function PlanningScreen() {
 const createStyles = (c: Palette) => StyleSheet.create({
   screen: { flex: 1 },
   content: { flexGrow: 1, paddingHorizontal: 26, paddingTop: 8, paddingBottom: 24 },
-  title: { fontFamily: f.bold, color: c.ink, fontSize: 23, letterSpacing: -0.7 },
-  subtitle: { fontFamily: f.regular, color: c.muted, fontSize: 12, lineHeight: 19, marginTop: 8 },
+  title: { fontFamily: f.bold, color: c.ink, fontSize: textSizes.heading, letterSpacing: -0.7 },
+  subtitle: { fontFamily: f.regular, color: c.muted, fontSize: textSizes.caption, lineHeight: 21, marginTop: 8 },
   primary: { backgroundColor: c.action, borderRadius: 14, minHeight: 48, alignItems: 'center', justifyContent: 'center', marginTop: 18 },
-  primaryText: { color: c.actionText, fontFamily: f.semibold, fontSize: 13 },
-  limit: { color: c.muted, fontFamily: f.regular, fontSize: 10, lineHeight: 17, marginVertical: 10 },
+  primaryText: { color: c.actionText, fontFamily: f.semibold, fontSize: textSizes.body },
+  limit: { color: c.muted, fontFamily: f.regular, fontSize: textSizes.small, lineHeight: 21, marginVertical: 10 },
   filters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+  templateToggle: { marginTop: 10 }, templateChoices: { marginTop: 8, gap: 8 },
   filterButton: { minHeight: 44, minWidth: 44, flexShrink: 1, borderWidth: 1, borderColor: c.border, borderRadius: 10,
     backgroundColor: c.secondary, paddingHorizontal: 12, paddingVertical: 6, alignItems: 'center', justifyContent: 'center' },
   filterSelected: { backgroundColor: c.limeSoft, borderColor: c.green },
-  calendarSummary: { color: c.green, fontFamily: f.medium, fontSize: 12, marginTop: 6 },
   dateControls: { gap: 12, paddingBottom: 14 },
   datePrimary: { marginTop: 0 },
   list: { flex: 1 }, empty: { color: c.muted, fontFamily: f.regular, lineHeight: 22, marginVertical: 22 },
-  card: { borderWidth: 1, borderColor: c.border, borderRadius: 17, padding: 16, marginBottom: 12, backgroundColor: c.surface },
-  name: { fontFamily: f.semibold, color: c.ink, fontSize: 16 }, actions: { flexDirection: 'row', gap: 10, marginTop: 12 },
-  secondary: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: c.secondary },
-  secondaryText: { fontFamily: f.medium, color: c.ink, fontSize: 12 }, danger: { fontFamily: f.medium, color: c.danger, fontSize: 12 }, disabled: { opacity: 0.4 },
+  secondaryText: { fontFamily: f.medium, color: c.ink, fontSize: textSizes.caption }, danger: { fontFamily: f.medium, color: c.danger, fontSize: textSizes.caption }, disabled: { opacity: 0.4 },
 });

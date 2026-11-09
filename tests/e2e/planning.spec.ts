@@ -1,6 +1,6 @@
 import { expect, test, type Locator } from '@playwright/test';
 import { readFileSync } from 'node:fs';
-import { audioSpy, duration, expectNoPageErrors, expectTheme, observePageErrors, playCount, seed, selectDuration, settings, stepDuration, stored } from './helpers';
+import { scheduleOptions, audioSpy, duration, expectNoPageErrors, expectTheme, observePageErrors, playCount, seed, selectDuration, settings, stepDuration, stored } from './helpers';
 import { initialData } from '../../src/core/stopwatch';
 import { LANGUAGES } from '../../src/core/language';
 import { pauseSchedule, startSchedule } from '../../src/core/planning';
@@ -45,6 +45,7 @@ test('schedule editor saves ordered actions, validates durations, and preserves 
   await expect.poll(async () => (await stored(page)).planning.schedules[0]?.steps.map((step) => step.name)).toEqual(['Pauză', 'Lucru']);
   expect((await stored(page)).planning.schedules[0].steps.map((step) => step.durationMs)).toEqual([1000, 2000]);
   const before = (await stored(page)).planning;
+  await scheduleOptions(page, 'Studiu');
   await page.getByRole('button', { name: 'Editează orarul Studiu', exact: true }).click();
   dialog = page.getByRole('dialog', { name: 'Editează orarul', exact: true });
   await dialog.getByLabel('Nume orar', { exact: true }).fill('Alt nume');
@@ -55,10 +56,12 @@ test('schedule editor saves ordered actions, validates durations, and preserves 
   await page.getByRole('button', { name: 'Renunță la modificări', exact: true }).click(); await page.clock.runFor(300);
   expect((await stored(page)).planning).toEqual(before);
   await page.reload(); await expect(page.getByText('Studiu', { exact: true })).toBeVisible();
+  await scheduleOptions(page, 'Studiu');
   await page.getByRole('button', { name: 'Editează orarul Studiu', exact: true }).click();
   await page.getByRole('button', { name: 'Șterge etapa 1', exact: true }).click();
   await page.getByRole('button', { name: 'Salvează orarul', exact: true }).click(); await page.clock.runFor(300);
   await expect.poll(async () => (await stored(page)).planning.schedules[0].steps.length).toBe(1);
+  await scheduleOptions(page, 'Studiu');
   await page.getByRole('button', { name: 'Șterge orarul Studiu', exact: true }).click();
   await page.getByRole('dialog', { name: 'Ștergi orarul?', exact: true }).getByRole('button', { name: 'Șterge orarul', exact: true }).click();
   await expect.poll(async () => (await stored(page)).planning.schedules.length).toBe(0);
@@ -108,7 +111,7 @@ test('calendar editor stages weekly and fixed dates and saves them alongside leg
   await page.reload();
   await expect(page.getByText(/^Săptămânal ·/)).toBeVisible();
 
-  await edit.click();
+  await scheduleOptions(page, 'Lectură'); await edit.click();
   await weekly.click();
   await expect(calendar.getByRole('checkbox', { name: 'luni', exact: true })).toBeChecked();
   await expect(calendar.getByRole('checkbox', { name: 'joi', exact: true })).toBeChecked();
@@ -125,7 +128,7 @@ test('calendar editor stages weekly and fixed dates and saves them alongside leg
   await page.clock.runFor(300);
   expect((await stored(page)).planning.schedules[0]).toEqual(before);
 
-  await edit.click();
+  await scheduleOptions(page, 'Lectură'); await edit.click();
   await weekly.click();
   await calendar.getByRole('radio', { name: 'Dată fixă', exact: true }).click();
   await enterCalendarDate(calendar, '2028-02-29');
@@ -143,7 +146,7 @@ test('calendar editor stages weekly and fixed dates and saves them alongside leg
   expect(restored.sessions).toEqual(legacy.sessions);
   expect(restored.planning.schedules[0]).toEqual({ ...before, calendar: { kind: 'once', date: '2028-02-29' } });
 
-  await edit.click();
+  await scheduleOptions(page, 'Lectură'); await edit.click();
   await fixed.click();
   await calendar.getByRole('radio', { name: 'Manual', exact: true }).click();
   await apply.click();
@@ -151,7 +154,7 @@ test('calendar editor stages weekly and fixed dates and saves them alongside leg
   await page.clock.runFor(300);
   await expect.poll(async () => (await stored(page)).planning.schedules[0].calendar).toBeUndefined();
   await page.reload();
-  await edit.click();
+  await scheduleOptions(page, 'Lectură'); await edit.click();
   await expect(manual).toBeVisible();
 });
 
@@ -299,8 +302,11 @@ test('only one schedule runs; replacement confirms and preserves the independent
   await seed(page, data); await page.goto('/planning');
   await page.getByRole('button', { name: 'Pornește orarul Studiu', exact: true }).click();
   const original = (await stored(page)).planning.run;
+  await scheduleOptions(page, 'Studiu');
   await expect(page.getByRole('button', { name: 'Editează orarul Studiu', exact: true })).toBeDisabled();
+  await scheduleOptions(page, 'Studiu');
   await expect(page.getByRole('button', { name: 'Șterge orarul Studiu', exact: true })).toBeDisabled();
+  await scheduleOptions(page, 'Relaxare');
   await expect(page.getByRole('button', { name: 'Editează orarul Relaxare', exact: true })).toBeEnabled();
   await page.getByRole('button', { name: 'Pornește orarul Relaxare', exact: true }).click();
   await page.getByRole('button', { name: 'Renunță', exact: true }).click(); await page.clock.runFor(300);
@@ -315,6 +321,7 @@ test('only one schedule runs; replacement confirms and preserves the independent
 test('schedule notices and sound stop preserve an open editor and its draft', async ({ page }) => {
   await seed(page, scheduleData()); await audioSpy(page); await page.goto('/planning');
   await page.getByRole('button', { name: 'Pornește orarul Studiu', exact: true }).click();
+  await scheduleOptions(page, 'Relaxare');
   await page.getByRole('button', { name: 'Editează orarul Relaxare', exact: true }).click();
   const editor = page.getByRole('dialog', { name: 'Editează orarul', exact: true });
   await editor.getByLabel('Nume orar', { exact: true }).fill('Respirație');
@@ -336,7 +343,7 @@ test('settings can stop completion audio without clearing the schedule', async (
   const data = scheduleData(); data.planning.schedules[0].steps = [data.planning.schedules[0].steps[1]];
   await seed(page, data); await audioSpy(page); await page.goto('/planning');
   await page.getByRole('button', { name: 'Pornește orarul Studiu', exact: true }).click();
-  const dialog = await settings(page); await page.clock.runFor(1000);
+  const dialog = await settings(page, 'sounds'); await page.clock.runFor(1000);
   await expect(dialog.getByLabel('Orar finalizat', { exact: true })).toBeVisible();
   const completed = (await stored(page)).planning.run;
   await dialog.getByRole('button', { name: 'Oprește sunetul', exact: true }).click();
@@ -384,7 +391,7 @@ for (const first of ['timer', 'planning']) {
       else await page.getByRole('button', { name: 'Pornește orarul Studiu', exact: true }).click();
     }
     await page.getByRole('tab', { name: 'Istoric', exact: true }).click();
-    const dialog = await settings(page);
+    const dialog = await settings(page, 'appearance');
     await dialog.getByRole('switch', { name: 'Mod întunecat', exact: true }).click();
     await expectTheme(page, true);
     await page.clock.runFor(2000);

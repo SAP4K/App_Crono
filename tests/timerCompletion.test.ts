@@ -118,3 +118,23 @@ test('effect cleanup and reactivation reschedule once without reviving old callb
   f.now = 2000; old(); assert.equal(f.played, 0);
   f.callbacks.at(-1)!(); assert.equal(f.played, 1);
 });
+
+test('extending a run invalidates the old deadline and a rejected extension preserves completion audio', () => {
+  const f = fixture(); f.coordinator.configure(5000); f.coordinator.start();
+  const old = f.callbacks.at(-1)!; f.now = 2000; f.coordinator.extend();
+  const current = f.callbacks.at(-1)!;
+  assert.equal(f.data.timer.runId, 'run-1'); assert.equal(f.data.timer.deadlineAt, 66000);
+  f.now = 6000; old(); assert.equal(f.data.timer.status, 'running'); assert.equal(f.played, 0);
+  f.now = 66000; current(); assert.equal(f.played, 1);
+  const stopped = f.stopped, completed = f.data.timer, guard = f.guards[0];
+  f.coordinator.extend(); assert.equal(f.data.timer, completed); assert.equal(f.stopped, stopped); assert.equal(guard(), true);
+});
+
+test('extension at expiry completes normally and rejected accepted-updates cannot extend a run', () => {
+  const f = fixture(); f.coordinator.configure(1000); f.coordinator.start(); f.now = 2000; f.coordinator.extend();
+  assert.equal(f.data.timer.status, 'completed'); assert.equal(f.played, 1);
+  const rejected = fixture({ accept: false });
+  rejected.data = { ...initialData(), timer: startTimer(initialData().timer, 1000, 'rejected') };
+  const before = rejected.data; rejected.coordinator.extend();
+  assert.equal(rejected.data, before); assert.equal(rejected.stopped, 0); assert.equal(rejected.played, 0);
+});

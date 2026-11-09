@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { initialData } from '../src/core/stopwatch.ts';
 import { LANGUAGES } from '../src/core/language.ts';
 import { getMessages } from '../src/i18n/index.ts';
-import { startTimer, configureTimer, pauseTimer, resumeTimer } from '../src/core/timer.ts';
+import { startTimer, configureTimer, extendTimer, pauseTimer, resumeTimer } from '../src/core/timer.ts';
 import { startSchedule } from '../src/core/planning.ts';
 import { notificationData, notificationEventKey, ownedNotificationData, projectNotificationEvents, readNotificationData, NOTIFICATION_PREFIX } from '../src/core/notifications.ts';
 import { notificationCapability } from '../src/hooks/notificationTypes.ts';
@@ -120,4 +120,14 @@ test('web adapter reports unsupported without calling any browser permission API
   assert.deepEqual(await webNotifications.pending(), []);
   assert.deepEqual(await webNotifications.presented(), []);
   assert.equal(await webNotifications.lastResponse(), null);
+});
+
+
+test('extension keeps event identity, moves only the timer deadline and preserves Planning projection', () => {
+  const data = running(), before = projectNotificationEvents(data, 1100);
+  data.timer = extendTimer(data.timer, 1100);
+  const after = projectNotificationEvents(data, 1100);
+  const first = before.find((event) => event.owner === 'timer')!, next = after.find((event) => event.owner === 'timer')!;
+  assert.equal(next.eventId, first.eventId); assert.equal(next.dueAt, first.dueAt + 60000);
+  assert.deepEqual(after.filter((event) => event.owner === 'planning'), before.filter((event) => event.owner === 'planning'));
 });

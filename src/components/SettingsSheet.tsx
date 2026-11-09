@@ -1,21 +1,30 @@
 import { useI18n } from '../hooks/useI18n';
-import { useEffect, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useCrono } from '../context/CronoContext';
-import { fonts as f, Palette } from '../theme';
+import { textSizes, fonts as f, Palette } from '../theme';
 import { useTheme, useThemeStyles } from '../context/ThemeContext';
 import { Icon } from './Icon';
 import { Sheet } from './Sheet';
+import { BackupSettings } from './BackupSettings';
+import { SettingsSwitch } from './SettingsSwitch';
 import { LANGUAGES } from '../core/language';
 import { ALERT_DURATIONS, SOUND_CHOICES } from '../core/sounds';
 import { BackgroundNotificationHelp } from './BackgroundNotificationHelp';
 import { notificationStatus } from '../i18n/notificationStatus';
+
+type SettingsGroup = 'appearance' | 'language' | 'sounds' | 'notifications' | 'device' | 'data' | 'about';
 
 export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const { language, messages: m, setLanguage } = useI18n();
   const { colors: c } = useTheme();
   const styles = useThemeStyles(createStyles);
   const { data, update, feedback, alerts, notifications, hydrationStatus } = useCrono();
+  const [section, setSection] = useState<SettingsGroup | null>(null);
+  const groupButtons = useRef(new Map<SettingsGroup, View>()), returningTo = useRef<SettingsGroup | null>(null);
+  useEffect(() => {
+    if (section === null && returningTo.current) { groupButtons.current.get(returningTo.current)?.focus(); returningTo.current = null; }
+  }, [section]);
   const [blockedPreviewEventId, setBlockedPreviewEventId] = useState<string | null>(null);
   const { controller } = alerts;
   const capability = notifications.state.capability;
@@ -25,16 +34,31 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
   const previewError = alerts.state.request?.owner === 'preview' && alerts.state.error ? m.soundUnavailable : null;
   const previewNotice = alerts.state.status !== 'idle' && alerts.state.request?.owner !== 'preview'
     && alerts.state.request?.eventId === blockedPreviewEventId ? m.alertAlreadyPlaying : null;
-  useEffect(() => { if (!visible) controller.cancelOwner('preview'); }, [visible, controller]);
-  const close = () => { controller.cancelOwner('preview'); setBlockedPreviewEventId(null); onClose(); };
-  // React Native Web has a separate active thumb prop; native Switch uses thumbColor for both states.
-  const webThumb = Platform.OS === 'web' ? { activeThumbColor: c.surface } : {};
+  useEffect(() => { if (!visible || section !== 'sounds') controller.cancelOwner('preview'); }, [visible, section, controller]);
+  const close = () => { controller.cancelOwner('preview'); setBlockedPreviewEventId(null); setSection(null); onClose(); };
+  const back = () => { feedback(); returningTo.current = section; setSection(null); };
   const toggle = (key: 'haptics' | 'keepAwake' | 'timerSound', enabled: boolean) => {
     feedback();
     update((previous) => ({ ...previous, preferences: { ...previous.preferences, [key]: enabled } }));
   };
-  return <Sheet visible={visible} title={m.settingsTitle} onClose={close}>
-    <Text style={styles.subtitle}>{m.settingsSubtitle}</Text>
+  const summaries: Record<SettingsGroup, string> = {
+    appearance: data.preferences.theme === 'dark' ? m.darkMode : m.lightMode,
+    language: LANGUAGES.find((item) => item.id === language)!.label,
+    sounds: data.preferences.timerSound ? `${m.sounds[data.preferences.alertSoundId]} · ${m.soundLength(data.preferences.alertDurationSeconds)}` : m.disabledSetting,
+    notifications: notificationStatus(notifications.readiness, m),
+    device: `${m.haptics}: ${data.preferences.haptics ? m.enabled : m.disabledSetting}`,
+    data: m.backupSummary, about: 'CRONO 1.0',
+  };
+  return <Sheet visible={visible} title={section ? m.settingsGroups[section] : m.settingsTitle} onClose={close} onBack={section ? back : undefined}>
+    {section === null && <Text style={styles.subtitle}>{m.settingsSubtitle}</Text>}
+    {section === null && <View style={styles.groups}>{(Object.keys(m.settingsGroups) as SettingsGroup[]).map((group) =>
+      <Pressable key={group} ref={(node) => { if (node) groupButtons.current.set(group, node); else groupButtons.current.delete(group); }}
+        accessibilityRole="button" accessibilityLabel={m.settingsGroups[group]} onPress={() => { feedback(); setSection(group); }}
+        style={({ pressed }) => [styles.group, pressed && { opacity: 0.72 }]}>
+        <View style={styles.copy}><Text style={styles.label}>{m.settingsGroups[group]}</Text><Text style={styles.description}>{summaries[group]}</Text></View>
+        <Icon name="chevron" size={18} />
+      </Pressable>)}</View>}
+    {section === 'language' && <>
     <View style={styles.soundOptions}>
       <Text style={styles.label}>{m.language}</Text>
       <Text style={styles.description}>{m.languageHelp}</Text>
@@ -42,18 +66,22 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
         accessibilityState={{ checked: language === item.id }} aria-checked={language === item.id} onPress={() => setLanguage(item.id)}
         style={({ pressed }) => [styles.choice, language === item.id && styles.chosen, pressed && { opacity: 0.72 }]}><Text style={styles.choiceText}>{item.label}</Text></Pressable>)}</View>
     </View>
+    </>}
+    {section === 'appearance' && <>
     <View style={styles.row}>
       <View style={styles.icon}><Icon name="moon" /></View>
       <View style={styles.copy}><Text style={styles.label}>{m.darkMode}</Text><Text style={styles.description}>{m.themeHelp}</Text></View>
-      <Switch {...webThumb} accessibilityLabel={m.darkMode} value={data.preferences.theme === 'dark'} onValueChange={(enabled) => {
+      <SettingsSwitch accessibilityLabel={m.darkMode} value={data.preferences.theme === 'dark'} onValueChange={(enabled) => {
         feedback();
         update((previous) => ({ ...previous, preferences: { ...previous.preferences, theme: enabled ? 'dark' : 'light' } }));
-      }} trackColor={{ false: c.border, true: c.lime }} thumbColor={c.surface} ios_backgroundColor={c.border} />
+      }} />
     </View>
+    </>}
+    {section === 'sounds' && <>
     <View style={styles.row}>
       <View style={styles.icon}><Icon name="sound" /></View>
       <View style={styles.copy}><Text style={styles.label}>{m.audioAlerts}</Text><Text style={styles.description}>{m.audioHelp}</Text></View>
-      <Switch {...webThumb} accessibilityLabel={m.audioAlerts} value={data.preferences.timerSound} onValueChange={(value) => toggle('timerSound', value)} trackColor={{ false: c.border, true: c.lime }} thumbColor={c.surface} ios_backgroundColor={c.border} />
+      <SettingsSwitch accessibilityLabel={m.audioAlerts} value={data.preferences.timerSound} onValueChange={(value) => toggle('timerSound', value)} />
     </View>
     <View style={styles.soundOptions}>
       <Text style={styles.label}>{m.sound}</Text>
@@ -72,15 +100,12 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
       }} style={styles.preview}><Icon name="sound" size={17} /><Text style={styles.choiceText}>{previewing ? m.stopPreview : m.preview}</Text></Pressable>
       {(previewError || previewNotice) && <Text accessibilityLiveRegion="polite" style={styles.description}>{previewError || previewNotice}</Text>}
     </View>
-    <View style={styles.row}>
-      <View style={styles.icon}><Icon name="haptics" /></View>
-      <View style={styles.copy}><Text style={styles.label}>{m.haptics}</Text><Text style={styles.description}>{m.hapticsHelp}</Text></View>
-      <Switch {...webThumb} accessibilityLabel={m.haptics} value={data.preferences.haptics} onValueChange={(value) => toggle('haptics', value)} trackColor={{ false: c.border, true: c.lime }} thumbColor={c.surface} ios_backgroundColor={c.border} />
-    </View>
+    </>}
+    {section === 'notifications' && <>
     <View style={styles.soundOptions}>
       <View style={styles.notificationRow}>
         <View style={styles.copy}><Text style={styles.label}>{m.systemNotifications}</Text><Text style={styles.description}>{m.notificationsHelp}</Text></View>
-        <View style={styles.notificationSwitch}><Switch {...webThumb} hitSlop={{ top: 12, bottom: 12, left: 2, right: 2 }} accessibilityLabel={m.systemNotifications}
+        <View style={styles.notificationSwitch}><SettingsSwitch accessibilityLabel={m.systemNotifications}
           disabled={!canManageNotifications} value={data.preferences.systemNotifications} onValueChange={(enabled) => {
             if (!canManageNotifications) return;
             const result = update((previous) => previous.preferences.systemNotifications === enabled ? previous
@@ -88,7 +113,7 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
             if (!result.changed) return;
             feedback();
             if (enabled) void notifications.controller.requestPermission(true);
-          }} trackColor={{ false: c.border, true: c.lime }} thumbColor={c.surface} ios_backgroundColor={c.border} /></View>
+          }} /></View>
       </View>
       <Text style={styles.description} accessibilityLiveRegion="polite">{notificationStatus(notifications.readiness, m)}</Text>
       {data.preferences.systemNotifications && notifications.state.delivery.extendedSound === true && <>
@@ -108,38 +133,50 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
         {data.preferences.systemNotifications && <BackgroundNotificationHelp />}
       </>}
     </View>
+    </>}
+    {section === 'device' && <>
+    <View style={styles.row}>
+      <View style={styles.icon}><Icon name="haptics" /></View>
+      <View style={styles.copy}><Text style={styles.label}>{m.haptics}</Text><Text style={styles.description}>{m.hapticsHelp}</Text></View>
+      <SettingsSwitch accessibilityLabel={m.haptics} value={data.preferences.haptics} onValueChange={(value) => toggle('haptics', value)} />
+    </View>
     <View style={styles.row}>
       <View style={styles.icon}><Icon name="screen" /></View>
       <View style={styles.copy}><Text style={styles.label}>{m.keepAwake}</Text><Text style={styles.description}>{m.keepAwakeHelp}</Text></View>
-      <Switch {...webThumb} accessibilityLabel={m.keepAwake} value={data.preferences.keepAwake} onValueChange={(value) => toggle('keepAwake', value)} trackColor={{ false: c.border, true: c.lime }} thumbColor={c.surface} ios_backgroundColor={c.border} />
+      <SettingsSwitch accessibilityLabel={m.keepAwake} value={data.preferences.keepAwake} onValueChange={(value) => toggle('keepAwake', value)} />
     </View>
     {Platform.OS === 'web' && <Text style={styles.webNote}>{m.webNote}</Text>}
-    <View style={styles.about}><View style={styles.aboutMark}><Icon name="clock" size={28} color={c.onAccent} /></View><Text style={styles.brand}>CRONO <Text style={styles.version}>1.0</Text></Text><Text style={styles.tagline}>{m.tagline}</Text><View style={styles.divider} /><Text style={styles.privacy}>{m.privacy}</Text><Text style={styles.limit}>{m.historyLimit}</Text></View>
+    </>}
+    {section === 'about' && <>
+    <View style={styles.about}><View style={styles.aboutMark}><Icon name="clock" size={28} color={c.onAccent} /></View><Text style={styles.brand}>CRONO <Text style={styles.version}>1.0</Text></Text><Text style={styles.tagline}>{m.tagline}</Text><View style={styles.divider} /><Text style={styles.privacy}>{m.privacy}</Text><Text style={styles.limit}>{m.historyLimit}</Text></View>    </>}
+    {section === 'data' && visible && <BackupSettings />}
   </Sheet>;
 }
 
 const createStyles = (c: Palette) => StyleSheet.create({
-  subtitle: { fontFamily: f.regular, color: c.muted, fontSize: 13, marginBottom: 27 },
+  groups: { paddingBottom: 14 },
+  group: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 16, borderBottomWidth: 1, borderColor: c.border },
+  subtitle: { fontFamily: f.regular, color: c.muted, fontSize: textSizes.body, marginBottom: 27 },
   soundOptions: { gap: 12, paddingVertical: 18, borderBottomWidth: 1, borderColor: c.border },
   choices: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   notificationRow: { flexDirection: 'row', gap: 12, alignItems: 'center' },
   notificationSwitch: { minHeight: 44, justifyContent: 'center' },
   choice: { borderWidth: 1, borderColor: c.border, borderRadius: 12, paddingHorizontal: 13, minHeight: 44, justifyContent: 'center', alignItems: 'center' },
   chosen: { backgroundColor: c.selected, borderColor: c.green },
-  choiceText: { fontFamily: f.medium, color: c.ink, fontSize: 12 },
+  choiceText: { fontFamily: f.medium, color: c.ink, fontSize: textSizes.caption },
   preview: { flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', minHeight: 46, borderRadius: 12, backgroundColor: c.secondary },
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 21, borderBottomWidth: 1, borderColor: c.border, gap: 12 },
   icon: { backgroundColor: c.iconSurface, width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   copy: { flex: 1, gap: 6 },
-  label: { fontFamily: f.semibold, color: c.ink, fontSize: 13 },
-  description: { fontFamily: f.regular, color: c.muted, fontSize: 10, lineHeight: 16 },
-  webNote: { fontFamily: f.regular, color: c.muted, fontSize: 11, lineHeight: 18, marginTop: 14 },
+  label: { fontFamily: f.semibold, color: c.ink, fontSize: textSizes.body },
+  description: { fontFamily: f.regular, color: c.muted, fontSize: textSizes.caption, lineHeight: 21 },
+  webNote: { fontFamily: f.regular, color: c.muted, fontSize: textSizes.caption, lineHeight: 21, marginTop: 14 },
   about: { alignItems: 'center', paddingVertical: 32 },
   aboutMark: { backgroundColor: c.lime, width: 57, height: 57, borderRadius: 19, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
   brand: { fontFamily: f.heavy, color: c.ink, fontSize: 20, letterSpacing: -0.5 },
-  version: { fontFamily: f.medium, color: c.muted, fontSize: 11 },
-  tagline: { fontFamily: f.regular, color: c.muted, fontSize: 11, marginTop: 9, textAlign: 'center' },
+  version: { fontFamily: f.medium, color: c.muted, fontSize: textSizes.small },
+  tagline: { fontFamily: f.regular, color: c.muted, fontSize: textSizes.small, marginTop: 9, textAlign: 'center' },
   divider: { width: 25, height: 1, backgroundColor: c.border, marginVertical: 22 },
-  privacy: { fontFamily: f.regular, color: c.muted, fontSize: 11, lineHeight: 19, textAlign: 'center' },
-  limit: { fontFamily: f.regular, color: c.muted, fontSize: 10, marginTop: 14 },
+  privacy: { fontFamily: f.regular, color: c.muted, fontSize: textSizes.caption, lineHeight: 21, textAlign: 'center' },
+  limit: { fontFamily: f.regular, color: c.muted, fontSize: textSizes.small, marginTop: 14 },
 });

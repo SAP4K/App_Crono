@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useTheme, useThemeStyles } from '../context/ThemeContext';
 import { MAX_NAME_LENGTH } from '../core/planning';
 import { formatRemaining, parseDuration } from '../core/timer';
-import { buttonPressedStyle, fonts as f, Palette } from '../theme';
+import { textSizes, buttonPressedStyle, fonts as f, Palette } from '../theme';
 import { Icon } from './Icon';
 
 export type StepDraft = { id: string; name: string; hours: string; minutes: string; seconds: string };
@@ -36,12 +36,12 @@ export function ScheduleStepRow({ value, index, count, onChange, onMove, onRemov
 const createStyles = (c: Palette) => StyleSheet.create({
   row: { padding: 12, borderWidth: 1, borderColor: c.border, borderRadius: 16, marginBottom: 12, gap: 10, backgroundColor: c.surface },
   heading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  label: { fontFamily: f.semibold, fontSize: 12, color: c.ink },
+  label: { fontFamily: f.semibold, fontSize: textSizes.caption, color: c.ink },
   controls: { flexDirection: 'row', gap: 2 },
   control: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   arrow: { fontSize: 21, color: c.ink }, disabled: { opacity: 0.35 },
-  input: { minHeight: 44, borderWidth: 1, borderColor: c.border, borderRadius: 10, paddingHorizontal: 10, fontFamily: f.regular, fontSize: 13, color: c.ink, backgroundColor: c.background },
+  input: { minHeight: 44, borderWidth: 1, borderColor: c.border, borderRadius: 10, paddingHorizontal: 10, fontFamily: f.regular, fontSize: textSizes.input, color: c.ink, backgroundColor: c.background },
   duration: { minHeight: 48, paddingHorizontal: 12, borderWidth: 1, borderColor: c.border, borderRadius: 10, flexDirection: 'row', gap: 12, alignItems: 'center', backgroundColor: c.background },
-  number: { flex: 1, textAlign: 'center', fontFamily: f.semibold, color: c.ink, fontSize: 16, fontVariant: ['tabular-nums'] },
-  unit: { fontFamily: f.regular, fontSize: 10, color: c.muted, textAlign: 'center' },
+  number: { flex: 1, textAlign: 'center', fontFamily: f.semibold, color: c.ink, fontSize: textSizes.input, fontVariant: ['tabular-nums'] },
+  unit: { fontFamily: f.regular, fontSize: textSizes.small, color: c.muted, textAlign: 'center' },
 });

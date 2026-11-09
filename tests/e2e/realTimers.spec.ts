@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { LANGUAGES } from '../../src/core/language';
 import { getMessages } from '../../src/i18n';
 import { initialData } from '../../src/core/stopwatch';
-import { expectNoPageErrors, expectTheme, observePageErrors, seed, settings, stored } from './helpers';
+import { expectNoPageErrors, expectTheme, observePageErrors, seed, settings, settingsGroup, stored } from './helpers';
 
 // Fake clocks accept detached clearTimeout calls that Chrome's native timers reject.
 test.beforeEach(({ page }) => observePageErrors(page));
@@ -40,29 +40,34 @@ async function audioState(page: Page) {
     .map((player) => ({ paused: player.paused, currentTime: player.currentTime, loop: player.loop })));
 }
 
-test('real timers preserve actual preview playback through theme changes, expiry and Stop', async ({ page }) => {
+test('real timers cancel preview on leaving Sounds and retain natural expiry and Stop after a theme change', async ({ page }) => {
   const data = dataWithPausedStopwatch();
   data.preferences.alertDurationSeconds = 15;
   // Keep native media/timers and real WAV bytes; isolate Metro's asset-transfer latency.
   await page.route(classicUrl, (route) => route.fulfill({ contentType: 'audio/wav', body: classicWav }));
   await seed(page, data); await observeRealAudio(page); await page.goto('/');
-  const dialog = await settings(page);
+  const dialog = await settings(page, 'sounds');
   const audition = dialog.getByRole('button', { name: 'Ascultă sunetul', exact: true });
   const stop = dialog.getByRole('button', { name: 'Oprește previzualizarea', exact: true });
   await audition.click();
   await expect.poll(async () => (await audioState(page))[0]?.currentTime ?? 0).toBeGreaterThan(0);
   expectNoPageErrors(page);
-  await dialog.getByRole('switch', { name: 'Mod întunecat', exact: true }).click();
-  await expectTheme(page, true);
-  const playing = await audioState(page);
-  expect(playing).toHaveLength(1);
-  expect(playing[0]).toMatchObject({ paused: false, loop: true });
-  await expect(audition).toBeVisible({ timeout: 20000 });
+  await settingsGroup(page, 'appearance');
   expect((await audioState(page))[0].paused).toBe(true);
+  await dialog.getByRole('switch', { name: 'Mod întunecat', exact: true }).click();
+  await settingsGroup(page, 'sounds');
   await audition.click();
   await expect.poll(async () => (await audioState(page))[1]?.currentTime ?? 0).toBeGreaterThan(0);
-  await stop.click(); await expect(audition).toBeVisible();
+  await expectTheme(page, true);
+  const playing = await audioState(page);
+  expect(playing).toHaveLength(2);
+  expect(playing[1]).toMatchObject({ paused: false, loop: true });
+  await expect(audition).toBeVisible({ timeout: 20000 });
   expect((await audioState(page))[1].paused).toBe(true);
+  await audition.click();
+  await expect.poll(async () => (await audioState(page))[2]?.currentTime ?? 0).toBeGreaterThan(0);
+  await stop.click(); await expect(audition).toBeVisible();
+  expect((await audioState(page))[2].paused).toBe(true);
   const saved = await stored(page);
   expect(saved.stopwatch).toEqual(data.stopwatch);
   expect(saved.timer).toEqual(data.timer);
@@ -74,7 +79,7 @@ test('real media loops for the selected full minute and then releases the player
   const data = dataWithPausedStopwatch(); data.preferences.alertDurationSeconds = 60;
   await page.route(classicUrl, (route) => route.fulfill({ contentType: 'audio/wav', body: classicWav }));
   await seed(page, data); await observeRealAudio(page); await page.goto('/');
-  const dialog = await settings(page); await dialog.getByRole('button', { name: 'Ascultă sunetul', exact: true }).click();
+  const dialog = await settings(page, 'sounds'); await dialog.getByRole('button', { name: 'Ascultă sunetul', exact: true }).click();
   await expect.poll(async () => (await audioState(page))[0]?.currentTime ?? 0).toBeGreaterThan(0);
   const started = Date.now();
   await expect(dialog.getByRole('button', { name: 'Oprește previzualizarea', exact: true })).toBeVisible();
@@ -89,7 +94,7 @@ test('real timers recover from a failed media load without uncaught errors', asy
   await page.route(classicUrl, (route) => blocked ? route.abort()
     : route.fulfill({ contentType: 'audio/wav', body: classicWav }));
   await seed(page); await observeRealAudio(page); await page.goto('/');
-  const dialog = await settings(page);
+  const dialog = await settings(page, 'sounds');
   const audition = dialog.getByRole('button', { name: 'Ascultă sunetul', exact: true });
   await audition.click();
   await expect(dialog.getByText('Sunetul nu este disponibil acum.', { exact: true })).toBeVisible();
@@ -154,35 +159,35 @@ test('real timers allow schedule pause, resume and confirmed reset without losin
 });
 
 for (const [first, second] of [['en', 'ru'], ['es', 'fr'], ['fr', 'de'], ['de', 'es']] as const) {
-  test(`real timers retain pending and playing preview across ${first} and ${second}, natural expiry and Stop`, async ({ page }) => {
+  test(`real pending and playing previews cancel across ${first} and ${second}, then retain expiry and Stop`, async ({ page }) => {
     let release!: () => void; let requested = false;
     const pending = new Promise<void>((resolve) => { release = resolve; });
-    await page.route(classicUrl, async (route) => {
-      requested = true; await pending;
-      await route.fulfill({ contentType: 'audio/wav', body: classicWav });
-    });
+    await page.route(classicUrl, async (route) => { requested = true; await pending; await route.fulfill({ contentType: 'audio/wav', body: classicWav }); });
     const data = dataWithPausedStopwatch();
     await seed(page, data); await observeRealAudio(page); await page.goto('/');
-    await settings(page);
+    await settings(page, 'sounds');
     try {
       await page.getByRole('button', { name: 'Ascultă sunetul', exact: true }).click();
       await expect.poll(() => requested).toBe(true);
+      await settingsGroup(page, 'language');
       await page.getByRole('radio', { name: LANGUAGES.find(({ id }) => id === first)!.label, exact: true }).click();
-      await expect(page.getByRole('button', { name: getMessages(first).stopPreview, exact: true })).toBeVisible();
-      release();
-      await expect.poll(async () => (await audioState(page))[0]?.currentTime ?? 0).toBeGreaterThan(0);
-      await page.getByRole('radio', { name: LANGUAGES.find(({ id }) => id === second)!.label, exact: true }).click();
-      expect(await audioState(page)).toHaveLength(1);
-      expect((await audioState(page))[0]).toMatchObject({ paused: false, loop: true });
-      const audition = page.getByRole('button', { name: getMessages(second).preview, exact: true });
-      await expect(audition).toBeVisible({ timeout: 10000 });
-      expect((await audioState(page))[0].paused).toBe(true);
-      await audition.click();
+      await settingsGroup(page, 'sounds', getMessages(first)); release();
+      await expect.poll(async () => (await audioState(page))[0]?.paused).toBe(true);
+      await page.getByRole('button', { name: getMessages(first).preview, exact: true }).click();
       await expect.poll(async () => (await audioState(page))[1]?.currentTime ?? 0).toBeGreaterThan(0);
-      await page.getByRole('button', { name: getMessages(second).stopPreview, exact: true }).click();
-      await expect(audition).toBeVisible();
+      await settingsGroup(page, 'language', getMessages(first));
+      await page.getByRole('radio', { name: LANGUAGES.find(({ id }) => id === second)!.label, exact: true }).click();
+      await settingsGroup(page, 'sounds', getMessages(second));
       expect((await audioState(page))[1].paused).toBe(true);
-      expect(await audioState(page)).toHaveLength(2);
+      const audition = page.getByRole('button', { name: getMessages(second).preview, exact: true });
+      await audition.click();
+      await expect.poll(async () => (await audioState(page))[2]?.currentTime ?? 0).toBeGreaterThan(0);
+      await expect(audition).toBeVisible({ timeout: 10000 });
+      expect((await audioState(page))[2].paused).toBe(true);
+      await audition.click();
+      await expect.poll(async () => (await audioState(page))[3]?.currentTime ?? 0).toBeGreaterThan(0);
+      await page.getByRole('button', { name: getMessages(second).stopPreview, exact: true }).click();
+      expect((await audioState(page))[3].paused).toBe(true); expect(await audioState(page)).toHaveLength(4);
       const saved = await stored(page);
       expect(saved.stopwatch).toEqual(data.stopwatch); expect(saved.timer).toEqual(data.timer); expect(saved.planning).toEqual(data.planning);
     } finally { release(); }

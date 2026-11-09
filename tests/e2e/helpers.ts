@@ -83,11 +83,22 @@ export async function stepDuration(page: Page, stepNumber: number, parts: readon
   await expect(panel).not.toBeVisible();
 }
 
-export async function settings(page: Page) {
-  await page.getByRole('button', { name: 'Setări', exact: true }).click();
-  return page.getByRole('dialog', { name: 'În stilul tău.' });
+export async function settings(page: Page, group?: keyof Messages['settingsGroups'], messages = getMessages('ro')) {
+  await page.getByRole('button', { name: messages.settings, exact: true }).click();
+  if (group) await page.getByRole('button', { name: messages.settingsGroups[group], exact: true }).click();
+  return page.getByRole('dialog');
 }
 
 export async function expectTheme(page: Page, dark: boolean) {
   await expect(page.locator('body')).toHaveCSS('background-color', dark ? 'rgb(2, 6, 23)' : 'rgb(226, 232, 240)');
+}
+
+export async function settingsGroup(page: Page, group: keyof Messages['settingsGroups'], messages = getMessages('ro')) {
+  await page.getByRole('button', { name: messages.back, exact: true }).click();
+  await page.getByRole('button', { name: messages.settingsGroups[group], exact: true }).click();
+}
+
+export async function scheduleOptions(page: Page, name: string, messages = getMessages('ro')) {
+  const button = page.getByRole('button', { name: messages.scheduleOptions(name), exact: true });
+  if (await button.getAttribute('aria-expanded') !== 'true') await button.click();
 }

@@ -26,8 +26,9 @@ When developing on Windows, you can preview the interface on a physical iPhone u
 - Time displayed to hundredths of a second, with hours shown automatically for long sessions.
 - Individual lap durations and cumulative times, with the fastest laps highlighted and average lap times displayed.
 - Save the latest 50 sessions with up to 1,000 laps each, view details, share results, and delete with confirmation.
-- Run an independent countdown with pause/resume and a completion sound; save multiple action schedules and run one sequence automatically alongside both clocks.
-- Select timer and action durations with scrolling hours/minutes/seconds wheels.
+- Run an independent countdown with quick presets, a large active view, localized end time and a bounded **+1 minute** control; run an action sequence alongside both clocks.
+- Select timer and action durations with inertial wheels; create schedules from templates, duplicate them and repeat a draft sequence.
+- Use grouped Settings, compact cross-tab activity controls and [portable backup/import](docs/backups.md).
 - Choose from four bundled sounds with 5, 15, 30, or 60 seconds of playback, preview, and Stop controls; rebuilt Android apps also support the selected duration in the background.
 - Schedule native timer/action/final notifications for Home and locked screens, with saved enablement and OS permission controls.
 - Choose white/blue light or navy/blue dark mode and save that preference across launches.
@@ -39,7 +40,7 @@ Tap **Pauză → Salvează sesiunea** (Pause → Save session) to keep your resu
 
 ## Language, Theme, Timer, and Sound
 
-Open the gear button (**Setări** in Romanian) and choose a language under **Limbă / Language**. Settings lists the choices by estimated total speakers worldwide, including native and second-language speakers.
+Open the gear button (**Setări** in Romanian). The overview groups Appearance, Language, Sound, Notifications, Device, Data and About, with current summaries. Back returns to the overview; Close exits Settings. Choose a language under **Limbă / Language**. Settings lists the choices by estimated total speakers worldwide, including native and second-language speakers.
 
 | Choice | Saved ID | Locale |
 |---|---|---|
@@ -52,31 +53,41 @@ Open the gear button (**Setări** in Romanian) and choose a language under **Lim
 
 Romanian is the default, including older data and unsupported saved choices; device/browser language is not detected. Your manual selection is saved and works offline.
 
-Labels, dates, plural phrases, accessible names, notices, and shared results use that choice. Existing schedule/action names and history remain unchanged; new default action names use the selected language. Switching language preserves clocks and pending/playing audio. The examples below use the default Romanian labels. To extend support, follow [Adding a language](AGENTS.md#adding-a-language).
+Labels, dates, plural phrases, accessible names, notices, and shared results use that choice. Existing schedule/action names and history remain unchanged; new default action names use the selected language. Switching language preserves clocks and real completion alerts. Leaving the Sound panel cancels its preview. The examples below use the default Romanian labels. To extend support, follow [Adding a language](AGENTS.md#adding-a-language).
 
-Light mode uses white backgrounds and blue accents; dark mode uses navy backgrounds and lighter blue accents across the four tabs, controls, and sheets. Open the gear button (**Setări**) and enable **Mod întunecat** for dark mode. Light is the default. Your manual choice is saved and takes priority over the phone/browser appearance.
+Light mode uses white backgrounds and blue accents; dark mode uses navy backgrounds and lighter blue accents across the four tabs, controls, and sheets. Open **Setări → Aspect** (Settings → Appearance) and enable **Mod întunecat** for dark mode. Light is the default. Your manual choice is saved and takes priority over the phone/browser appearance.
 
-Older saved data or an invalid theme preference falls back to light while retaining valid stopwatch/history data. Changing the theme preserves active clocks, schedules, and alert playback. The first interactive screen uses the restored theme; the native launch image appears before saved settings can load. Launcher icons, favicon, and splash artwork retain their existing branding.
+Older saved data or an invalid theme preference falls back to light while retaining valid stopwatch/history data. Changing the theme preserves active clocks, schedules and real completion audio. The first interactive screen uses the restored theme; the native launch image appears before saved settings can load. Launcher icons, favicon, and splash artwork retain their existing branding.
 
 Open **Timer** and scroll **Ore / Minute / Secunde** (hours/minutes/seconds) until the desired values reach the highlighted center row, then press **Pornește**. A quick flick continues gliding after release and snaps to a centered value; move slowly for precise selection. Duration selection opens no numeric keyboard. Hours stop at 00–23; minutes and seconds stop at 00–59, without wrapping or carrying into another column. Start waits for every moving column to settle; `00:00:00` is invalid. On web, focus a column and use ArrowUp/ArrowDown or Home/End, or click a neighboring value.
 
-The default is five minutes; valid durations remain `00:00:01`–`23:59:59`. Wheels are editable while idle or completed and disabled while running or paused. Pause/resume keeps the exact remaining time; reset requires confirmation while running or paused. Reset before editing an active duration. After completion, use **Repornește** to start again. Focusing or returning to the same value preserves completion and its sound. Countdown runs do not create stopwatch history entries.
+The default is five minutes; valid durations remain `00:00:01`–`23:59:59`. Quick presets select **1, 5, 10 or 25 minutes** without starting. Setup uses a compact dial and wheels while idle/completed. Running/paused views show a larger countdown and hide the wheels.
 
-In **Setări**, **Alerte sonore** controls automatic timer and schedule alerts and defaults on. Choose **Clasic**, **Clopoțel**, **Digital**, or **Gong** under **Sunet**, then **5 s**, **15 s**, **30 s**, or **60 s** under **Durata sunetului**. Clasic and 60 seconds are the defaults for fresh/missing/invalid preferences. Valid saved shorter durations are retained: select **60 s** manually on an upgraded installation. The pattern loops for the selected duration after playback starts. **Ascultă sunetul** previews it even when automatic alerts are muted. See [notification sound behavior](docs/background-notifications.md#sound) for platform differences.
+Pause/resume keeps the exact remaining time; reset requires confirmation while running or paused. **+1 min** adds exactly one minute while running or paused, up to the total duration limit. It keeps the same run, shifts a running deadline by one minute and extends the exact frozen budget while paused. Reset/Restart subsequently use the adjusted duration.
 
-Use **Oprește sunetul**, available in the shell and open sheets, to silence playback without resetting an activity. Changing sound/duration or muting automatic alerts cancels current playback. Closing Settings stops its preview. A live alert replaces a preview; newer live deadlines replace older alerts. Exact ties prefer timer completion, then schedule completion, then an action boundary. Interrupted sounds are not queued.
+The running dial shows a localized **Ends at** time, including a date across midnight. Paused timers have no end-clock estimate. Reset before selecting another duration. After completion, use **Repornește** to start again. Focusing or returning to the same value preserves completion and its sound. Countdown runs do not create stopwatch history entries.
+
+When a running or paused Timer or Planning activity is on another tab, a compact row above navigation shows its remaining time and Pause/Resume. Tap the row to open that activity. Both rows can appear together; completion removes its row.
+
+In **Setări → Sunete** (Settings → Sound), **Alerte sonore** controls automatic timer and schedule alerts and defaults on. Choose **Clasic**, **Clopoțel**, **Digital**, or **Gong** under **Sunet**, then **5 s**, **15 s**, **30 s**, or **60 s** under **Durata sunetului**. Clasic and 60 seconds are the defaults for fresh/missing/invalid preferences. Valid saved shorter durations are retained: select **60 s** manually on an upgraded installation. The pattern loops for the selected duration after playback starts. **Ascultă sunetul** previews it even when automatic alerts are muted. See [notification sound behavior](docs/background-notifications.md#sound) for platform differences.
+
+Use **Oprește sunetul**, available in the shell and open sheets, to silence playback without resetting an activity. Changing sound/duration or muting automatic alerts cancels current playback. Leaving Sound or closing Settings stops its preview. A live alert replaces a preview; newer live deadlines replace older alerts. Exact ties prefer timer completion, then schedule completion, then an action boundary. Interrupted sounds are not queued.
 
 On rebuilt Android apps, one native audio owner handles foreground completion and, with system notifications enabled and required access available, continues playback on Home, in another app or with the screen locked. Its notification offers **Stop** and **Open**; returning does not restart the minute. Preview remains foreground-only. iOS/web looping remains active-app-only; iOS background notifications retain a separate 15-second clip. Overdue timing catches up without replaying old sounds. Completion and Stop remain visible inside open sheets. Native playback respects silent/DND/channel controls and audio-focus interruptions; browser autoplay can be blocked. No microphone permission is requested. Physical Android minute/lock-screen acceptance is still pending.
 
 ## System Notifications
 
-Open **Setări → Notificări de sistem** in a rebuilt Android/iOS app. CRONO registers future timer and schedule alerts with the OS, so they can arrive on Home or while the phone is locked. Permission, exact-alarm access and channel settings are shown separately from the saved enable switch.
+Open **Setări → Notificări** (Settings → Notifications) in a rebuilt Android/iOS app, then use **Notificări de sistem**. CRONO registers future timer and schedule alerts with the OS, so they can arrive on Home or while the phone is locked. Permission, exact-alarm access and channel settings are shown separately from the saved enable switch.
 
 See [Background and Lock-Screen Notifications](docs/background-notifications.md) for Android minute playback, setup, MIUI/battery guidance, platform limits and verification. Native module changes require a rebuild; the web preview retains in-app feedback.
 
 ## Planning Example
 
 Open **Planificare**, next to Timer, and tap **Orar nou**. Name it “Studiu”, set the first action to “Lucru”, and tap its **Durată** value to open the wheels. Select 25 minutes and tap **Aplică durata**, then use **Adaugă etapă** for “Pauză” lasting 5 minutes. Move actions with the arrow buttons and tap **Salvează orarul**, then **Pornește**. Planning controls fade and shrink slightly while pressed.
+
+Saved cards emphasize **Pornește** (Start), show a short sequence preview and place Edit, Duplicate and Delete under the labelled ellipsis options button. **Templates** opens Focus (25-minute focus → 5-minute break) or Workout (5-minute warm up → 20-minute exercise → 5-minute cool down) as unsaved drafts. Duplicate also opens an independent unsaved copy, including calendar rules. Save creates the new schedule; closing an unchanged draft adds nothing.
+
+In the editor, **Repeat sequence** previews **2, 3 or 4 total cycles**. Apply copies the steps into the draft in order, then **Save schedule** persists them. The resulting sequence must fit the existing 50-action limit; Cancel preserves the draft.
 
 Scroll the **Planificare** page to move its controls, any active run and saved schedules together. Scroll back to the top for **Orar nou** and the date filters.
 
@@ -96,7 +107,7 @@ The stopwatch calculates the difference between timestamps instead of accumulati
 
 The countdown and schedule use absolute deadlines, with local foreground display refreshes every 200 ms. Schedule deadlines remain anchored to preceding actions; a delayed callback catches up without replaying every missed sound. Positive fractions round up to the next displayed second. Pausing freezes the exact remaining milliseconds. Device clock changes can affect both activities too.
 
-Data is stored locally using AsyncStorage. Version 1 and `@crono/app-v1` are retained: missing or invalid optional fields default to Romanian, empty schedules, Clasic, 15 seconds, and system notifications enabled while preserving valid clocks, history, theme, and false preferences. Valid saved sound durations of 5, 15 and 30 seconds are preserved. A saved schedule can include a weekly rule or one calendar date. Older schedules and valid templates with invalid calendar metadata load in Manual mode. A running schedule saves a snapshot of its actions. Uninstalling the app or clearing browser data removes local data. Haptic feedback and screen wake lock apply only to mobile. With **Ecran mereu activ** enabled, one wake guard covers any running stopwatch, timer, or schedule.
+Data is stored locally using AsyncStorage. Version 1 and `@crono/app-v1` are retained: missing or invalid optional fields default to Romanian, empty schedules, Clasic, 60 seconds, and system notifications enabled while preserving valid clocks, history, theme, and false preferences. Valid saved sound durations of 5, 15 and 30 seconds are preserved. A saved schedule can include a weekly rule or one calendar date. Older schedules and valid templates with invalid calendar metadata load in Manual mode. A running schedule saves a snapshot of its actions. Uninstalling the app or clearing browser data removes local data. Haptic feedback and screen wake lock apply only to mobile. With **Ecran mereu activ** enabled, one wake guard covers any running stopwatch, timer, or schedule.
 
 ## Checks
 
@@ -126,7 +137,7 @@ npm run build:ios
 
 Cloud builds require an Expo account and signing configuration. iOS distribution requires an Apple Developer account and app registration. Creating the source code and running local checks do not publish the app to stores.
 
-Expo Go can preview the interface, but native appearance/audio/notification plugin and local-module changes require a rebuilt development or preview app. Use the existing preview profile for a standalone Android test APK. The development-client profile additionally requires SDK-compatible `expo-dev-client`, which is not currently installed. Expo audio remains playback-only with no recording or iOS background-audio mode; the Android completion module owns a bounded media-playback foreground service.
+Expo Go can preview the interface, but native appearance/audio/notification plugin, file-transfer modules and local-module changes require a rebuilt development or preview app. Use the existing preview profile for a standalone Android test APK. The development-client profile additionally requires SDK-compatible `expo-dev-client`, which is not currently installed. Expo audio remains playback-only with no recording or iOS background-audio mode; the Android completion module owns a bounded media-playback foreground service.
 
 Official documentation: [Expo Go and setup](https://docs.expo.dev/tutorial/create-your-first-app/), [Expo SDK 57](https://docs.expo.dev/versions/v57.0.0/), [Android/iOS builds](https://docs.expo.dev/build/introduction/), [SDK 57 notifications](https://docs.expo.dev/versions/v57.0.0/sdk/notifications/).
 
@@ -195,6 +206,7 @@ scripts/          Reproducible notification sound generator
 | Document | Contents |
 |---|---|
 | [Background notifications](docs/background-notifications.md) | Phone setup, behavior, limits and verification |
+| [Backups and import](docs/backups.md) | Portable saved data, confirmation, limits and recovery |
 | [Repository map](AGENTS.md) | Entry points and authoritative Expo workflow |
 | [Project description](.ai-factory/DESCRIPTION.md) | Stack, persistence, and known follow-ups |
 | [Architecture](.ai-factory/ARCHITECTURE.md) | Modules, timing, playback, and data flow |

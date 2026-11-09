@@ -4,7 +4,7 @@ import { initialTimer, startTimer } from '../../src/core/timer';
 import { pauseSchedule, reconcileSchedule, startSchedule } from '../../src/core/planning';
 import { LANGUAGES } from '../../src/core/language';
 import { getMessages } from '../../src/i18n';
-import { audioSpy, expectNoPageErrors, expectTheme, observePageErrors, playCount, seed, stepDuration, stored } from './helpers';
+import { scheduleOptions, audioSpy, expectNoPageErrors, expectTheme, observePageErrors, playCount, seed, stepDuration, stored } from './helpers';
 
 const m = getMessages('ro');
 const scrollWarnings = new WeakMap<Page, string[]>();
@@ -21,6 +21,19 @@ function scheduleData(count = 20) {
 
 async function top(locator: Locator) {
   return locator.evaluate((element) => element.getBoundingClientRect().top);
+}
+
+async function positions(page: Page, locators: Locator[]) {
+  const elements = await Promise.all(locators.map((locator) => locator.elementHandle()));
+  try {
+    // Compare one layout frame; wheel scrolling can continue between protocol calls.
+    return await page.evaluate((nodes) => nodes.map((node) => {
+      if (!node) throw new Error('Missing scroll comparison element');
+      return node.getBoundingClientRect().top;
+    }), elements);
+  } finally {
+    await Promise.all(elements.map((element) => element?.dispose()));
+  }
 }
 
 async function wheelOver(page: Page, target: Locator, delta: number) {
@@ -95,7 +108,7 @@ test('wheel scrolling over the page header moves all Planning content and reache
   await expect.poll(() => top(heading)).toBeLessThan(origin - 80);
   expect(await shellPosition(page)).toEqual(shell);
   await page.mouse.move(195, 440); await page.mouse.wheel(0, 9000);
-  const finalEdit = page.getByRole('button', { name: m.editSchedule('Orar 20'), exact: true });
+  const finalEdit = page.getByRole('button', { name: m.startSchedule('Orar 20'), exact: true });
   await expect(finalEdit).toBeInViewport();
   await page.mouse.wheel(0, -9000);
   await expect.poll(() => top(heading)).toBeCloseTo(origin, 0);
@@ -182,17 +195,19 @@ for (const { language, theme, width, height } of layouts) {
     const filter = page.getByRole('button', { name: messages.calendarAll, exact: true });
     await expect(heading).toBeInViewport(); await expectTheme(page, theme === 'dark');
     await expectHorizontalFit(page);
-    const origin = await top(heading), createTop = await top(create), filterTop = await top(filter);
     const capture = (language === 'ro' && width === 390) || (language === 'fr' && theme === 'dark');
     const screenshot = `previews/planning-scroll-${language}-${theme}-${width}x${height}`;
     if (capture) await page.screenshot({ path: `${screenshot}-top.png` });
+    await page.evaluate(async () => { await document.fonts.ready; });
+    const [origin, createTop, filterTop] = await positions(page, [heading, create, filter]);
     await wheelOver(page, page.getByText(messages.planningSubtitle, { exact: true }), 240);
     await expect.poll(() => top(heading)).toBeLessThan(origin - 80);
-    const moved = origin - await top(heading);
-    expect(createTop - await top(create)).toBeCloseTo(moved, 0);
-    expect(filterTop - await top(filter)).toBeCloseTo(moved, 0);
+    const [headingAfter, createAfter, filterAfter] = await positions(page, [heading, create, filter]);
+    const moved = origin - headingAfter;
+    expect(createTop - createAfter).toBeCloseTo(moved, 0);
+    expect(filterTop - filterAfter).toBeCloseTo(moved, 0);
     await wheelPage(page, 9000);
-    await expect(page.getByRole('button', { name: messages.deleteSchedule('Orar 20'), exact: true })).toBeInViewport();
+    await expect(page.getByRole('button', { name: messages.startSchedule('Orar 20'), exact: true })).toBeInViewport();
     await expectHorizontalFit(page);
     if (capture) await page.screenshot({ path: `${screenshot}-bottom.png` });
     await wheelPage(page, -9000);
@@ -211,7 +226,7 @@ for (const count of [0, 1]) {
     const before = await stored(page);
     await wheelPage(page, 1200);
     if (count === 0) await expect(page.getByText(m.planningEmpty, { exact: true })).toBeInViewport();
-    else await expect(page.getByRole('button', { name: m.editSchedule('Orar 01'), exact: true })).toBeInViewport();
+    else await expect(page.getByRole('button', { name: m.startSchedule('Orar 01'), exact: true })).toBeInViewport();
     await expectHorizontalFit(page); await wheelPage(page, -1200); await expect(create).toBeInViewport();
     expect(await stored(page)).toEqual(before);
   });
@@ -225,20 +240,20 @@ test('date filters keep the active run and the total template limit when results
   const create = page.getByRole('button', { name: m.newSchedule, exact: true });
   await expect(create).toBeDisabled(); const before = await stored(page);
   await wheelPage(page, 9000);
-  await expect(page.getByRole('button', { name: m.editSchedule('Orar 20'), exact: true })).toBeInViewport();
+  await expect(page.getByRole('button', { name: m.startSchedule('Orar 20'), exact: true })).toBeInViewport();
   await wheelPage(page, -9000);
   await selectDay(page, '2026-11-10');
   await expect(page.getByRole('button', { name: m.resumeSchedule, exact: true })).toBeEnabled();
-  await expect(page.getByRole('button', { name: m.editSchedule('Orar 01'), exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: m.startSchedule('Orar 01'), exact: true })).toHaveCount(0);
   await expect(create).toBeDisabled();
   await wheelPage(page, 9000); await expect(page.getByText(m.calendarEmpty, { exact: true })).toBeInViewport();
   await wheelPage(page, -9000); await expect(create).toBeInViewport();
   await selectDay(page, '2026-11-09');
-  await expect(page.getByRole('button', { name: m.editSchedule('Orar 01'), exact: true })).toBeDisabled();
-  await expect(page.getByRole('button', { name: m.editSchedule('Orar 02'), exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: m.startSchedule('Orar 01'), exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: m.startSchedule('Orar 02'), exact: true })).toHaveCount(0);
   await expect(create).toBeDisabled();
   await page.getByRole('button', { name: m.calendarAll, exact: true }).click();
-  await expect(page.getByRole('button', { name: m.editSchedule('Orar 02'), exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: m.startSchedule('Orar 02'), exact: true })).toBeEnabled();
   expect(await stored(page)).toEqual(before);
 });
 
@@ -254,10 +269,10 @@ for (const status of ['running', 'paused', 'completed'] as const) {
     const label = status === 'running' ? m.pauseSchedule : status === 'paused' ? m.resumeSchedule : m.restartSchedule;
     await expect(page.getByRole('button', { name: label, exact: true })).toBeEnabled();
     const before = await stored(page);
-    const edit = page.getByRole('button', { name: m.editSchedule('Orar 01'), exact: true });
+    const edit = page.getByRole('button', { name: m.startSchedule('Orar 01'), exact: true });
     if (status === 'completed') await expect(edit).toBeEnabled(); else await expect(edit).toBeDisabled();
     await wheelPage(page, 9000);
-    await expect(page.getByRole('button', { name: m.editSchedule('Orar 20'), exact: true })).toBeInViewport();
+    await expect(page.getByRole('button', { name: m.startSchedule('Orar 20'), exact: true })).toBeInViewport();
     await wheelPage(page, -9000);
     expect(await stored(page)).toEqual(before); expect(await playCount(page)).toBe(0);
     if (status === 'running') {
@@ -268,7 +283,7 @@ for (const status of ['running', 'paused', 'completed'] as const) {
       await confirm.getByRole('button', { name: m.replaceScheduleConfirm, exact: true }).click();
       await expect(confirm).not.toBeVisible();
       await expect(edit).toBeEnabled();
-      await expect(page.getByRole('button', { name: m.editSchedule('Orar 02'), exact: true })).toBeDisabled();
+      await expect(page.getByRole('button', { name: m.startSchedule('Orar 02'), exact: true })).toBeDisabled();
       const changed = await stored(page);
       expect(changed.planning.run?.scheduleId).toBe('scroll-schedule-1');
       expect(changed.timer).toEqual(before.timer); expect(changed.stopwatch).toEqual(before.stopwatch);
@@ -298,8 +313,9 @@ test('a run reset confirmation survives a parent update from independent timer c
 test('editing the final scrolled schedule preserves the duration panel, saved name and discarded draft', async ({ page }) => {
   await seed(page, scheduleData(6)); await page.goto('/planning');
   await wheelPage(page, 9000);
+  await scheduleOptions(page, 'Orar 06');
   const edit = page.getByRole('button', { name: m.editSchedule('Orar 06'), exact: true });
-  await expect(edit).toBeInViewport(); const before = await stored(page); await edit.click();
+  await edit.scrollIntoViewIfNeeded(); await expect(edit).toBeInViewport(); const before = await stored(page); await edit.click();
   const editor = page.getByRole('dialog', { name: m.editScheduleTitle, exact: true });
   await editor.getByRole('textbox', { name: m.scheduleName, exact: true }).fill('Orar revizuit');
   await stepDuration(page, 1, [0, 1, 30]);
@@ -308,8 +324,9 @@ test('editing the final scrolled schedule preserves the duration panel, saved na
   const saved = await stored(page);
   expect(saved.planning.schedules[5]).toMatchObject({ name: 'Orar revizuit', steps: [{ durationMs: 90000 }] });
   expect(saved.timer).toEqual(before.timer); expect(saved.stopwatch).toEqual(before.stopwatch);
+  await scheduleOptions(page, 'Orar revizuit');
   const updated = page.getByRole('button', { name: m.editSchedule('Orar revizuit'), exact: true });
-  await expect(updated).toBeInViewport(); await updated.click();
+  await updated.scrollIntoViewIfNeeded(); await expect(updated).toBeInViewport(); await updated.click();
   await editor.getByRole('textbox', { name: m.scheduleName, exact: true }).fill('Nume abandonat');
   await editor.getByRole('button', { name: m.close, exact: true }).click();
   await page.getByRole('dialog', { name: m.discardTitle, exact: true }).getByRole('button', { name: m.discardChanges, exact: true }).click();

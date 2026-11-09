@@ -12,18 +12,25 @@ CRONO is a local stopwatch, countdown, and action schedule app for iOS and Andro
 - Save paused sessions and retain the latest 50 sessions, with up to 1,000 laps per session.
 - View session details, share results, and delete sessions with confirmation.
 - Run a separate countdown (one second to 23:59:59, five-minute default) alongside the stopwatch, with pause/resume, reset confirmation, restart, and visible completion across tabs/sheets.
+- Configure the Timer with a compact setup and 1/5/10/25-minute presets without starting it; show a larger countdown and hide duration wheels while running or paused.
+- Show a localized running end time, including a date across midnight. Add exactly one minute while running or paused when the adjusted total remains within 23:59:59; preserve run identity and exact paused milliseconds. Reset/Restart use the adjusted total.
 - Select duration with finite centered wheels: hours 00–23 and minutes/seconds 00–59, no wrapping/carry. Timer editing is idle/completed only; Start and Planning Apply reject zero or active motion. Native columns expose adjustable controls; web supports scrolling, neighboring-row clicks and ArrowUp/ArrowDown/Home/End.
 - Save up to 20 schedules with 1–50 named actions each, automatic advancement, exact pause/resume, confirmed replacement/reset, and protected running/paused templates. Names are limited to 80 trimmed characters; action durations range from one second to 23:59:59.
+- Open Focus/Workout templates as unsaved drafts. Duplicate saved schedules into independent unsaved copies that retain actions/calendar rules and use a bounded localized copy suffix. Preview 2/3/4 total cycles and apply repeated actions locally within the 50-action limit; whole-schedule Save persists the result.
+- Emphasize Start on saved Planning cards, show a short action/duration preview, and expose Edit/Duplicate/Delete through a labelled options disclosure. Keep whole-page scrolling, active-source protection and replacement/deletion confirmation.
 - Edit an action duration inside the existing schedule sheet: temporary numeric wheels, explicit Apply/Cancel, then separate whole-schedule Save. Preserve the virtualized list viewport/focus and shared completion/Stop feedback; name fields retain their text keyboard.
 - Organize saved schedules by recurring weekdays or a specific calendar date. Filter Planning by day and use the existing Start control to run a sequence.
 - Run one schedule alongside the independent stopwatch and timer. The Planificare tab follows Timer; schedule runs do not enter stopwatch history.
+- Show running/paused Timer and Planning controls above navigation when viewing another tab, including both activities concurrently. Reuse their existing Pause/Resume owners and keep foreground display ticks out of persistence.
 - Select Clasic, Clopoțel, Digital, or Gong with 5/15/30/60-second looping playback, manual preview, and Stop controls. Defaults are Clasic and 60 seconds for fresh/missing/invalid values; valid saved shorter choices are preserved. The automatic-alert switch applies to timer and schedule boundaries.
 - Use one native Android audio owner for foreground and authorized background/locked completion playback, bounded from actual audio start; preview stays foreground-only. A separate OS reconciliation owner registers future deliveries. Return/relaunch catches timing up silently without replaying old sound; an already ringing Android alert retains its remaining budget. Physical minute/lock acceptance remains pending.
 - Schedule local Android/iOS timer/action/final notifications with default-on saved enablement, gesture-only permission requests, one selected sound clip or silent visual delivery, localized Settings/status/retry and validated tap navigation. Android 12 OS delivery is verified on Home, after process reclamation, for schedule boundaries and with the keyguard showing; broader native acceptance remains pending.
 - Restore active timing state, schedule snapshots/templates, laps, history, and preferences from local storage.
+- Export saved schedules, existing stopwatch history and preferences to portable JSON; review additive fresh-ID imports with optional preference application before confirmation, preserving current clocks and run snapshots. See [Backups and Import](../docs/backups.md).
+- Group Settings into Appearance, Language, Sound, Notifications, Device, Data and About with current summaries, Back and Close. Leaving Sound or closing Settings cancels its preview while preserving real completion playback.
 - Save manual white/blue light or navy/blue dark selection (light default), sound ID/duration, automatic alerts, mobile haptic feedback, and screen wake lock preferences independently.
 - Select Romanian, English, Russian, Spanish, French or German manually in Settings; save the choice independently, translate built-in copy/dates/counts/sharing/announcements, and retain user-entered names and timing/audio lifecycles.
-- Adapt the interface to compact screens, safe areas, and a constrained desktop preview width.
+- Adapt the interface to compact screens, safe areas, readable supporting/action text, wrapping labels and larger touch targets within a constrained desktop preview width. Native large-text/accessibility acceptance remains pending.
 
 ## Technology Stack
 
@@ -35,6 +42,7 @@ Versions below describe the current package manifest, not a requirement to upgra
 | Framework | Expo SDK 57 (`expo ~57.0.32`), React Native `0.86.3` |
 | UI runtime | React `19.2.3`; React Native Web for browser previews |
 | Navigation | Expo Router, entry point `expo-router/entry` |
+| Portable files | SDK-compatible `expo-file-system ~57.0.7`, `expo-document-picker ~57.0.3`, `expo-sharing ~57.0.25`; platform-specific browser download/upload |
 | Shared state | React Context and custom hooks |
 | Persistence | AsyncStorage `2.2.0`, JSON schema version 1 |
 | Device behavior | Expo Haptics, KeepAwake, SystemUI, StatusBar, and SplashScreen |
@@ -58,15 +66,17 @@ Read [ARCHITECTURE.md](ARCHITECTURE.md) for the actual folder structure, depende
 |---|---|
 | `src/app/_layout.tsx` | Fonts, safe areas, shared/theme providers, startup gate, four-tab shell, settings, and notices |
 | `src/app/index.tsx` | Stopwatch screen and user actions |
-| `src/app/timer.tsx` | Countdown duration editor and controls |
-| `src/app/planning.tsx` | Saved-template CRUD, editor composition, and confirmed run replacement |
+| `src/app/timer.tsx` | Compact duration setup, presets, active countdown and extension controls |
+| `src/app/planning.tsx` | Saved cards, templates/duplication, editor composition, and confirmed run replacement |
 | `src/app/history.tsx` | Session history, details, sharing, and deletion |
 | `src/core/stopwatch.ts` | Types, immutable timing operations, limits, formatting, statistics, and stored-data validation |
-| `src/core/timer.ts` | Pure countdown transitions, bounds, restoration, parsing, and ceiling-based display |
+| `src/core/timer.ts` | Pure countdown transitions, atomic bounded extension, restoration, parsing, and ceiling-based display |
 | `src/core/durationPicker.ts` | Pure numeric parts, duration conversion, bounds and nearest-row clamping |
 | `src/components/DurationPicker.tsx`, `DurationWheel.tsx`, `.web.tsx` | Localized themed columns, native adjustment and web spinbuttons |
 | `src/hooks/durationWheel.ts`, `useDurationWheel.ts` | Shared injected settling generations and lifecycle/current-prop bridge |
 | `src/core/planning.ts` | Schedule bounds, validation/CRUD, run snapshots, and cumulative transitions |
+| `src/core/planningTools.ts` | Pure templates, independent copies and bounded flat repeated sequences |
+| `src/core/backup.ts` | Strict portable projection/parser and additive fresh-ID imports |
 | `src/core/planningCalendar.ts` | Civil date validation, rule normalization, and date matching |
 | `src/core/sounds.ts`, `src/audio/sources.ts` | Pure preference catalog and separate static asset map |
 | `src/hooks/useStopwatch.ts` | Hydration outcome, accepted-update subscriptions, serialized writes and app-state persistence |
@@ -83,9 +93,15 @@ Read [ARCHITECTURE.md](ARCHITECTURE.md) for the actual folder structure, depende
 | `src/components/StopwatchFace.tsx` | Local display refresh and stopwatch dial |
 | `src/components/TimerFace.tsx`, `TimerCompletionNotice.tsx` | Local countdown display and completion feedback in shell/sheets |
 | `src/components/ScheduleEditorSheet.tsx`, `ScheduleStepRow.tsx` | Controlled drafts, ordered actions, validation, and explicit save/discard |
+| `src/components/ScheduleCard.tsx`, `ScheduleRepeatPanel.tsx` | Primary/secondary card actions and explicit repetition preview |
 | `src/components/ScheduleCalendarPanel.tsx`, `CalendarDateFields.tsx` | Calendar rule drafts and date entry shared with the Planning filter |
 | `src/components/EditorBody.tsx`, `.web.tsx` | Keep a covered virtualized editor laid out while excluding interaction/accessibility |
 | `src/components/PlanningRunCard.tsx`, `PlanningNotice.tsx`, `TimingNotices.tsx` | Local schedule display, controls, and shared notices/Stop in shell/sheets |
+| `src/components/ActiveActivities.tsx`, `src/hooks/useForegroundNow.ts` | Cross-tab activity controls and local foreground display ticks |
+| `src/components/SettingsSheet.tsx`, `BackupSettings.tsx` | Grouped preferences and reviewed file transfers |
+| `src/hooks/backupTransfer.ts`, `useBackupTransfer.ts` | Transfer cancellation, hydration guards and latest-state import confirmation |
+| `src/hooks/backupFiles.ts`, `.web.ts` | Optional native file modules and browser upload/download resources |
+| `src/components/Sheet.tsx`, `src/hooks/sheetIsolation.ts`, `.web.ts` | Shared sheet navigation and background accessibility/interaction isolation |
 | `src/core/language.ts`, `src/core/notices.ts` | Pure language registry/defaults and semantic transient notices |
 | `src/i18n/`, `src/hooks/useI18n.ts` | Typed stable catalogs, cached locale/plural/share formatting, and saved selection |
 | `src/core/notifications.ts`, `src/i18n/notificationContent.ts` | Future projection/payload validation and selected-language notification content |
@@ -104,9 +120,11 @@ The `AppData` object contains:
 - `timer`: status, configured duration, remaining snapshot, optional deadline, and run identity.
 - `planning` contains saved schedules with optional weekly or fixed-date rules and a separate run snapshot with its identity, source ID/name/actions, status, current index, remaining milliseconds, and optional deadline. Valid templates with missing or invalid calendar metadata load in Manual mode.
 - `sessions`: saved session identifiers, save timestamps, total durations, and laps.
-- `preferences`: `language: 'ro' | 'en' | 'ru' | 'es' | 'fr' | 'de'`, `haptics`, `keepAwake`, `timerSound`, and `systemNotifications` booleans, `theme: 'light' | 'dark'`, `alertSoundId: 'classic' | 'bell' | 'digital' | 'gong'`, and `alertDurationSeconds: 5 | 15 | 30`. The legacy `timerSound` name now controls automatic timer and schedule alerts.
+- `preferences`: `language: 'ro' | 'en' | 'ru' | 'es' | 'fr' | 'de'`, `haptics`, `keepAwake`, `timerSound`, and `systemNotifications` booleans, `theme: 'light' | 'dark'`, `alertSoundId: 'classic' | 'bell' | 'digital' | 'gong'`, and `alertDurationSeconds: 5 | 15 | 30 | 60`. The legacy `timerSound` name now controls automatic timer and schedule alerts.
 
 The hook stores the entire object as JSON under `@crono/app-v1`. Actions go through `update(action)`, which applies a functional transformation and queues a write. Its synchronous `{ changed, data }` result confirms in-memory acceptance, not durable storage; stable `getSnapshot()` reads the current accepted state. Additional writes are requested when the app leaves the active state. Display refreshes do not persist a new snapshot on every frame.
+
+Portable backups use a separate version-1 `crono-backup` envelope, limited to 5 MiB of UTF-8 JSON. Strict validation rejects malformed records/preferences before preview; confirmation rechecks loaded hydration and combined capacity in one functional update. Imports add independent copies without eviction, with preference application off initially. Files exclude live clocks, run snapshots, OS authorization and native delivery records. Failed hydration disables file transfers; accepted imports retain existing storage-failure feedback rather than claiming durable writes. Native picker/share uses optional modules loaded on demand and needs a rebuilt app; web uses upload/download.
 
 Wheel offsets, motion flags and temporary parts are local presentation state, with no persisted schema changes. A settled effective valid Timer change uses the existing timer controls; focus/alignment/same-value scrolling cannot reset completion or stop its audio. Planning Apply updates only the identified local action draft; Save retains the shared accepted-update boundary.
 
@@ -129,13 +147,17 @@ Time is derived from `Date.now()` timestamps and accumulated paused time. Backgr
 - Native sound respects silent mode and mixes with existing audio. Browser autoplay rejection produces visible feedback; the web adapter observes `HTMLMediaElement.play()` because SDK 57's web player does not observe that promise.
 - Native system requests survive ordinary backgrounding/owner cleanup, suppress foreground system presentation, and are diffed against accepted future clocks and relevant language/sound/mute/opt-in changes. Failed hydration disables notification mutation, while denied/limited grants and native failures remain separate from saved preference and timing. Android uses four stable sound channels plus silent and a special-access Settings shortcut; OS policy can delay/silence delivery. Taps only navigate to validated timer/planning routes after startup readiness, retaining open drafts.
 - Enhanced Android delivery uses `setAlarmClock`, silent notification envelopes and one bounded MediaPlayer service for the selected duration, with scoped Stop/Open. The same broker owns active-app audio, avoiding overlap with Expo playback. Ordinary Android fallback and iOS background retain one-shot 15-second PCM clips from `assets/audio/notifications/`; iOS has no full-minute background guarantee. Original assets, generator, resource basenames and channel IDs remain unchanged. `timerSound: false` retains visual delivery. Silent/DND/channel controls and audio focus can interrupt or suppress sound. Web background is unsupported; missing native capability has explicit degraded status and requires a rebuilt binary for enhanced playback.
-- Mobile sharing uses React Native Share. Web uses native browser sharing when available, otherwise the clipboard.
-- Application data remains on the device or in browser storage. Uninstalling the app or clearing browser data removes it.
+- Session results use React Native Share on mobile; web uses native browser sharing when available, otherwise the clipboard. Portable backups use native picker/share sheets or browser upload/download.
+- CRONO stores application data locally on the device or in browser storage; users choose destinations for exported backups and shared results. Uninstalling the app or clearing browser data removes its local data.
 - Native projects are generated through Expo Continuous Native Generation. The repository has no checked-in `ios/` or `android/` directories.
 
 ## Development and Verification
 
-Current one-minute alert implementation: lint/typecheck, **189 Node tests**, **15 native JUnit tests** and Android/iOS/web exports pass. All **157 selected browser scenarios** have passing results across the initial 152/157 run and exact reruns; the four stale theme-duration assertions were corrected to 60 seconds, and the English wheel case passed unchanged. Real-media minute playback passed. The 15 notification cases passed again after expanded-help copy changes. Native instrumentation compiles, but MIUI blocked test-package installation and the user deferred device tests; **0 instrumented tests ran**. Native Home/keyguard audibility, Stop/Open and Android 14/15+ policy remain pending. The [one-minute plan](plans/feature-one-minute-alerts.md) and [guide](../docs/background-notifications.md#one-minute-completion-alerts) distinguish implementation/build evidence from physical acceptance.
+Usability improvements verified on 2026-11-09: lint/typecheck, **227 registered Node tests**, and Android/iOS/web bundle exports passed. All **282 distinct browser cases** have passing results across the focused journeys, the 265-pass remaining-suite run and the 15-case scrolling rerun; this is combined coverage, not one clean full-suite invocation. Application source/configuration fingerprint: `461fd2ce42e87271e8053326cf8bc50386a6054d5f702ff5cb676efc5c3731a1` (SHA256 over sorted `src/**/*.ts`, `src/**/*.tsx`, `package.json`, `package-lock.json`, `app.json` paths and contents, each separated/terminated by NUL).
+
+Coverage includes legacy export/import/edit/reload, live-clock preservation, fresh copies, capacity/errors, optional preferences, inertial wheels, six languages/two themes, reduced motion and compact/enlarged web text with both activity rows. See the [current plan and evidence](plans/feature-usability-improvements.md) and [backup guide](../docs/backups.md). Native file transfer requires a rebuilt app; physical picker/share, gesture feel, large text, TalkBack/VoiceOver and existing minute/lock-screen acceptance remain pending. These exports are not a signed build or new device-test evidence.
+
+Historical one-minute alert implementation checks: lint/typecheck, **189 Node tests**, **15 native JUnit tests** and Android/iOS/web exports pass. All **157 selected browser scenarios** have passing results across the initial 152/157 run and exact reruns; the four stale theme-duration assertions were corrected to 60 seconds, and the English wheel case passed unchanged. Real-media minute playback passed. The 15 notification cases passed again after expanded-help copy changes. Native instrumentation compiles, but MIUI blocked test-package installation and the user deferred device tests; **0 instrumented tests ran**. Native Home/keyguard audibility, Stop/Open and Android 14/15+ policy remain pending. The [one-minute plan](plans/feature-one-minute-alerts.md) and [guide](../docs/background-notifications.md#one-minute-completion-alerts) distinguish implementation/build evidence from physical acceptance.
 
 A final development-signed release-mode APK was built/inspected on November 9: SHA256 `5c40f4aaf8c678c0cfa1d036d5cdd697563aae63c1460726ca7f5ce185f15473`, source fingerprint `3724691f0cccefcbddcd54e8151978dc0eae6be5f841bd839260617d4c439168`, package `ro.appcrono.mobile` version `1.0.0`/code `1`, two ARM targets. Signature matches the preceding app. New native classes, private components, original sound-resource names/bytes and the final preference guard were inspected. It has not been installed or acoustically verified; user data was not cleared and no store-production signing is established.
 
@@ -170,7 +192,7 @@ Install app dependencies through `npx expo install <package>` to resolve SDK-com
 
 Background-alert hardening on 2026-11-08 passed lint/typecheck and all 156 registered Node tests, including requestable-denied permission and real-adapter runtime-loading regressions. The selected browser run passed 116/118 cases; a 44px minimum-width fix for the English calendar filter then passed all 47 layout/calendar rechecks. All 118 selected scenarios have passing evidence across those runs. Fresh Android/iOS/web exports also passed after the native-only runtime correction.
 
-A rebuilt, development-signed release-mode APK was installed on a Redmi Note 9 running Android 12 without uninstalling the app. Native Settings confirmed notification availability, exact access granted and standard battery optimization enabled. OS records confirmed a seven-second timer after process reclamation, both boundaries of a seven/nine-second schedule on Home, and another timer with the keyguard showing. The temporary QA schedule was removed. Physical iOS, Android 33+ prompts, deep Doze, recents/reboot/Force Stop, native taps, full sound/accessibility checks and manual lock-card/acoustic confirmation remain pending. See [the background guide](../docs/background-notifications.md) and [the active plan](plans/feature-background-alert-reliability.md).
+A rebuilt, development-signed release-mode APK was installed on a Redmi Note 9 running Android 12 without uninstalling the app. Native Settings confirmed notification availability, exact access granted and standard battery optimization enabled. OS records confirmed a seven-second timer after process reclamation, both boundaries of a seven/nine-second schedule on Home, and another timer with the keyguard showing. The temporary QA schedule was removed. Physical iOS, Android 33+ prompts, deep Doze, recents/reboot/Force Stop, native taps, full sound/accessibility checks and manual lock-card/acoustic confirmation remain pending. See [the background guide](../docs/background-notifications.md) and [the background-alert plan](plans/feature-background-alert-reliability.md).
 
 ## Known Follow-up Work
 
@@ -194,6 +216,7 @@ Findings 1–4 remain separate follow-ups. Keep the remaining native acceptance 
 - Installed workflow skills: `../.agents/skills/` (33 existing AI Factory skills).
 - Communication and generated artifact languages: English, as configured.
 - Git base branch: `master`; new full/ultra plans may create branches using `feature/`.
-- The active plan is `plans/feature-one-minute-alerts.md`: four duration choices, optional Android alarm/audio module and truthful platform capability. Device acceptance is deferred at the user's request. The preceding 15-second native clip work remains at `plans/feature-longer-completion-sounds.md`. Earlier hardening is recorded in `plans/feature-background-alert-reliability.md`; calendar planning in `plans/feature-calendar-planning.md`; six-language expansion in `plans/feature-additional-languages.md`; duration wheels in `plans/feature-duration-wheel-picker.md`; original notifications/multilingual work in their corresponding feature plans. Earlier completed plans for Planning button feedback, white/blue theme, sound settings/schedules and dark mode remain preserved. No roadmap or research artifact is present.
+- The active plan is [Everyday usability improvements](plans/feature-usability-improvements.md): Timer setup/end-time/extension controls, clearer Planning cards and shortcuts, grouped Settings/readability, cross-tab controls and portable backups. The eight product improvements are implemented; native acceptance remains deferred at the user's request.
+- Earlier one-minute sound work remains at `plans/feature-one-minute-alerts.md`: four duration choices, optional Android alarm/audio module and truthful platform capability. Device acceptance is deferred at the user's request. The preceding 15-second native clip work remains at `plans/feature-longer-completion-sounds.md`. Earlier hardening is recorded in `plans/feature-background-alert-reliability.md`; calendar planning in `plans/feature-calendar-planning.md`; six-language expansion in `plans/feature-additional-languages.md`; duration wheels in `plans/feature-duration-wheel-picker.md`; original notifications/multilingual work in their corresponding feature plans. Earlier completed plans for Planning button feedback, white/blue theme, sound settings/schedules and dark mode remain preserved. No roadmap or research artifact is present.
 
 The connected GitHub app is available in the current agent session. No repository-level MCP server configuration is present. Reuse host-provided integrations when available; additional servers should address a concrete project need.

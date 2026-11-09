@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { AppState, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Svg, { Circle, Line } from 'react-native-svg';
 import { elapsed, formatTime, Stopwatch } from '../core/stopwatch';
-import { fonts as f, Palette } from '../theme';
+import { textSizes, fonts as f, Palette } from '../theme';
 import { useTheme, useThemeStyles } from '../context/ThemeContext';
 
 export function StopwatchFace({ stopwatch }: { stopwatch: Stopwatch }) {
@@ -78,16 +78,16 @@ const createStyles = (c: Palette) => StyleSheet.create({
   container: { alignItems: 'center', paddingTop: 8 },
   dial: { alignItems: 'center', justifyContent: 'center' },
   readout: { alignItems: 'center', gap: 16 },
-  label: { fontFamily: f.semibold, color: c.muted, fontSize: 10, letterSpacing: 2.5 },
+  label: { fontFamily: f.semibold, color: c.muted, fontSize: textSizes.small, letterSpacing: 2.5 },
   digits: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', paddingHorizontal: 15 },
   time: { fontFamily: f.medium, color: c.ink, letterSpacing: -2.8, fontVariant: ['tabular-nums'] },
   fraction: { fontFamily: f.medium, color: c.muted, letterSpacing: -1, fontVariant: ['tabular-nums'] },
   status: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 11, paddingVertical: 6, backgroundColor: c.secondary, borderRadius: 20 },
   statusActive: { backgroundColor: c.limeSoft },
   dot: { width: 5, height: 5, borderRadius: 3 },
-  statusText: { fontFamily: f.medium, color: c.muted, fontSize: 10 },
+  statusText: { fontFamily: f.medium, color: c.muted, fontSize: textSizes.small },
   currentLap: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 19, marginBottom: 25 },
-  currentLabel: { fontFamily: f.regular, fontSize: 12, color: c.muted },
+  currentLabel: { fontFamily: f.regular, fontSize: textSizes.caption, color: c.muted },
   lapNumber: { fontFamily: f.semibold, color: c.ink },
-  currentTime: { fontFamily: f.semibold, color: c.ink, fontSize: 13, fontVariant: ['tabular-nums'] },
+  currentTime: { fontFamily: f.semibold, color: c.ink, fontSize: textSizes.body, fontVariant: ['tabular-nums'] },
 });

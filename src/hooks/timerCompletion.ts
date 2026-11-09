@@ -1,6 +1,6 @@
 import type { TimerNotice } from '../core/notices.ts';
 import type { AppData } from '../core/stopwatch.ts';
-import { completeTimer, configureTimer, pauseTimer, remainingTime, resetTimer, resumeTimer, startTimer } from '../core/timer.ts';
+import { completeTimer, configureTimer, extendTimer, pauseTimer, remainingTime, resetTimer, resumeTimer, startTimer } from '../core/timer.ts';
 import type { TimerState } from '../core/timer.ts';
 
 export type TimerSoundEvent = { runId: string; dueAt: number };
@@ -114,6 +114,12 @@ export function createTimerCoordinator(a: Adapters) {
     pause: () => act(pauseTimer),
     resume: () => act(resumeTimer),
     reset: () => act(resetTimer),
+    extend: () => {
+      if (disposed) return;
+      const now = a.now();
+      apply((timer) => extendTimer(timer, now), true);
+      reconcile();
+    },
     dispose: () => { disposed = true; clearSchedule(); stopSound(true); },
   };
 }

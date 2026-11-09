@@ -115,6 +115,20 @@ function validLaps(value: unknown, duration: number): value is Lap[] {
   });
 }
 
+function validSession(value: unknown): value is Session {
+  if (!isRecord(value) || typeof value.id !== 'string' || value.id.length >= 100 ||
+    !isTime(value.savedAt) || !isTime(value.durationMs) || value.durationMs <= 0 ||
+    !validLaps(value.laps, value.durationMs)) return false;
+  return true;
+}
+
+// Share validation without allocating copies of history that startup will discard.
+export function readSession(value: unknown): Session | null {
+  if (!validSession(value)) return null;
+  return { id: value.id, savedAt: value.savedAt, durationMs: value.durationMs,
+    laps: value.laps.map(({ number, elapsedMs, splitMs }) => ({ number, elapsedMs, splitMs })) };
+}
+
 // Validate persisted data before using it; malformed or old data must never break startup.
 export function restoreData(raw: string | null, now = Date.now()): AppData {
   const fallback = initialData();
@@ -142,11 +156,7 @@ export function restoreData(raw: string | null, now = Date.now()): AppData {
       if (typeof value.preferences.timerSound === 'boolean') fallback.preferences.timerSound = value.preferences.timerSound;
     }
     if (Array.isArray(value.sessions)) {
-      fallback.sessions = value.sessions.filter((session): session is Session =>
-        isRecord(session) && typeof session.id === 'string' && session.id.length < 100 &&
-        isTime(session.savedAt) && isTime(session.durationMs) && session.durationMs > 0 &&
-        validLaps(session.laps, session.durationMs),
-      ).slice(0, MAX_SESSIONS);
+      fallback.sessions = value.sessions.filter(validSession).slice(0, MAX_SESSIONS);
     }
     return fallback;
   } catch {

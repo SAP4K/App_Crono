@@ -4,11 +4,12 @@ import { AppState, Platform, StyleSheet, Text, useWindowDimensions, View } from 
 import Svg, { Circle } from 'react-native-svg';
 import type { TimerState } from '../core/timer';
 import { formatRemaining, remainingTime } from '../core/timer';
+import { deadlineLabel } from '../i18n/formatters';
 import { useTheme, useThemeStyles } from '../context/ThemeContext';
-import { fonts as f, Palette } from '../theme';
+import { textSizes, fonts as f, Palette } from '../theme';
 
-export function TimerFace({ timer }: { timer: TimerState }) {
-  const { messages: m } = useI18n();
+export function TimerFace({ timer, compact = false }: { timer: TimerState; compact?: boolean }) {
+  const { language, messages: m } = useI18n();
   const { colors: c } = useTheme();
   const styles = useThemeStyles(createStyles);
   const { width, height } = useWindowDimensions();
@@ -32,7 +33,8 @@ export function TimerFace({ timer }: { timer: TimerState }) {
       if (Platform.OS === 'web') document.removeEventListener('visibilitychange', refresh);
     };
   }, [timer.status, timer.deadlineAt]);
-  const size = Math.min(width - 52, 310, Math.max(180, height * 0.32));
+  const size = compact ? Math.min(width - 52, 176, Math.max(128, height * 0.22))
+    : Math.min(width - 52, 310, Math.max(180, height * 0.32));
   const radius = size / 2 - 8;
   const circumference = 2 * Math.PI * radius;
   const remaining = remainingTime(timer, now);
@@ -42,13 +44,17 @@ export function TimerFace({ timer }: { timer: TimerState }) {
       <Circle cx={size / 2} cy={size / 2} r={radius} stroke={c.border} strokeWidth={3} fill="none" />
       <Circle cx={size / 2} cy={size / 2} r={radius} stroke={c.green} strokeWidth={4} fill="none" strokeDasharray={`${circumference} ${circumference}`} strokeDashoffset={circumference * (1 - remaining / timer.durationMs)} transform={`rotate(-90 ${size / 2} ${size / 2})`} />
     </Svg>
-    <Text style={[styles.digits, { fontSize: size * 0.135 }]} accessibilityLabel={m.remainingTime(formatRemaining(remaining))}>{formatRemaining(remaining)}</Text>
+    <Text style={[styles.digits, { fontSize: size * (compact ? 0.18 : 0.135) }]} accessibilityLabel={m.remainingTime(formatRemaining(remaining))}>{formatRemaining(remaining)}</Text>
     <Text style={styles.status}>{status}</Text>
+    {timer.status === 'running' && timer.deadlineAt !== null && <Text style={styles.endTime}>
+      {m.timerEndsAt(deadlineLabel(timer.deadlineAt, now, language))}
+    </Text>}
   </View>;
 }
 
 const createStyles = (c: Palette) => StyleSheet.create({
   face: { alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginVertical: 16 },
   digits: { fontFamily: f.semibold, color: c.ink, fontVariant: ['tabular-nums'], letterSpacing: -1.5 },
-  status: { fontFamily: f.medium, color: c.muted, fontSize: 11, marginTop: 12 },
+  status: { fontFamily: f.medium, color: c.muted, fontSize: textSizes.small, marginTop: 12 },
+  endTime: { maxWidth: '78%', textAlign: 'center', fontFamily: f.regular, color: c.muted, fontSize: textSizes.caption, lineHeight: 21, marginTop: 9 },
 });

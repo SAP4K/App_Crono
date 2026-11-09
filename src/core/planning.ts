@@ -32,7 +32,7 @@ function readName(value: unknown): string | null {
   return name.length > 0 && name.length <= MAX_NAME_LENGTH ? name : null;
 }
 
-function readSteps(value: unknown): ScheduleStep[] | null {
+export function readScheduleSteps(value: unknown): ScheduleStep[] | null {
   if (!Array.isArray(value) || value.length === 0 || value.length > MAX_STEPS) return null;
   const ids = new Set<string>();
   const steps: ScheduleStep[] = [];
@@ -48,7 +48,7 @@ function readSteps(value: unknown): ScheduleStep[] | null {
 export function readSchedule(value: unknown, { recoverInvalidCalendar = false } = {}): Schedule | null {
   if (!isRecord(value) || !validId(value.id)) return null;
   const name = readName(value.name);
-  const steps = readSteps(value.steps);
+  const steps = readScheduleSteps(value.steps);
   if (!name || !steps) return null;
   const schedule = { id: value.id, name, steps };
   if (value.calendar === undefined) return schedule;
@@ -91,7 +91,7 @@ const validTime = (value: unknown): value is number => typeof value === 'number'
 
 export function restoreScheduleRun(value: unknown): ScheduleRun | null {
   if (!isRecord(value) || !validId(value.runId) || !validId(value.scheduleId)) return null;
-  const steps = readSteps(value.steps);
+  const steps = readScheduleSteps(value.steps);
   const scheduleName = readName(value.scheduleName);
   if (!steps || !scheduleName || typeof value.stepIndex !== 'number' || !Number.isInteger(value.stepIndex)
     || value.stepIndex < 0 || value.stepIndex >= steps.length || !validTime(value.remainingMs)

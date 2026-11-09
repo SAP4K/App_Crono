@@ -7,7 +7,7 @@ import { StopwatchFace } from '../components/StopwatchFace';
 import { LapList } from '../components/LapList';
 import { Icon } from '../components/Icon';
 import { ConfirmSheet } from '../components/Sheet';
-import { fonts as f, Palette } from '../theme';
+import { textSizes, fonts as f, Palette } from '../theme';
 import { useTheme, useThemeStyles } from '../context/ThemeContext';
 
 export default function StopwatchScreen() {
@@ -59,20 +59,20 @@ const createStyles = (c: Palette) => StyleSheet.create({
   content: { paddingHorizontal: 26, paddingBottom: 26 },
   eyebrow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 3, marginBottom: 11 },
   dash: { width: 17, height: 2, backgroundColor: c.green, borderRadius: 1 },
-  eyebrowText: { fontFamily: f.semibold, fontSize: 8, color: c.green, letterSpacing: 1.7 },
+  eyebrowText: { fontFamily: f.semibold, fontSize: textSizes.small, color: c.green, letterSpacing: 1.7 },
   title: { fontFamily: f.bold, color: c.ink, fontSize: 32, letterSpacing: -1.5, marginBottom: 7 },
-  subtitle: { fontFamily: f.regular, color: c.muted, fontSize: 12, marginBottom: 22 },
+  subtitle: { fontFamily: f.regular, color: c.muted, fontSize: textSizes.caption, marginBottom: 22 },
   actions: { flexDirection: 'row', gap: 12 },
   primary: { flex: 1.32, flexDirection: 'row', gap: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: c.action, minHeight: 61, paddingVertical: 19, borderRadius: 19 },
-  primaryText: { fontFamily: f.semibold, color: c.actionText, fontSize: 14 },
+  primaryText: { fontFamily: f.semibold, color: c.actionText, fontSize: textSizes.body },
   secondary: { flex: 1, flexDirection: 'row', gap: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: c.secondary, minHeight: 61, paddingVertical: 19, borderRadius: 19 },
-  secondaryText: { fontFamily: f.semibold, color: c.ink, fontSize: 12 },
+  secondaryText: { fontFamily: f.semibold, color: c.ink, fontSize: textSizes.caption },
   disabled: { backgroundColor: c.disabled },
   pressed: { opacity: 0.72, transform: [{ scale: 0.98 }] },
   hint: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingTop: 3 },
   hintDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: c.subtle },
-  hintText: { fontFamily: f.regular, color: c.muted, fontSize: 10 },
+  hintText: { fontFamily: f.regular, color: c.muted, fontSize: textSizes.small },
   save: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 7, backgroundColor: c.limeSoft, borderRadius: 13 },
-  saveText: { fontFamily: f.semibold, color: c.green, fontSize: 11 },
-  footer: { fontFamily: f.medium, fontSize: 7, color: c.muted, letterSpacing: 1.7, textAlign: 'center', marginTop: 29 },
+  saveText: { fontFamily: f.semibold, color: c.green, fontSize: textSizes.small },
+  footer: { fontFamily: f.medium, fontSize: textSizes.small, color: c.muted, letterSpacing: 1.7, textAlign: 'center', marginTop: 29 },
 });

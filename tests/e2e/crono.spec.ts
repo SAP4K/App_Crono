@@ -36,12 +36,14 @@ test('stopwatch, laps, reload, history, preferences and reset work together', as
   await expect(page.getByText('00:10.56', { exact: true }).first()).toBeVisible();
   await page.getByRole('button', { name: 'Închide', exact: true }).click();
   await page.getByRole('button', { name: 'Setări', exact: true }).click();
+  await page.getByRole('button', { name: 'Dispozitiv', exact: true }).click();
   await page.getByRole('switch', { name: 'Feedback tactil', exact: true }).click();
   await expect(page.getByRole('switch', { name: 'Feedback tactil', exact: true })).not.toBeChecked();
   await page.screenshot({ path: 'previews/04-setari.png', fullPage: true, animations: 'disabled' });
   await page.getByRole('button', { name: 'Închide', exact: true }).click();
   await page.reload();
   await page.getByRole('button', { name: 'Setări', exact: true }).click();
+  await page.getByRole('button', { name: 'Dispozitiv', exact: true }).click();
   await expect(page.getByRole('switch', { name: 'Feedback tactil', exact: true })).not.toBeChecked();
   await page.getByRole('button', { name: 'Închide', exact: true }).click();
   await page.getByRole('tab', { name: 'Cronometru', exact: true }).click();

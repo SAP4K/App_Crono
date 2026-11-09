@@ -1,6 +1,8 @@
 import type { SoundId } from '../core/sounds.ts';
 
 export type Messages = {
+  openActiveTimer: string;
+  openActivePlanning: string;
   duration: string;
   editStepDuration: (index: number) => string;
   durationPickerTitle: (index: number) => string;
@@ -52,8 +54,20 @@ export type Messages = {
   settings: string;
   settingsTitle: string;
   settingsSubtitle: string;
+  settingsGroups: { appearance: string; language: string; sounds: string; notifications: string; device: string; data: string; about: string };
+  backupSummary: string;
+  backup: {
+    help: string; export: string; import: string; busy: string; review: string;
+    counts: (schedules: number, sessions: number) => string;
+    applyPreferences: string; confirm: string; imported: string; exported: string;
+    errors: Record<'size' | 'version' | 'invalid' | 'capacity' | 'ids' | 'unavailable' | 'file' | 'notReady', string>;
+  };
+  back: string;
+  enabled: string;
+  disabledSetting: string;
   languageHelp: string;
   darkMode: string;
+  lightMode: string;
   themeHelp: string;
   audioAlerts: string;
   audioHelp: string;
@@ -108,6 +122,11 @@ export type Messages = {
   lapsEmptyTitle: string;
   lapsEmptyText: string;
   timerTitle: string;
+  timerPresets: string;
+  presetMinutes: (minutes: number) => string;
+  minutesShort: string;
+  addMinute: string;
+  timerEndsAt: (value: string) => string;
   timerSubtitle: string;
   durationInvalid: string;
   timerSoundHelp: string;
@@ -131,6 +150,17 @@ export type Messages = {
   previewSound: string;
   stopSound: string;
   planningSubtitle: string;
+  planningTemplates: string;
+  planningTemplateNames: { focus: { name: string; steps: readonly [string, string] }; workout: { name: string; steps: readonly [string, string, string] } };
+  duplicate: string;
+  duplicateSchedule: (name: string) => string;
+  scheduleOptions: (name: string) => string;
+  scheduleCopySuffix: string;
+  repeatSequence: string;
+  repeatHelp: string;
+  repeatCycles: (cycles: number) => string;
+  repeatLimit: string;
+  applyRepeat: string;
   newSchedule: string;
   scheduleUnavailable: string;
   scheduleSaved: string;

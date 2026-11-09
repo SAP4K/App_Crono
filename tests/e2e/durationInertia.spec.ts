@@ -2,7 +2,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 import { initialData } from '../../src/core/stopwatch';
 import { initialTimer } from '../../src/core/timer';
 import { getMessages } from '../../src/i18n';
-import { expectNoPageErrors, observePageErrors, seed, selectWheel, stored } from './helpers';
+import { scheduleOptions, expectNoPageErrors, observePageErrors, seed, selectWheel, stored } from './helpers';
 
 const m = getMessages('ro');
 type Sample = { offset: number; value: number; busy: boolean; at: number };
@@ -29,6 +29,7 @@ async function openPicker(page: Page, screen: 'timer' | 'planning') {
   });
   await page.goto(`/${screen}`);
   if (screen === 'planning') {
+    await scheduleOptions(page, 'Secvență', m);
     await page.getByRole('button', { name: m.editSchedule('Secvență'), exact: true }).click();
     await page.getByRole('button', { name: m.editStepDuration(1), exact: true }).click();
   }

@@ -5,7 +5,7 @@ import { notificationStatus } from '../src/i18n/notificationStatus.ts';
 import { LANGUAGES } from '../src/core/language.ts';
 import { getMessages } from '../src/i18n/index.ts';
 import { countPhrase } from '../src/i18n/plurals.ts';
-import { planningDateLabel, planningWeekdayLabel, scheduleCalendarLabel, sessionDate, sessionTime, sessionText } from '../src/i18n/formatters.ts';
+import { deadlineLabel, planningDateLabel, planningWeekdayLabel, scheduleCalendarLabel, sessionDate, sessionTime, sessionText } from '../src/i18n/formatters.ts';
 
 test('catalogs load and preserve all count phrases when Intl.PluralRules is unavailable', () => {
   const languages = LANGUAGES.map(({ id }) => id);
@@ -160,5 +160,16 @@ test('Spanish French and German count phrases use exact locale agreement includi
         assert.equal(getMessages(id)[key](count), `${count} ${forms[id][index][singular ? 0 : 1]}`, `${id}:${key}:${count}`);
       });
     }
+  }
+});
+
+
+test('deadline clocks localize and include the date only across the selected timezone day boundary', () => {
+  const now = Date.parse('2026-11-09T23:59:30Z'), later = Date.parse('2026-11-10T00:00:30Z');
+  for (const { id } of LANGUAGES) {
+    assert.equal(deadlineLabel(now + 1000, now, id, 'UTC'), sessionTime(now + 1000, id, 'UTC'));
+    assert.equal(deadlineLabel(later, now, id, 'UTC'), `${sessionDate(later, id, 'UTC')} · ${sessionTime(later, id, 'UTC')}`);
+    assert.equal(deadlineLabel(later, now, id, 'Asia/Tokyo'), sessionTime(later, id, 'Asia/Tokyo'));
+    assert.ok(getMessages(id).timerEndsAt(deadlineLabel(later, now, id, 'UTC')).includes(sessionDate(later, id, 'UTC')));
   }
 });
