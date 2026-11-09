@@ -4,12 +4,42 @@ import { initialTimer } from '../../src/core/timer';
 import { pauseSchedule, startSchedule } from '../../src/core/planning';
 import { getMessages } from '../../src/i18n';
 import { deadlineLabel } from '../../src/i18n/formatters';
-import { audioEvents, audioSpy, expectNoPageErrors, observePageErrors, playCount, seed, selectWheel, stored } from './helpers';
+import { selectTheme, audioEvents, audioSpy, expectNoPageErrors, observePageErrors, playCount, seed, selectWheel, stored } from './helpers';
 
 const m = getMessages('ro');
 test.use({ timezoneId: 'UTC' });
 test.beforeEach(({ page }) => observePageErrors(page));
 test.afterEach(({ page }) => expectNoPageErrors(page));
+
+test('System appearance preserves three active clocks and unsaved name and duration drafts', async ({ page }) => {
+  const now = Date.parse('2026-11-09T12:00:00Z'); await page.clock.install({ time: now }); await page.clock.pauseAt(now + 1000);
+  const data = initialData(); data.stopwatch.startedAt = now - 2000;
+  data.timer = { ...initialTimer(600000), status: 'running', deadlineAt: now + 600000, runId: 'draft-timer' };
+  data.planning.schedules = [{ id: 'active', name: 'Active', steps: [{ id: 'a', name: 'Keep working', durationMs: 600000 }] }];
+  data.planning = startSchedule(data.planning, 'active', now, 'draft-planning');
+  await seed(page, data); await page.emulateMedia({ colorScheme: 'light' }); await page.goto('/planning');
+  await page.getByRole('button', { name: m.newSchedule, exact: true }).click(); await page.clock.runFor(300);
+  const editor = page.getByRole('dialog', { name: m.newSchedule, exact: true });
+  const name = editor.getByRole('textbox', { name: m.scheduleName, exact: true });
+  await name.fill('Unsaved · Учёба'); await editor.getByRole('textbox', { name: m.stepName(1), exact: true }).fill('Draft action');
+  await name.focus(); const before = await stored(page);
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await expect(editor.getByTestId('sheet-surface')).toHaveCSS('background-color', 'rgb(15, 23, 42)');
+  await expect(name).toBeFocused(); await expect(name).toHaveValue('Unsaved · Учёба'); expect(await stored(page)).toEqual(before);
+  await editor.getByRole('button', { name: m.editStepDuration(1), exact: true }).click(); await page.clock.runFor(300);
+  const panel = page.getByRole('dialog', { name: m.durationPickerTitle(1), exact: true });
+  const minutes = panel.getByRole('spinbutton', { name: m.stepField(m.timeUnits[1], 1), exact: true });
+  await selectWheel(minutes, 2); await minutes.focus(); await page.emulateMedia({ colorScheme: 'light' });
+  await expect(panel.getByTestId('sheet-surface')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+  await expect(minutes).toBeFocused(); await expect(minutes).toHaveAttribute('aria-valuenow', '2'); expect(await stored(page)).toEqual(before);
+  await panel.getByRole('button', { name: m.applyDuration, exact: true }).click(); await page.clock.runFor(300);
+  await expect(name).toHaveValue('Unsaved · Учёба'); expect(await stored(page)).toEqual(before);
+  await editor.getByRole('button', { name: m.saveSchedule, exact: true }).click();
+  await expect.poll(async () => (await stored(page)).planning.schedules.length).toBe(2);
+  const saved = await stored(page); expect(saved.planning.schedules[1].steps[0].durationMs).toBe(120000);
+  expect(saved.stopwatch).toEqual(before.stopwatch); expect(saved.timer).toEqual(before.timer); expect(saved.planning.run).toEqual(before.planning.run);
+  expect(saved.preferences.theme).toBe('system');
+});
 
 test('quick Timer setup and active extensions preserve one run through pause and reload', async ({ page }) => {
   const data = initialData(); data.preferences.timerSound = false;
@@ -157,9 +187,9 @@ test('Settings groups preserve selections and Back focus while Close returns to 
   await seed(page); await page.goto('/timer');
   await page.getByRole('button', { name: m.settings, exact: true }).click();
   const appearance = page.getByRole('button', { name: m.settingsGroups.appearance, exact: true });
-  await expect(page.getByRole('switch', { name: m.darkMode, exact: true })).toHaveCount(0);
+  await expect(page.getByRole('radio', { name: m.darkMode, exact: true })).toHaveCount(0);
   await appearance.click();
-  await page.getByRole('switch', { name: m.darkMode, exact: true }).click();
+  await selectTheme(page, 'dark', m);
   await expect.poll(async () => (await stored(page)).preferences.theme).toBe('dark');
   await page.getByRole('button', { name: m.back, exact: true }).click();
   await expect(appearance).toBeFocused();

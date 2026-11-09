@@ -68,6 +68,7 @@ export type Messages = {
   languageHelp: string;
   darkMode: string;
   lightMode: string;
+  systemMode: string;
   themeHelp: string;
   audioAlerts: string;
   audioHelp: string;

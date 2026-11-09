@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { initialData } from '../../src/core/stopwatch';
 import { initialTimer, startTimer } from '../../src/core/timer';
-import { settingsGroup, audioSpy, duration, expectNoPageErrors, observePageErrors, playCount, seed, selectWheel, settings, stored } from './helpers';
+import { selectTheme, settingsGroup, audioSpy, duration, expectNoPageErrors, observePageErrors, playCount, seed, selectWheel, settings, stored } from './helpers';
 
 test.beforeEach(async ({ page }) => {
   observePageErrors(page);
@@ -62,7 +62,7 @@ test('running timer persists and completes once in settings while stopwatch rema
   expect((await stored(page)).timer).toEqual(running);
   await page.getByRole('tab', { name: 'Istoric', exact: true }).click();
   const dialog = await settings(page, 'appearance');
-  await dialog.getByRole('switch', { name: 'Mod întunecat', exact: true }).click();
+  await selectTheme(dialog, 'dark');
   await page.clock.runFor(10000);
   await expect(dialog.getByLabel('Temporizator finalizat', { exact: true })).toBeVisible();
   await expect.poll(() => playCount(page)).toBe(1);

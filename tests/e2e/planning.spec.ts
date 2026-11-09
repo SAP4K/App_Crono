@@ -1,6 +1,6 @@
 import { expect, test, type Locator } from '@playwright/test';
 import { readFileSync } from 'node:fs';
-import { scheduleOptions, audioSpy, duration, expectNoPageErrors, expectTheme, observePageErrors, playCount, seed, selectDuration, settings, stepDuration, stored } from './helpers';
+import { selectTheme, scheduleOptions, audioSpy, duration, expectNoPageErrors, expectTheme, observePageErrors, playCount, seed, selectDuration, settings, stepDuration, stored } from './helpers';
 import { initialData } from '../../src/core/stopwatch';
 import { LANGUAGES } from '../../src/core/language';
 import { pauseSchedule, startSchedule } from '../../src/core/planning';
@@ -392,7 +392,7 @@ for (const first of ['timer', 'planning']) {
     }
     await page.getByRole('tab', { name: 'Istoric', exact: true }).click();
     const dialog = await settings(page, 'appearance');
-    await dialog.getByRole('switch', { name: 'Mod întunecat', exact: true }).click();
+    await selectTheme(dialog, 'dark');
     await expectTheme(page, true);
     await page.clock.runFor(2000);
     await expect(dialog.getByLabel('Temporizator finalizat', { exact: true })).toBeVisible();

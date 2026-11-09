@@ -6,6 +6,7 @@ import { DEFAULT_ALERT_DURATION, DEFAULT_SOUND, restoreAlertDuration, restoreSou
 import type { AlertDuration, SoundId } from './sounds.ts';
 import { DEFAULT_LANGUAGE, restoreLanguage } from './language.ts';
 import type { AppLanguage } from './language.ts';
+import { DEFAULT_THEME, restoreThemePreference, type ThemePreference } from './themePreference.ts';
 
 export type Lap = { number: number; elapsedMs: number; splitMs: number };
 
@@ -22,8 +23,8 @@ export type Session = {
   laps: Lap[];
 };
 
-export type ThemeMode = 'light' | 'dark';
-export type Preferences = { systemNotifications: boolean; language: AppLanguage; haptics: boolean; keepAwake: boolean; theme: ThemeMode; timerSound: boolean; alertSoundId: SoundId; alertDurationSeconds: AlertDuration };
+export type { ThemeMode, ThemePreference } from './themePreference.ts';
+export type Preferences = { systemNotifications: boolean; language: AppLanguage; haptics: boolean; keepAwake: boolean; theme: ThemePreference; timerSound: boolean; alertSoundId: SoundId; alertDurationSeconds: AlertDuration };
 export type AppData = {
   version: 1;
   stopwatch: Stopwatch;
@@ -42,7 +43,7 @@ export const initialData = (): AppData => ({
   timer: initialTimer(),
   planning: initialPlanning(),
   sessions: [],
-  preferences: { systemNotifications: true, language: DEFAULT_LANGUAGE, haptics: true, keepAwake: true, theme: 'light', timerSound: true, alertSoundId: DEFAULT_SOUND, alertDurationSeconds: DEFAULT_ALERT_DURATION },
+  preferences: { systemNotifications: true, language: DEFAULT_LANGUAGE, haptics: true, keepAwake: true, theme: DEFAULT_THEME, timerSound: true, alertSoundId: DEFAULT_SOUND, alertDurationSeconds: DEFAULT_ALERT_DURATION },
 });
 
 // Store a timestamp, not interval ticks. Time spent outside the app still counts.
@@ -152,7 +153,7 @@ export function restoreData(raw: string | null, now = Date.now()): AppData {
       fallback.preferences.alertDurationSeconds = restoreAlertDuration(value.preferences.alertDurationSeconds);
       if (typeof value.preferences.haptics === 'boolean') fallback.preferences.haptics = value.preferences.haptics;
       if (typeof value.preferences.keepAwake === 'boolean') fallback.preferences.keepAwake = value.preferences.keepAwake;
-      if (value.preferences.theme === 'light' || value.preferences.theme === 'dark') fallback.preferences.theme = value.preferences.theme;
+      fallback.preferences.theme = restoreThemePreference(value.preferences.theme);
       if (typeof value.preferences.timerSound === 'boolean') fallback.preferences.timerSound = value.preferences.timerSound;
     }
     if (Array.isArray(value.sessions)) {

@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { LANGUAGES } from '../../src/core/language';
 import { initialData } from '../../src/core/stopwatch';
 import { getMessages } from '../../src/i18n';
-import { expectNoPageErrors, observePageErrors, seed } from './helpers';
+import { expectNoPageErrors, expectTheme, observePageErrors, seed, stored } from './helpers';
 
 test.beforeEach(({ page }) => observePageErrors(page));
 test.afterEach(({ page }) => expectNoPageErrors(page));
@@ -34,7 +34,8 @@ async function expectFit(page: Page) {
 for (const { id } of LANGUAGES) for (const theme of ['light', 'dark'] as const) for (const width of [320, 390]) {
   test(`readable ${id} ${theme} layout at ${width}px keeps primary controls and Settings panels usable`, async ({ page }) => {
     await page.setViewportSize({ width, height: width === 320 ? 568 : 844 });
-    const data = initialData(); data.preferences.language = id; data.preferences.theme = theme;
+    const data = initialData(); data.preferences.language = id; data.preferences.theme = 'system';
+    await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
     data.planning.schedules = [{ id: 'layout', name: 'Учёба · Școală', steps: [
       { id: 'a', name: 'Concentration', durationMs: 1500000 }, { id: 'b', name: 'Pause', durationMs: 300000 },
     ] }];
@@ -61,10 +62,25 @@ for (const { id } of LANGUAGES) for (const theme of ['light', 'dark'] as const) 
       await page.getByRole('button', { name: m.settingsGroups[group], exact: true }).click();
       await expect(page.getByRole('dialog', { name: m.settingsGroups[group], exact: true })).toBeVisible();
       await enlargeBodyText(page); await expectFit(page);
+      if (group === 'appearance') {
+        await expect(page.getByRole('radio', { name: m.systemMode, exact: true })).toBeChecked();
+        const before = await stored(page);
+        await page.emulateMedia({ colorScheme: theme === 'dark' ? 'light' : 'dark', reducedMotion: 'reduce' });
+        await expectTheme(page, theme !== 'dark'); await enlargeBodyText(page); await expectFit(page);
+        for (const choice of await page.getByRole('radio').all()) {
+          const box = (await choice.boundingBox())!; expect(box.height).toBeGreaterThanOrEqual(44); expect(box.width).toBeGreaterThanOrEqual(44);
+        }
+        await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' }); await expectTheme(page, theme === 'dark');
+        expect(await stored(page)).toEqual(before);
+        if (width === 320 && (id === 'ro' || id === 'ru')) {
+          await page.evaluate(() => document.fonts.ready); await page.screenshot({ path: `previews/system-${id}-${theme}-${width}.png`, animations: 'disabled' });
+        }
+      }
       for (const toggle of await page.getByRole('switch').all()) {
         const box = (await toggle.boundingBox())!; expect(box.height).toBeGreaterThanOrEqual(44); expect(box.width).toBeGreaterThanOrEqual(44);
       }
       await page.getByRole('button', { name: m.back, exact: true }).click();
+      if (group === 'appearance') await expect(page.getByRole('button', { name: m.settingsGroups.appearance, exact: true }).getByText(m.systemMode, { exact: true })).toBeVisible();
     }
     await page.getByRole('button', { name: m.close, exact: true }).click();
   });

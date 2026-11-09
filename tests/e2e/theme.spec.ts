@@ -1,35 +1,195 @@
 import { readFileSync } from 'node:fs';
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { initialData } from '../../src/core/stopwatch';
-import { settingsGroup, scheduleOptions, audioEvents, audioSpy, duration, expectNoPageErrors, expectTheme, observePageErrors, playCount, seed, settings, stored } from './helpers';
+import { startSchedule } from '../../src/core/planning';
+import { initialTimer } from '../../src/core/timer';
+import { getMessages } from '../../src/i18n';
+import { selectTheme, selectWheel, settingsGroup, scheduleOptions, audioEvents, audioSpy, duration, expectNoPageErrors, expectTheme, observePageErrors, playCount, seed, settings, stored } from './helpers';
 
 test.beforeEach(({ page }) => observePageErrors(page));
 test.afterEach(({ page }) => expectNoPageErrors(page));
 
-test('manual theme defaults light, survives rapid toggles and ignores OS appearance', async ({ page }) => {
-  await page.emulateMedia({ colorScheme: 'dark' });
-  await page.goto('/');
-  await expectTheme(page, false);
+type ThemeMediaProbe = { blocked: boolean; received: number; suppressed: number; delivered: number; writtenThemes: string[] };
+async function observeMissedThemeEvents(page: Page) {
+  await page.addInitScript(() => {
+    const probe: ThemeMediaProbe = { blocked: false, received: 0, suppressed: 0, delivered: 0, writtenThemes: [] };
+    Object.assign(window, { themeMediaProbe: probe });
+    const matchMedia = window.matchMedia.bind(window);
+    window.matchMedia = (query) => {
+      const media = matchMedia(query);
+      if (query !== '(prefers-color-scheme: dark)') return media;
+      const add = media.addEventListener.bind(media), remove = media.removeEventListener.bind(media);
+      add('change', () => { probe.received++; });
+      const listeners = new Map<EventListenerOrEventListenerObject, EventListener>();
+      const wrapped = (listener: EventListenerOrEventListenerObject) => {
+        let callback = listeners.get(listener);
+        if (!callback) {
+          callback = (event) => {
+            if (probe.blocked) { probe.suppressed++; return; }
+            probe.delivered++;
+            if (typeof listener === 'function') listener.call(media, event); else listener.handleEvent(event);
+          };
+          listeners.set(listener, callback);
+        }
+        return callback;
+      };
+      Object.defineProperties(media, {
+        addListener: { value: (listener: Parameters<MediaQueryList['addListener']>[0]) => { if (listener) add('change', wrapped(listener as EventListener)); } },
+        removeListener: { value: (listener: Parameters<MediaQueryList['removeListener']>[0]) => { if (listener) remove('change', listeners.get(listener as EventListener) ?? listener as EventListener); } },
+        addEventListener: { value: (type: string, listener: EventListenerOrEventListenerObject | null, options?: boolean | AddEventListenerOptions) => {
+          if (listener) add(type, type === 'change' ? wrapped(listener) : listener, options);
+        } },
+        removeEventListener: { value: (type: string, listener: EventListenerOrEventListenerObject | null, options?: boolean | EventListenerOptions) => {
+          if (listener) remove(type, type === 'change' ? listeners.get(listener) ?? listener : listener, options);
+        } },
+      });
+      return media;
+    };
+    const write = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (key, value) {
+      if (key === '@crono/app-v1') probe.writtenThemes.push(JSON.parse(value).preferences.theme);
+      return write.call(this, key, value);
+    };
+  });
+}
+
+for (const [preference, initial, next] of [
+  ['system', 'light', 'dark'], ['system', 'dark', 'light'],
+  ['light', 'light', 'dark'], ['dark', 'dark', 'light'],
+] as const) test(`${preference} refresh after a missed ${initial}-to-${next} browser event preserves clocks and drafts`, async ({ page }) => {
+  const m = getMessages('ro'), now = Date.parse('2026-11-09T12:00:00Z');
+  await page.clock.install({ time: now }); await page.clock.pauseAt(now + 1000);
+  const data = initialData(); data.preferences.theme = preference; data.stopwatch.startedAt = now - 2000;
+  data.timer = { ...initialTimer(600000), status: 'running', deadlineAt: now + 600000, runId: 'foreground-timer' };
+  data.planning.schedules = [{ id: 'foreground', name: 'Existing schedule', steps: [{ id: 'work', name: 'Keep working', durationMs: 600000 }] }];
+  data.planning = startSchedule(data.planning, 'foreground', now, 'foreground-planning');
+  await observeMissedThemeEvents(page); await seed(page, data); await page.emulateMedia({ colorScheme: initial });
+  await page.goto('/planning'); await expectTheme(page, initial === 'dark');
+  await page.getByRole('button', { name: m.newSchedule, exact: true }).click(); await page.clock.runFor(300);
+  const editor = page.getByRole('dialog', { name: m.newSchedule, exact: true });
+  const name = editor.getByRole('textbox', { name: m.scheduleName, exact: true }); await name.fill('Foreground · Учёба');
+  await editor.getByRole('textbox', { name: m.stepName(1), exact: true }).fill('Unsaved action');
+  await editor.getByRole('button', { name: m.editStepDuration(1), exact: true }).click(); await page.clock.runFor(300);
+  const panel = page.getByRole('dialog', { name: m.durationPickerTitle(1), exact: true });
+  const minutes = panel.getByRole('spinbutton', { name: m.stepField(m.timeUnits[1], 1), exact: true });
+  await selectWheel(minutes, 2); await minutes.focus();
+  const before = await stored(page), readProbe = () => page.evaluate(() => (window as unknown as { themeMediaProbe: ThemeMediaProbe }).themeMediaProbe);
+  await page.evaluate(() => {
+    const probe = (window as unknown as { themeMediaProbe: ThemeMediaProbe }).themeMediaProbe;
+    probe.blocked = true; probe.writtenThemes = [];
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await expect.poll(async () => (await readProbe()).writtenThemes).toEqual([preference]);
+  const delivered = (await readProbe()).delivered;
+  await page.emulateMedia({ colorScheme: next });
+  await expect.poll(async () => (await readProbe()).suppressed).toBeGreaterThan(0);
+  expect(await page.evaluate(() => window.matchMedia('(prefers-color-scheme: dark)').matches)).toBe(next === 'dark');
+  await expectTheme(page, initial === 'dark'); expect((await readProbe()).delivered).toBe(delivered);
+  expect(await stored(page)).toEqual(before);
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  const dark = (preference === 'system' ? next : preference) === 'dark';
+  await expectTheme(page, dark);
+  await expect(panel.getByTestId('sheet-surface')).toHaveCSS('background-color', dark ? 'rgb(15, 23, 42)' : 'rgb(255, 255, 255)');
+  await expect(minutes).toBeFocused(); await expect(minutes).toHaveAttribute('aria-valuenow', '2');
+  expect((await readProbe()).delivered).toBe(delivered); expect((await readProbe()).writtenThemes).toEqual([preference]);
+  expect(await stored(page)).toEqual(before);
+  await panel.getByRole('button', { name: m.applyDuration, exact: true }).click(); await page.clock.runFor(300);
+  await expect(name).toHaveValue('Foreground · Учёба');
+  await expect(editor.getByRole('textbox', { name: m.stepName(1), exact: true })).toHaveValue('Unsaved action');
+  expect(await stored(page)).toEqual(before);
+  await page.evaluate(() => { (window as unknown as { themeMediaProbe: ThemeMediaProbe }).themeMediaProbe.blocked = false; });
+  await page.emulateMedia({ colorScheme: initial }); await expectTheme(page, initial === 'dark');
+  await expect.poll(async () => (await readProbe()).delivered).toBeGreaterThan(delivered);
+  expect((await readProbe()).writtenThemes).toEqual([preference]); expect(await stored(page)).toEqual(before);
+});
+
+for (const colorScheme of ['light', 'dark'] as const) test(`fresh System follows ${colorScheme} and live changes without preference writes`, async ({ page }) => {
+  await page.emulateMedia({ colorScheme }); await page.goto('/'); await expectTheme(page, colorScheme === 'dark');
+  const dialog = await settings(page, 'appearance');
+  await expect(dialog.getByRole('radio', { name: 'Sistem', exact: true })).toBeChecked();
+  const before = await page.evaluate(() => localStorage.getItem('@crono/app-v1'));
+  await page.evaluate(() => {
+    Object.assign(window, { themeWrites: 0 }); const write = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (key, value) {
+      if (key === '@crono/app-v1') (window as unknown as { themeWrites: number }).themeWrites++;
+      return write.call(this, key, value);
+    };
+  });
+  await page.emulateMedia({ colorScheme: colorScheme === 'dark' ? 'light' : 'dark' });
+  await expectTheme(page, colorScheme !== 'dark');
+  await expect(dialog.getByTestId('sheet-surface')).toHaveCSS('background-color', colorScheme === 'dark' ? 'rgb(255, 255, 255)' : 'rgb(15, 23, 42)');
+  await selectTheme(dialog, 'system');
+  expect(await page.evaluate(() => localStorage.getItem('@crono/app-v1'))).toBe(before);
+  expect(await page.evaluate(() => (window as unknown as { themeWrites: number }).themeWrites)).toBe(0);
+  await selectTheme(dialog, colorScheme); await selectTheme(dialog, 'system');
+  await expect.poll(async () => (await stored(page)).preferences.theme).toBe('system');
+  await page.reload(); await expectTheme(page, colorScheme !== 'dark');
+  await settings(page, 'appearance');
+  await expect(page.getByRole('radio', { name: 'Sistem', exact: true })).toBeChecked();
+});
+
+for (const manual of ['light', 'dark'] as const) test(`saved ${manual} yields to the current system immediately when System is selected`, async ({ page }) => {
+  const data = initialData(); data.preferences.theme = manual;
+  const system = manual === 'dark' ? 'light' : 'dark';
+  await seed(page, data); await page.emulateMedia({ colorScheme: system }); await page.goto('/');
+  await expectTheme(page, manual === 'dark');
+  const dialog = await settings(page, 'appearance'); await selectTheme(dialog, 'system');
+  await expectTheme(page, system === 'dark');
+  await expect.poll(async () => (await stored(page)).preferences.theme).toBe('system');
+  await page.emulateMedia({ colorScheme: manual }); await expectTheme(page, manual === 'dark');
+  await page.reload(); await expectTheme(page, manual === 'dark');
+  expect((await stored(page)).preferences.theme).toBe('system');
+});
+
+for (const invalid of [false, true]) test(`${invalid ? 'invalid' : 'missing'} legacy theme restores System without dropping real saved data`, async ({ page }) => {
+  const legacy = JSON.parse(readFileSync(new URL('../fixtures/app-v1-before-planning.json', import.meta.url), 'utf8'));
+  if (invalid) legacy.preferences.theme = 'DARK'; else delete legacy.preferences.theme;
+  await seed(page, legacy); await page.emulateMedia({ colorScheme: 'dark' }); await page.goto('/'); await expectTheme(page, true);
+  await settings(page, 'appearance'); await expect(page.getByRole('radio', { name: 'Sistem', exact: true })).toBeChecked();
+  await selectTheme(page, 'light'); await selectTheme(page, 'system');
+  const restored = await stored(page);
+  expect(restored.preferences.theme).toBe('system'); expect(restored.preferences.timerSound).toBe(false);
+  expect(restored.preferences.haptics).toBe(false); expect(restored.preferences.keepAwake).toBe(false);
+  expect(restored.stopwatch).toEqual(legacy.stopwatch); expect(restored.timer).toEqual(legacy.timer); expect(restored.sessions).toEqual(legacy.sessions);
+});
+
+test('failed storage hydration keeps theme choices read-only while appearance remains usable', async ({ page }) => {
+  await page.addInitScript(() => {
+    const read = Storage.prototype.getItem;
+    Storage.prototype.getItem = function (key) {
+      if (key === '@crono/app-v1') throw Error('test read failure');
+      return read.call(this, key);
+    };
+  });
+  await page.emulateMedia({ colorScheme: 'dark' }); await page.goto('/'); await expectTheme(page, true);
+  const dialog = await settings(page, 'appearance');
+  await expect(dialog.getByRole('radio')).toHaveCount(3);
+  for (const radio of await dialog.getByRole('radio').all()) await expect(radio).toBeDisabled();
+  await page.emulateMedia({ colorScheme: 'light' }); await expectTheme(page, false);
+  await dialog.getByRole('button', { name: 'Închide', exact: true }).click(); await expect(dialog).not.toBeVisible();
+  await expect(page.getByRole('button', { name: 'Închide avertizarea de salvare', exact: true })).toBeVisible();
+});
+
+test('manual theme choices survive rapid selections and ignore OS appearance', async ({ page }) => {
+  const data = initialData(); data.preferences.theme = 'light';
+  await seed(page, data); await page.emulateMedia({ colorScheme: 'dark' });
+  await page.goto('/'); await expectTheme(page, false);
   await expect(page.getByRole('button', { name: 'Pornește', exact: true })).toHaveCSS('background-color', 'rgb(37, 99, 235)');
   const dialog = await settings(page, 'appearance');
   await expect(dialog.getByTestId('sheet-surface')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
-  const toggle = dialog.getByRole('switch', { name: 'Mod întunecat', exact: true });
-  await expect(toggle).not.toBeChecked();
-  for (let index = 0; index < 5; index++) await toggle.click();
-  await expect(toggle).toBeChecked();
+  for (let index = 0; index < 5; index++) await selectTheme(dialog, index % 2 === 0 ? 'dark' : 'light');
   await expectTheme(page, true);
   await expect(dialog.getByTestId('sheet-surface')).toHaveCSS('background-color', 'rgb(15, 23, 42)');
   await expect.poll(async () => (await stored(page)).preferences.theme).toBe('dark');
-  await page.reload();
-  await expectTheme(page, true);
-  await expect(page.getByRole('button', { name: 'Pornește', exact: true })).toHaveCSS('background-color', 'rgb(96, 165, 250)');
-  await page.emulateMedia({ colorScheme: 'light' });
-  await expectTheme(page, true);
-  await settings(page, 'appearance');
-  await page.getByRole('switch', { name: 'Mod întunecat', exact: true }).click();
+  await page.reload(); await expectTheme(page, true);
+  await page.emulateMedia({ colorScheme: 'light' }); await expectTheme(page, true);
+  await settings(page, 'appearance'); await selectTheme(page, 'light');
   await expect.poll(async () => (await stored(page)).preferences.theme).toBe('light');
-  await page.reload();
-  await expectTheme(page, false);
+  await page.reload(); await expectTheme(page, false);
 });
 
 test('legacy running stopwatch, laps and history survive theme changes and reload', async ({ page }) => {
@@ -44,7 +204,7 @@ test('legacy running stopwatch, laps and history survive theme changes and reloa
   await page.getByRole('button', { name: 'Înregistrează o tură' }).click();
   const before = (await stored(page)).stopwatch;
   await settings(page, 'appearance');
-  await page.getByRole('switch', { name: 'Mod întunecat', exact: true }).click();
+  await selectTheme(page, 'dark');
   await page.clock.setFixedTime(now + 4000);
   await page.getByRole('button', { name: 'Închide', exact: true }).click();
   await expect(page.getByLabel('Timp total 00:04.00')).toBeVisible();
@@ -55,7 +215,7 @@ test('legacy running stopwatch, laps and history survive theme changes and reloa
   expect((await stored(page)).sessions).toEqual(data.sessions);
   await page.getByRole('button', { name: 'Pauză', exact: true }).click();
   await settings(page, 'appearance');
-  await page.getByRole('switch', { name: 'Mod întunecat', exact: true }).click();
+  await selectTheme(page, 'light');
   await page.getByRole('button', { name: 'Închide', exact: true }).click();
   await expect(page.getByLabel('Timp total 00:04.00')).toBeVisible();
   await page.getByRole('button', { name: 'Resetează cronometrul', exact: true }).click();
@@ -70,7 +230,7 @@ test('literal legacy-v1 clocks, history and false preferences survive the blue t
   await settingsGroup(page, 'device');
   for (const name of ['Feedback tactil', 'Ecran mereu activ']) await expect(dialog.getByRole('switch', { name, exact: true })).not.toBeChecked();
   await settingsGroup(page, 'appearance');
-  await dialog.getByRole('switch', { name: 'Mod întunecat', exact: true }).click();
+  await selectTheme(dialog, 'light');
   await expectTheme(page, false);
   await expect(dialog.getByTestId('sheet-surface')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
   await dialog.getByRole('button', { name: 'Închide', exact: true }).click();
@@ -90,11 +250,13 @@ test('literal legacy-v1 clocks, history and false preferences survive the blue t
   expect(restored.preferences).toEqual({ ...legacy.preferences, systemNotifications: true, language: 'ro', theme: 'light', alertSoundId: 'classic', alertDurationSeconds: 60 });
 });
 
-for (const owner of ['timer', 'planning']) for (const startup of ['pending', 'playing']) {
-  test(`theme changes preserve a ${startup} ${owner} alert without canceling or replaying`, async ({ page }) => {
+for (const source of ['manual', 'system']) for (const owner of ['timer', 'planning']) for (const startup of ['pending', 'playing']) {
+  test(`${source} theme changes preserve a ${startup} ${owner} alert without canceling or replaying`, async ({ page }) => {
     await page.clock.install({ time: new Date('2026-11-05T10:00:00Z') });
     await page.clock.pauseAt(new Date('2026-11-05T10:00:01Z'));
     const data = initialData();
+    data.preferences.theme = source === 'system' ? 'system' : 'light';
+    await page.emulateMedia({ colorScheme: 'light' });
     data.planning.schedules = [{ id: 'short', name: 'Respirație', steps: [{ id: 'one', name: 'Respiră', durationMs: 1000 }] }];
     await seed(page, data); await audioSpy(page); await page.goto(owner === 'timer' ? '/timer' : '/planning');
     if (startup === 'pending') await page.evaluate(() => {
@@ -111,12 +273,16 @@ for (const owner of ['timer', 'planning']) for (const startup of ['pending', 'pl
     const dialog = await settings(page, 'appearance'); await page.clock.runFor(1000);
     await expect.poll(() => playCount(page)).toBe(1);
     const before = await stored(page); const events = await audioEvents(page);
-    const toggle = dialog.getByRole('switch', { name: 'Mod întunecat', exact: true });
-    for (const dark of [true, false]) { await toggle.click(); await expectTheme(page, dark); }
+    for (const dark of [true, false]) {
+      if (source === 'system') await page.emulateMedia({ colorScheme: dark ? 'dark' : 'light' });
+      else await selectTheme(dialog, dark ? 'dark' : 'light');
+      await expectTheme(page, dark);
+    }
     expect(await audioEvents(page)).toEqual(events);
     expect((await stored(page)).timer).toEqual(before.timer);
     expect((await stored(page)).planning).toEqual(before.planning);
     expect((await stored(page)).stopwatch).toEqual(before.stopwatch);
+    if (source === 'system') expect((await stored(page)).preferences).toEqual(before.preferences);
     if (startup === 'pending') await page.evaluate(() => (window as unknown as { finishThemeAudio: () => void }).finishThemeAudio());
     await expect(dialog.getByRole('button', { name: 'Oprește sunetul', exact: true })).toBeVisible();
     await page.clock.runFor(59999);

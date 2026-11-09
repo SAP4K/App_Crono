@@ -116,14 +116,14 @@ test('theme defaults and restoration preserve legacy stopwatch data independentl
   const stopwatch = recordLap(start(emptyStopwatch(), 3000), 4000);
   const legacy = { ...data, stopwatch, preferences: { haptics: false, keepAwake: false } };
   const restored = restoreData(JSON.stringify(legacy), 5000);
-  assert.equal(initialData().preferences.theme, 'light');
-  assert.deepEqual(restored, { ...data, stopwatch, preferences: { ...initialData().preferences, haptics: false, keepAwake: false, theme: 'light', timerSound: true } });
-  for (const theme of ['light', 'dark'] as const) {
+  assert.equal(initialData().preferences.theme, 'system');
+  assert.deepEqual(restored, { ...data, stopwatch, preferences: { ...initialData().preferences, haptics: false, keepAwake: false, theme: 'system', timerSound: true } });
+  for (const theme of ['system', 'light', 'dark'] as const) {
     assert.equal(restoreData(JSON.stringify({ ...legacy, preferences: { ...legacy.preferences, theme } }), 5000).preferences.theme, theme);
   }
-  for (const theme of [null, 5, {}, true, 'system', 'DARK']) {
+  for (const theme of [null, 5, {}, true, 'auto', 'DARK']) {
     const result = restoreData(JSON.stringify({ ...legacy, preferences: { ...legacy.preferences, theme } }), 5000);
-    assert.equal(result.preferences.theme, 'light');
+    assert.equal(result.preferences.theme, 'system');
     assert.deepEqual(result.sessions, legacy.sessions);
     assert.deepEqual(result.stopwatch, stopwatch);
     assert.equal(result.preferences.haptics, false);

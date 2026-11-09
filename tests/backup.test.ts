@@ -41,6 +41,8 @@ test('strict parser rejects invalid records, preferences, versions and duplicate
     (value: any) => { delete value.preferences.timerSound; },
     (value: any) => { value.preferences.alertDurationSeconds = 10; },
     (value: any) => { value.preferences.alertSoundId = 'unknown'; },
+    (value: any) => { value.preferences.theme = 'auto'; },
+    (value: any) => { delete value.preferences.theme; },
     (value: any) => { value.sessions = [{ id: '', savedAt: 1, durationMs: 1, laps: [] }]; },
     (value: any) => { value.sessions = [{ id: 's', savedAt: 1, durationMs: 1, laps: [{ number: 1, elapsedMs: 1, splitMs: 2 }] }]; },
     (value: any) => { value.schedules[0].name = ' trim '; },
@@ -79,6 +81,21 @@ test('preference import is optional and empty unchanged imports are true no-ops'
   const changed = importBackup(current, backup, emptyIds, true);
   assert.equal(changed.preferences.language, 'ru'); assert.equal(changed.timer, current.timer);
   assert.equal(importBackup(changed, backup, emptyIds, true), changed);
+});
+
+test('portable themes preserve the selected preference and only apply after explicit confirmation', () => {
+  for (const theme of ['system', 'light', 'dark'] as const) for (const apply of [false, true]) {
+    const source = data(); source.preferences.theme = theme;
+    const backup = parseBackup(serializeBackup(source, 1));
+    assert.equal(backup.preferences.theme, theme);
+    const current = initialData(); current.preferences.theme = theme === 'dark' ? 'light' : 'dark';
+    current.planning = startSchedule(data().planning, 'source', 1000, 'current-run');
+    const merged = importBackup(current, backup, ids(), apply);
+    assert.equal(merged.preferences.theme, apply ? theme : current.preferences.theme);
+    assert.equal(merged.stopwatch, current.stopwatch); assert.equal(merged.timer, current.timer);
+    assert.equal(merged.planning.run, current.planning.run);
+    assert.equal(restoreData(JSON.stringify(merged)).preferences.theme, merged.preferences.theme);
+  }
 });
 
 test('a fully populated valid saved history fits the portable envelope without dropping records', () => {
