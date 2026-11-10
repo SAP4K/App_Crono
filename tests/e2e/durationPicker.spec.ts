@@ -256,6 +256,12 @@ test('fifty-action editing restores list position and focus and preserves IDs th
     while (parent && !(parent.scrollHeight > parent.clientHeight && getComputedStyle(parent).overflowY === 'auto')) parent = parent.parentElement;
     return parent;
   });
+  const calendar = page.getByRole('button', { name: 'Programare · Manual', exact: true });
+  await calendar.click();
+  const headerOffset = await list.evaluate((node) => node!.scrollTop);
+  await page.getByRole('dialog', { name: 'Programare', exact: true }).getByRole('button', { name: 'Renunță', exact: true }).click();
+  await expect(calendar).toBeFocused();
+  expect(Math.abs(await list.evaluate((node) => node!.scrollTop) - headerOffset)).toBeLessThanOrEqual(1);
   const rect = await list.evaluate((node) => node!.getBoundingClientRect().toJSON());
   await page.mouse.move(rect.x + rect.width / 2, rect.y + rect.height / 2);
   const last = page.getByRole('button', { name: 'Modifică durata etapei 50', exact: true });
@@ -266,12 +272,6 @@ test('fifty-action editing restores list position and focus and preserves IDs th
   }, { intervals: [100, 200, 300] }).toBe(true);
   await last.scrollIntoViewIfNeeded();
   const offset = await list.evaluate((node) => node!.scrollTop);
-  const calendar = page.getByRole('button', { name: 'Programare · Manual', exact: true });
-  await calendar.click();
-  await page.getByRole('dialog', { name: 'Programare', exact: true }).getByRole('button', { name: 'Renunță', exact: true }).click();
-  await expect(calendar).toBeFocused();
-  await expect(last).toBeVisible();
-  expect(Math.abs(await list.evaluate((node) => node!.scrollTop) - offset)).toBeLessThanOrEqual(1);
   await last.click(); await selectDuration(page, [0, 0, 3], undefined, 50);
   await page.getByRole('button', { name: 'Închide', exact: true }).click();
   await expect(last).toBeFocused(); await expect(last).toContainText('00:00:01');

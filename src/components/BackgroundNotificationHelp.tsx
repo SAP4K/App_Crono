@@ -1,9 +1,10 @@
+import { MotionPressable } from './MotionPressable';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useCrono } from '../context/CronoContext';
 import { useI18n } from '../hooks/useI18n';
 import { useThemeStyles } from '../context/ThemeContext';
-import { buttonPressedStyle, fonts as f, Palette } from '../theme';
+import { fonts as f, Palette } from '../theme';
 
 export function BackgroundNotificationHelp() {
   const { notifications, feedback } = useCrono();
@@ -18,11 +19,11 @@ export function BackgroundNotificationHelp() {
         ? copy.exactGranted : delivery.exactAlarm === 'denied' ? m.notificationExactHelp : copy.exactUnknown}</Text>
       <Text style={styles.text}>{delivery.battery === 'unrestricted' ? copy.batteryUnrestricted
         : delivery.battery === 'optimized' ? copy.batteryOptimized : copy.batteryUnknown}</Text>
-      <Pressable accessibilityRole="button" onPress={() => { feedback(); notifications.openSettings('battery'); }}
-        style={({ pressed }) => [styles.button, pressed && buttonPressedStyle]}><Text style={styles.label}>{copy.batterySettings}</Text></Pressable>
+      <MotionPressable accessibilityRole="button" onPress={() => { feedback(); notifications.openSettings('battery'); }}
+        style={[styles.button]}><Text style={styles.label}>{copy.batterySettings}</Text></MotionPressable>
     </>}
-    <Pressable accessibilityRole="button" accessibilityState={{ expanded }} onPress={() => { feedback(); setExpanded((value) => !value); }}
-      style={({ pressed }) => [styles.button, pressed && buttonPressedStyle]}><Text style={styles.label}>{copy.help}</Text></Pressable>
+    <MotionPressable accessibilityRole="button" accessibilityState={{ expanded }} onPress={() => { feedback(); setExpanded((value) => !value); }}
+      style={[styles.button]}><Text style={styles.label}>{copy.help}</Text></MotionPressable>
     {expanded && <View style={styles.container}>
       <Text style={styles.text}>{copy.usage}</Text>
       <Text style={styles.text}>{delivery.platform === 'android' ? copy.androidHelp : copy.iosHelp}</Text>

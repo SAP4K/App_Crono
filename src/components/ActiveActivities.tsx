@@ -1,5 +1,6 @@
+import { MotionPressable } from './MotionPressable';
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useCrono } from '../context/CronoContext';
 import { useThemeStyles } from '../context/ThemeContext';
 import { scheduleRemaining } from '../core/planning';
@@ -29,28 +30,28 @@ export function ActiveActivities({ currentTab }: { currentTab: string }) {
   if (!showTimer && !showPlanning) return null;
   return <View style={styles.container}>
     {showTimer && <View style={styles.row}>
-      <Pressable accessibilityRole="button" accessibilityLabel={m.openActiveTimer}
+      <MotionPressable accessibilityRole="button" accessibilityLabel={m.openActiveTimer}
         accessibilityHint={m.remainingTime(formatRemaining(remainingTime(timer, now)))}
         onPress={() => { feedback(); router.navigate('/timer'); }} style={styles.open}>
         <Text style={styles.name}>{m.timerTab} · {timer.status === 'paused' ? m.paused : m.inProgress}</Text>
         <Text style={styles.time}>{formatRemaining(remainingTime(timer, now))}</Text>
-      </Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel={timer.status === 'running' ? m.pauseTimer : m.resumeTimer}
-        onPress={() => toggle('timer')} style={({ pressed }) => [styles.action, pressed && styles.pressed]}>
+      </MotionPressable>
+      <MotionPressable accessibilityRole="button" accessibilityLabel={timer.status === 'running' ? m.pauseTimer : m.resumeTimer}
+        onPress={() => toggle('timer')} style={[styles.action]}>
         <Text style={styles.label}>{timer.status === 'running' ? m.pause : m.resume}</Text>
-      </Pressable>
+      </MotionPressable>
     </View>}
     {showPlanning && <View style={styles.row}>
-      <Pressable accessibilityRole="button" accessibilityLabel={m.openActivePlanning}
+      <MotionPressable accessibilityRole="button" accessibilityLabel={m.openActivePlanning}
         accessibilityHint={`${run.scheduleName}. ${run.steps[run.stepIndex].name}. ${m.currentStepTime(formatRemaining(scheduleRemaining(run, now)))}`}
         onPress={() => { feedback(); router.navigate('/planning'); }} style={styles.open}>
         <Text numberOfLines={1} style={styles.name}>{run.scheduleName}</Text>
         <View style={styles.detail}><Text numberOfLines={1} style={[styles.time, styles.status]}>{run.status === 'paused' ? m.paused : m.stepProgress(run.stepIndex + 1, run.steps.length)}</Text><Text style={styles.time}>{formatRemaining(scheduleRemaining(run, now))}</Text></View>
-      </Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel={run.status === 'running' ? m.pauseSchedule : m.resumeSchedule}
-        onPress={() => toggle('planning')} style={({ pressed }) => [styles.action, pressed && styles.pressed]}>
+      </MotionPressable>
+      <MotionPressable accessibilityRole="button" accessibilityLabel={run.status === 'running' ? m.pauseSchedule : m.resumeSchedule}
+        onPress={() => toggle('planning')} style={[styles.action]}>
         <Text style={styles.label}>{run.status === 'running' ? m.pause : m.resume}</Text>
-      </Pressable>
+      </MotionPressable>
     </View>}
   </View>;
 }
@@ -63,5 +64,4 @@ const createStyles = (c: Palette) => StyleSheet.create({
   detail: { flexDirection: 'row', gap: 8 }, status: { flex: 1, minWidth: 0 },
   action: { minHeight: 44, minWidth: 64, maxWidth: '40%', justifyContent: 'center', padding: 8, backgroundColor: c.secondary, borderRadius: 10 },
   label: { fontFamily: f.semibold, fontSize: textSizes.body, color: c.ink, textAlign: 'center', flexShrink: 1 },
-  pressed: { opacity: 0.65 },
 });

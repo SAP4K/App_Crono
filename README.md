@@ -34,6 +34,7 @@ When developing on Windows, you can preview the interface on a physical iPhone u
 - Choose white/blue light or navy/blue dark mode and save that preference across launches.
 - Restore the active stopwatch, countdown, schedule, laps, and settings after closing and reopening the app.
 - Haptic feedback and screen wake lock on mobile, each with its own setting.
+- Short button animations across screens, sheets and Settings, respecting the system's Reduce motion setting.
 - Romanian, English, Russian, Spanish, French, and German interfaces, bundled fonts, and no account or dedicated backend required.
 
 Tap **Pauză → Salvează sesiunea** (Pause → Save session) to keep your result and prepare a new stopwatch session. In **Istoric** (History), tap a session to view its details and share it. On the web, results are copied to the clipboard if the browser does not support native sharing.
@@ -58,6 +59,8 @@ Labels, dates, plural phrases, accessible names, notices, and shared results use
 Light mode uses white backgrounds and blue accents; dark mode uses navy backgrounds and lighter blue accents across the four tabs, controls, and sheets. Open **Setări → Aspect** (Settings → Appearance) and choose **Sistem / Mod luminos / Mod întunecat** (System / Light mode / Dark mode). System is the default for new installs and follows the phone/browser appearance, including changes while the app is open and on return. A saved Light or Dark choice takes priority until you select System again.
 
 Existing valid Light/Dark preferences are preserved. Missing or invalid saved themes use System; unavailable system detection falls back to the Light palette. Changing the appearance preserves active clocks, schedules, unsaved editor drafts and real completion audio. The first interactive screen uses the restored choice and current appearance; the native launch image appears before saved settings can load. Launcher icons, favicon, and splash artwork retain their existing branding.
+
+Buttons fade and shrink slightly on press, then return smoothly on release or cancellation. An accepted action runs without waiting for the animation. The phone/browser's **Reduce motion** setting removes scaling and timed transitions while retaining immediate pressed feedback; changes apply live and on return to the app. Web switches also animate their thumb and track briefly; native switches retain platform behavior. This visual feedback adds no sounds, vibrations or saved settings, and duration-wheel gestures stay independent. See the [interaction animation plan](.ai-factory/plans/feature-interaction-animations.md) for verification and pending device checks.
 
 Open **Timer** and scroll **Ore / Minute / Secunde** (hours/minutes/seconds) until the desired values reach the highlighted center row, then press **Pornește**. A quick flick continues gliding after release and snaps to a centered value; move slowly for precise selection. Duration selection opens no numeric keyboard. Hours stop at 00–23; minutes and seconds stop at 00–59, without wrapping or carrying into another column. Start waits for every moving column to settle; `00:00:00` is invalid. On web, focus a column and use ArrowUp/ArrowDown or Home/End, or click a neighboring value.
 
@@ -103,6 +106,10 @@ Choosing a template opens an independent unsaved draft. Adjust its name, actions
 In the editor, **Repeat sequence** previews **2, 3 or 4 total cycles**. Apply copies the steps into the draft in order, then **Save schedule** persists them. The resulting sequence must fit the existing 50-action limit; Cancel preserves the draft.
 
 Scroll the **Planificare** page to move its controls, any active run and saved schedules together. Scroll back to the top for **Orar nou** and the date filters.
+
+Inside the schedule editor, the name, Scheduling, Repeat sequence, action rows, Add and Save schedule move together in one list. Scroll to the bottom to save a long sequence, and back to the top to edit its name or scheduling rule.
+
+The duration, calendar, repeat and discard panels scroll their own complete content when it exceeds the available height. Duration wheels remain separate inputs: scrolling a column changes its value, while scrolling the panel moves its content. Closing a panel returns focus to its source control and restores the opening scroll position when the layout is unchanged; changes remain local until Save schedule.
 
 **Aplică durata** changes only the action draft; **Salvează orarul** saves the whole schedule. The same flick and slow-drag gestures work here. Apply waits for every moving column to settle and rejects zero duration. **Renunță**, the close button, or Back returns to the editor without applying the temporary selection, including during a glide. The action list retains its position and returns focus to that action. Schedule/action names still use the text keyboard, and completion notices and **Oprește sunetul** remain available inside the duration panel.
 
@@ -169,6 +176,8 @@ Source: [lee-to/ai-factory](https://github.com/lee-to/ai-factory).
 
 ## Verification Status
 
+Interaction animations on November 10, 2026 passed lint/typecheck, **257 Node tests** and Android/iOS/web exports. All **375 distinct browser cases** have passing evidence across an interrupted full attempt and focused reruns, including the new interaction/lifecycle checks and six-language layouts. The [animation plan](.ai-factory/plans/feature-interaction-animations.md) records source fingerprints, the two test-timing findings and exact selections. Physical native animation/accessibility acceptance remains deferred.
+
 One-minute completion alerts passed lint/typecheck, **189 Node tests**, **15 native unit tests**, and Android/iOS/web exports. All **157 selected browser cases** have passing results across the main run and targeted reruns, including real-media 60-second playback. Android instrumentation compiled but device execution and acoustic checks were deferred at the user's request after MIUI blocked test-package installation. See the [current evidence and platform limits](docs/background-notifications.md#one-minute-completion-alerts) and [active plan](.ai-factory/plans/feature-one-minute-alerts.md).
 
 Longer completion-sound checks passed lint/typecheck, **171 Node tests**, **149 browser scenarios** in one run, and Android/iOS/web exports. A rebuilt Android APK contains all four verified 15-second notification clips; physical acoustic checks remain pending. See the [sound build evidence](docs/background-notifications.md#longer-completion-sounds) and [implementation plan](.ai-factory/plans/feature-longer-completion-sounds.md).
@@ -202,7 +211,7 @@ During installation, `npm audit` reported vulnerabilities in transitive Expo dep
 ```text
 src/app/          Screens and Expo Router navigation
 src/components/   Dials, duration wheels, schedule editor/run card, shared alerts, sheets, settings
-src/context/      Shared state, theme, haptic feedback, and screen wake lock
+src/context/      Shared state, theme, interaction motion, haptic feedback, and screen wake lock
 src/core/         Pure timing, notification projection, language/sound registries, notices, validation
 src/i18n/         Six typed catalogs (ro/en/ru/es/fr/de), plurals, dates, and sharing
 src/hooks/        Persistence, timing/audio owners, notification scheduling, and platform adapters

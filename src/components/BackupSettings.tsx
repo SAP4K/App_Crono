@@ -1,5 +1,6 @@
+import { MotionPressable } from './MotionPressable';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useCrono } from '../context/CronoContext';
 import { useThemeStyles } from '../context/ThemeContext';
 import { useBackupTransfer } from '../hooks/useBackupTransfer';
@@ -26,22 +27,22 @@ export function BackupSettings() {
         <Text style={[styles.body, styles.copy]}>{m.backup.applyPreferences}</Text>
         <SettingsSwitch accessibilityLabel={m.backup.applyPreferences} value={applyPreferences} onValueChange={setApplyPreferences} />
       </View>
-      <Pressable accessibilityRole="button" accessibilityLabel={m.backup.confirm} disabled={!available}
-        onPress={() => { feedback(); controller.confirm(applyPreferences); }} style={({ pressed }) => [styles.primary, !available && styles.disabled, pressed && styles.pressed]}>
+      <MotionPressable accessibilityRole="button" accessibilityLabel={m.backup.confirm} disabled={!available}
+        onPress={() => { feedback(); controller.confirm(applyPreferences); }} style={[styles.primary, !available && styles.disabled]}>
         <Text style={styles.primaryText}>{m.backup.confirm}</Text>
-      </Pressable>
+      </MotionPressable>
     </> : <>
-      <Pressable accessibilityRole="button" accessibilityLabel={m.backup.export} disabled={busy || !available}
-        onPress={() => { feedback(); void controller.export(); }} style={({ pressed }) => [styles.primary, (busy || !available) && styles.disabled, pressed && styles.pressed]}>
+      <MotionPressable accessibilityRole="button" accessibilityLabel={m.backup.export} disabled={busy || !available}
+        onPress={() => { feedback(); void controller.export(); }} style={[styles.primary, (busy || !available) && styles.disabled]}>
         <Text style={styles.primaryText}>{m.backup.export}</Text>
-      </Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel={m.backup.import} disabled={busy || !available}
-        onPress={() => { feedback(); setApplyPreferences(false); void controller.read(); }} style={({ pressed }) => [styles.secondary, (busy || !available) && styles.disabled, pressed && styles.pressed]}>
+      </MotionPressable>
+      <MotionPressable accessibilityRole="button" accessibilityLabel={m.backup.import} disabled={busy || !available}
+        onPress={() => { feedback(); setApplyPreferences(false); void controller.read(); }} style={[styles.secondary, (busy || !available) && styles.disabled]}>
         <Text style={styles.body}>{m.backup.import}</Text>
-      </Pressable>
+      </MotionPressable>
     </>}
     {busy && <Text accessibilityLiveRegion="polite" style={styles.body}>{m.backup.busy}</Text>}
-    {(busy || preview) && <Pressable accessibilityRole="button" accessibilityLabel={m.cancel} onPress={() => { feedback(); controller.cancel(); setApplyPreferences(false); }} style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}><Text style={styles.body}>{m.cancel}</Text></Pressable>}
+    {(busy || preview) && <MotionPressable accessibilityRole="button" accessibilityLabel={m.cancel} onPress={() => { feedback(); controller.cancel(); setApplyPreferences(false); }} style={[styles.secondary]}><Text style={styles.body}>{m.cancel}</Text></MotionPressable>}
     {(state.status === 'imported' || state.status === 'exported') && <Text accessibilityLiveRegion="polite" style={styles.body}>{state.status === 'imported' ? m.backup.imported : m.backup.exported}</Text>}
     {!available && <Text style={styles.error}>{m.backup.errors.notReady}</Text>}
   </View>;

@@ -1,12 +1,13 @@
+import { MotionPressable } from './MotionPressable';
 import { useI18n } from '../hooks/useI18n';
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useCrono } from '../context/CronoContext';
 import { useThemeStyles } from '../context/ThemeContext';
 import { scheduleRemaining } from '../core/planning';
 import { formatRemaining } from '../core/timer';
 import { isAppActive, subscribeAppActivity } from '../hooks/appActivity';
-import { textSizes, buttonPressedStyle, fonts as f, Palette } from '../theme';
+import { textSizes, fonts as f, Palette } from '../theme';
 import { ConfirmSheet } from './Sheet';
 
 export function PlanningRunCard() {
@@ -43,8 +44,8 @@ export function PlanningRunCard() {
     <View accessibilityRole="progressbar" accessibilityLabel={m.runProgressBar} accessibilityValue={{ min: 0, max: 100, now: progress }} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} style={styles.track}><View style={[styles.fill, { width: `${progress}%` }]} /></View>
     {run.status !== 'completed' && <Text style={styles.next}>{run.steps[run.stepIndex + 1] ? m.nextStep(run.steps[run.stepIndex + 1].name) : m.lastStep}</Text>}
     <View style={styles.actions}>
-      <Pressable accessibilityRole="button" accessibilityLabel={m.resetSchedule} onPress={() => { if (run.status === 'completed') reset(); else { feedback(); setConfirmReset(true); } }} style={({ pressed }) => [styles.secondary, pressed && buttonPressedStyle]}><Text style={styles.secondaryText}>{m.reset}</Text></Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel={actionLabel} disabled={restartDisabled} onPress={() => {
+      <MotionPressable accessibilityRole="button" accessibilityLabel={m.resetSchedule} onPress={() => { if (run.status === 'completed') reset(); else { feedback(); setConfirmReset(true); } }} style={[styles.secondary]}><Text style={styles.secondaryText}>{m.reset}</Text></MotionPressable>
+      <MotionPressable accessibilityRole="button" accessibilityLabel={actionLabel} disabled={restartDisabled} onPress={() => {
         feedback();
         const previous = getSnapshot().planning.run;
         if (run.status === 'running') planning.controls.pause();
@@ -52,7 +53,7 @@ export function PlanningRunCard() {
         else planning.controls.start(run.scheduleId);
         const current = getSnapshot().planning.run;
         if (current !== previous && current?.status === 'running') void notifications.controller.requestPermission();
-      }} style={({ pressed }) => [styles.primary, pressed && !restartDisabled && buttonPressedStyle, restartDisabled && styles.disabled]}><Text style={styles.primaryText}>{run.status === 'running' ? m.pause : run.status === 'paused' ? m.resume : m.restart}</Text></Pressable>
+      }} style={[styles.primary, restartDisabled && styles.disabled]}><Text style={styles.primaryText}>{run.status === 'running' ? m.pause : run.status === 'paused' ? m.resume : m.restart}</Text></MotionPressable>
     </View>
     <ConfirmSheet visible={confirmReset} title={m.resetScheduleTitle} description={m.resetScheduleHelp} confirmLabel={m.resetSchedule} onClose={() => setConfirmReset(false)} onConfirm={reset} />
   </View>;

@@ -1,8 +1,9 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { MotionPressable } from './MotionPressable';
+import { StyleSheet, Text, View } from 'react-native';
 import { useCrono } from '../context/CronoContext';
 import { useI18n } from '../hooks/useI18n';
 import { useThemeStyles } from '../context/ThemeContext';
-import { buttonPressedStyle, fonts as f, Palette } from '../theme';
+import { fonts as f, Palette } from '../theme';
 import { notificationStatus } from '../i18n/notificationStatus';
 
 export function SystemNotificationNotice() {
@@ -23,8 +24,8 @@ export function SystemNotificationNotice() {
   };
   return <View style={styles.notice} accessibilityLiveRegion="polite">
     <Text style={styles.text}>{notificationStatus(code, m)}</Text>
-    {code !== 'pending' && code !== 'short-sound' && <Pressable accessibilityRole="button" onPress={act}
-      style={({ pressed }) => [styles.retry, pressed && buttonPressedStyle]}><Text style={styles.text}>{label}</Text></Pressable>}
+    {code !== 'pending' && code !== 'short-sound' && <MotionPressable accessibilityRole="button" onPress={act}
+      style={[styles.retry]}><Text style={styles.text}>{label}</Text></MotionPressable>}
   </View>;
 }
 const createStyles = (c: Palette) => StyleSheet.create({

@@ -1,6 +1,7 @@
+import { MotionPressable } from './MotionPressable';
 import { useI18n } from '../hooks/useI18n';
 import { useEffect, useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import { useCrono } from '../context/CronoContext';
 import { textSizes, fonts as f, Palette } from '../theme';
 import { useTheme, useThemeStyles } from '../context/ThemeContext';
@@ -53,25 +54,25 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
   return <Sheet visible={visible} title={section ? m.settingsGroups[section] : m.settingsTitle} onClose={close} onBack={section ? back : undefined}>
     {section === null && <Text style={styles.subtitle}>{m.settingsSubtitle}</Text>}
     {section === null && <View style={styles.groups}>{(Object.keys(m.settingsGroups) as SettingsGroup[]).map((group) =>
-      <Pressable key={group} ref={(node) => { if (node) groupButtons.current.set(group, node); else groupButtons.current.delete(group); }}
+      <MotionPressable key={group} ref={(node) => { if (node) groupButtons.current.set(group, node); else groupButtons.current.delete(group); }}
         accessibilityRole="button" accessibilityLabel={m.settingsGroups[group]} onPress={() => { feedback(); setSection(group); }}
-        style={({ pressed }) => [styles.group, pressed && { opacity: 0.72 }]}>
+        style={[styles.group]}>
         <View style={styles.copy}><Text style={styles.label}>{m.settingsGroups[group]}</Text><Text style={styles.description}>{summaries[group]}</Text></View>
         <Icon name="chevron" size={18} />
-      </Pressable>)}</View>}
+      </MotionPressable>)}</View>}
     {section === 'language' && <>
     <View style={styles.soundOptions}>
       <Text style={styles.label}>{m.language}</Text>
       <Text style={styles.description}>{m.languageHelp}</Text>
-      <View style={styles.choices}>{LANGUAGES.map((item) => <Pressable key={item.id} accessibilityRole="radio" accessibilityLabel={item.label}
+      <View style={styles.choices}>{LANGUAGES.map((item) => <MotionPressable key={item.id} accessibilityRole="radio" accessibilityLabel={item.label}
         accessibilityState={{ checked: language === item.id }} aria-checked={language === item.id} onPress={() => setLanguage(item.id)}
-        style={({ pressed }) => [styles.choice, language === item.id && styles.chosen, pressed && { opacity: 0.72 }]}><Text style={styles.choiceText}>{item.label}</Text></Pressable>)}</View>
+        style={[styles.choice, language === item.id && styles.chosen]}><Text style={styles.choiceText}>{item.label}</Text></MotionPressable>)}</View>
     </View>
     </>}
     {section === 'appearance' && <>
     <View style={styles.soundOptions}>
       <Text style={styles.label}>{m.settingsGroups.appearance}</Text><Text style={styles.description}>{m.themeHelp}</Text>
-      <View style={styles.choices}>{(['system', 'light', 'dark'] as const).map((theme) => <Pressable key={theme}
+      <View style={styles.choices}>{(['system', 'light', 'dark'] as const).map((theme) => <MotionPressable key={theme}
         accessibilityRole="radio" accessibilityLabel={themeLabels[theme]} disabled={hydrationStatus !== 'loaded'}
         accessibilityState={{ checked: data.preferences.theme === theme, disabled: hydrationStatus !== 'loaded' }} aria-checked={data.preferences.theme === theme}
         onPress={() => {
@@ -79,9 +80,9 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
           const result = update((previous) => previous.preferences.theme === theme ? previous
             : { ...previous, preferences: { ...previous.preferences, theme } });
           if (result.changed) feedback();
-        }} style={({ pressed }) => [styles.choice, data.preferences.theme === theme && styles.chosen, pressed && { opacity: 0.72 }]}>
+        }} style={[styles.choice, data.preferences.theme === theme && styles.chosen]}>
         <Text style={styles.choiceText}>{themeLabels[theme]}</Text>
-      </Pressable>)}</View>
+      </MotionPressable>)}</View>
     </View>
     </>}
     {section === 'sounds' && <>
@@ -92,19 +93,19 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
     </View>
     <View style={styles.soundOptions}>
       <Text style={styles.label}>{m.sound}</Text>
-      <View style={styles.choices}>{SOUND_CHOICES.map((sound) => <Pressable key={sound.id} accessibilityRole="radio" accessibilityLabel={m.soundChoice(m.sounds[sound.id])} accessibilityState={{ checked: data.preferences.alertSoundId === sound.id }} aria-checked={data.preferences.alertSoundId === sound.id}
+      <View style={styles.choices}>{SOUND_CHOICES.map((sound) => <MotionPressable key={sound.id} accessibilityRole="radio" accessibilityLabel={m.soundChoice(m.sounds[sound.id])} accessibilityState={{ checked: data.preferences.alertSoundId === sound.id }} aria-checked={data.preferences.alertSoundId === sound.id}
         onPress={() => { feedback(); setBlockedPreviewEventId(null); update((previous) => previous.preferences.alertSoundId === sound.id ? previous : { ...previous, preferences: { ...previous.preferences, alertSoundId: sound.id } }); }}
-        style={[styles.choice, data.preferences.alertSoundId === sound.id && styles.chosen]}><Text style={styles.choiceText}>{m.sounds[sound.id]}</Text></Pressable>)}</View>
+        style={[styles.choice, data.preferences.alertSoundId === sound.id && styles.chosen]}><Text style={styles.choiceText}>{m.sounds[sound.id]}</Text></MotionPressable>)}</View>
       <Text style={styles.label}>{m.soundDuration}</Text>
       <Text style={styles.description}>{m.notificationSoundDurationHelp}</Text>
-      <View style={styles.choices}>{ALERT_DURATIONS.map((duration) => <Pressable key={duration} accessibilityRole="radio" accessibilityLabel={m.soundLength(duration)} accessibilityState={{ checked: data.preferences.alertDurationSeconds === duration }} aria-checked={data.preferences.alertDurationSeconds === duration}
+      <View style={styles.choices}>{ALERT_DURATIONS.map((duration) => <MotionPressable key={duration} accessibilityRole="radio" accessibilityLabel={m.soundLength(duration)} accessibilityState={{ checked: data.preferences.alertDurationSeconds === duration }} aria-checked={data.preferences.alertDurationSeconds === duration}
         onPress={() => { feedback(); setBlockedPreviewEventId(null); update((previous) => previous.preferences.alertDurationSeconds === duration ? previous : { ...previous, preferences: { ...previous.preferences, alertDurationSeconds: duration } }); }}
-        style={[styles.choice, data.preferences.alertDurationSeconds === duration && styles.chosen]}><Text style={styles.choiceText}>{duration} s</Text></Pressable>)}</View>
-      <Pressable accessibilityRole="button" accessibilityLabel={previewing ? m.stopPreview : m.preview} onPress={() => {
+        style={[styles.choice, data.preferences.alertDurationSeconds === duration && styles.chosen]}><Text style={styles.choiceText}>{duration} s</Text></MotionPressable>)}</View>
+      <MotionPressable accessibilityRole="button" accessibilityLabel={previewing ? m.stopPreview : m.preview} onPress={() => {
         feedback();
         if (previewing) { controller.cancelOwner('preview'); setBlockedPreviewEventId(null); }
         else setBlockedPreviewEventId(alerts.preview() ? null : controller.getState().request?.eventId ?? null);
-      }} style={styles.preview}><Icon name="sound" size={17} /><Text style={styles.choiceText}>{previewing ? m.stopPreview : m.preview}</Text></Pressable>
+      }} style={styles.preview}><Icon name="sound" size={17} /><Text style={styles.choiceText}>{previewing ? m.stopPreview : m.preview}</Text></MotionPressable>
       {(previewError || previewNotice) && <Text accessibilityLiveRegion="polite" style={styles.description}>{previewError || previewNotice}</Text>}
     </View>
     </>}
@@ -130,12 +131,12 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
       {canManageNotifications && <>
         <Text style={styles.description}>{m.notificationsSoundHelp}</Text>
         <View style={styles.choices}>
-          {data.preferences.systemNotifications && capability.canAsk && <Pressable accessibilityRole="button"
-            onPress={() => { feedback(); void notifications.controller.requestPermission(true); }} style={({ pressed }) => [styles.choice, pressed && { opacity: 0.65 }]}><Text style={styles.choiceText}>{m.notificationPermissionRequest}</Text></Pressable>}
-          <Pressable accessibilityRole="button" onPress={() => { feedback(); notifications.openSettings(); }} style={({ pressed }) => [styles.choice, pressed && { opacity: 0.65 }]}><Text style={styles.choiceText}>{m.notificationOpenSettings}</Text></Pressable>
+          {data.preferences.systemNotifications && capability.canAsk && <MotionPressable accessibilityRole="button"
+            onPress={() => { feedback(); void notifications.controller.requestPermission(true); }} style={[styles.choice]}><Text style={styles.choiceText}>{m.notificationPermissionRequest}</Text></MotionPressable>}
+          <MotionPressable accessibilityRole="button" onPress={() => { feedback(); notifications.openSettings(); }} style={[styles.choice]}><Text style={styles.choiceText}>{m.notificationOpenSettings}</Text></MotionPressable>
         </View>
         {notifications.exactAlarmSettings && data.preferences.systemNotifications && <>
-          <Pressable accessibilityRole="button" onPress={() => { feedback(); notifications.openSettings(true); }} style={({ pressed }) => [styles.choice, pressed && { opacity: 0.65 }]}><Text style={styles.choiceText}>{m.notificationExactSettings}</Text></Pressable>
+          <MotionPressable accessibilityRole="button" onPress={() => { feedback(); notifications.openSettings(true); }} style={[styles.choice]}><Text style={styles.choiceText}>{m.notificationExactSettings}</Text></MotionPressable>
         </>}
         {data.preferences.systemNotifications && <BackgroundNotificationHelp />}
       </>}

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { LANGUAGES } from '../../src/core/language';
 import { initialData } from '../../src/core/stopwatch';
 import { getMessages } from '../../src/i18n';
@@ -29,6 +29,24 @@ async function expectFit(page: Page) {
         && (box.x < -1 || box.right > innerWidth + 1);
     }).map((node) => node.getAttribute('aria-label') ?? node.textContent?.slice(0, 80)));
   expect(overflow).toEqual([]);
+}
+
+async function pressedFit(page: Page, choice: Locator) {
+  const before = await choice.evaluate((node) => {
+    const el = node as HTMLElement;
+    return { size: [el.offsetWidth, el.offsetHeight, el.offsetLeft, el.offsetTop], color: getComputedStyle(el).backgroundColor };
+  });
+  await choice.scrollIntoViewIfNeeded(); const box = (await choice.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.down();
+  await expect(choice).toHaveCSS('opacity', '0.72');
+  await expect.poll(() => choice.evaluate((node) => new DOMMatrixReadOnly(getComputedStyle(node).transform).a)).toBeCloseTo(0.98, 5);
+  await expect(choice).toBeChecked(); await expect(choice).toHaveCSS('background-color', before.color);
+  expect(await choice.evaluate((node) => {
+    const el = node as HTMLElement; return [el.offsetWidth, el.offsetHeight, el.offsetLeft, el.offsetTop];
+  })).toEqual(before.size);
+  await expectFit(page); await page.mouse.move(0, 0); await page.mouse.up();
+  await expect(choice).toHaveCSS('opacity', '1');
+  await expect.poll(() => choice.evaluate((node) => new DOMMatrixReadOnly(getComputedStyle(node).transform).a)).toBeCloseTo(1, 5);
 }
 
 for (const { id } of LANGUAGES) for (const theme of ['light', 'dark'] as const) for (const width of [320, 390]) {
@@ -65,6 +83,9 @@ for (const { id } of LANGUAGES) for (const theme of ['light', 'dark'] as const) 
       if (group === 'appearance') {
         await expect(page.getByRole('radio', { name: m.systemMode, exact: true })).toBeChecked();
         const before = await stored(page);
+        await page.emulateMedia({ colorScheme: theme, reducedMotion: 'no-preference' });
+        await pressedFit(page, page.getByRole('radio', { name: m.systemMode, exact: true }));
+        expect(await stored(page)).toEqual(before);
         await page.emulateMedia({ colorScheme: theme === 'dark' ? 'light' : 'dark', reducedMotion: 'reduce' });
         await expectTheme(page, theme !== 'dark'); await enlargeBodyText(page); await expectFit(page);
         for (const choice of await page.getByRole('radio').all()) {

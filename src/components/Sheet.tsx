@@ -1,17 +1,20 @@
 import { useI18n } from '../hooks/useI18n';
-import { PropsWithChildren, useCallback, useEffect, useRef } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { PropsWithChildren, useCallback, useEffect, useRef, type Ref } from 'react';
+import { Pressable, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { buttonPressedStyle, fonts as f, textSizes, Palette } from '../theme';
+import { fonts as f, textSizes, Palette } from '../theme';
 import { useThemeStyles } from '../context/ThemeContext';
 import { Icon } from './Icon';
 import { isolateSheetBackground } from '../hooks/sheetIsolation';
 import { TimingNotices } from './TimingNotices';
+import { MotionPressable } from './MotionPressable';
+import { MotionScope, useMotionPreference } from '../context/MotionContext';
 
-export function Sheet({ visible, title, onClose, onBack, children, scrollable = true }: PropsWithChildren<{
-  visible: boolean; title: string; onClose: () => void; onBack?: () => void; scrollable?: boolean;
+export function Sheet({ visible, title, onClose, onBack, children, scrollable = true, closeButtonRef }: PropsWithChildren<{
+  visible: boolean; title: string; onClose: () => void; onBack?: () => void; scrollable?: boolean; closeButtonRef?: Ref<View>;
 }>) {
   const { messages: m } = useI18n();
+  const { reduceMotion } = useMotionPreference();
   const styles = useThemeStyles(createStyles);
   const insets = useSafeAreaInsets();
   const isolation = useRef<(() => void) | null>(null);
@@ -23,7 +26,8 @@ export function Sheet({ visible, title, onClose, onBack, children, scrollable = 
     else if (!visible && Platform.OS !== 'web') releaseIsolation();
   }, [visible, releaseIsolation]);
   useEffect(() => () => releaseIsolation(), [releaseIsolation]);
-  return <Modal visible={visible} transparent animationType="fade" accessibilityLabel={title} onDismiss={() => { if (!visible) releaseIsolation(); }} onRequestClose={onBack ?? onClose} statusBarTranslucent>
+  return <Modal visible={visible} transparent animationType={reduceMotion ? 'none' : 'fade'} accessibilityLabel={title} onDismiss={() => { if (!visible) releaseIsolation(); }} onRequestClose={onBack ?? onClose} statusBarTranslucent>
+    <MotionScope active={visible}>
     <KeyboardAvoidingView aria-hidden={!visible} pointerEvents={visible ? 'auto' : 'none'} style={styles.overlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityRole="button" accessibilityLabel={m.closeWindow} />
       <View testID="sheet-surface" style={[styles.sheet, !scrollable && styles.tallSheet, { paddingBottom: Math.max(insets.bottom, 20) }]}
@@ -31,15 +35,16 @@ export function Sheet({ visible, title, onClose, onBack, children, scrollable = 
         accessibilityViewIsModal onAccessibilityEscape={onBack ?? onClose}>
         <View style={styles.handle} />
         <View style={styles.heading}>
-          {onBack && <Pressable onPress={onBack} accessibilityLabel={m.back} accessibilityRole="button"
-            style={({ pressed }) => [styles.close, pressed && { opacity: 0.5 }]}><Icon name="arrow" size={20} /></Pressable>}
+          {onBack && <MotionPressable onPress={onBack} accessibilityLabel={m.back} accessibilityRole="button"
+            style={[styles.close]}><Icon name="arrow" size={20} /></MotionPressable>}
           <Text accessibilityRole="header" style={styles.title}>{title}</Text>
-          <Pressable onPress={onClose} accessibilityLabel={m.close} accessibilityRole="button" style={({ pressed }) => [styles.close, pressed && { opacity: 0.5 }]}><Icon name="close" size={20} /></Pressable>
+          <MotionPressable ref={closeButtonRef} onPress={onClose} accessibilityLabel={m.close} accessibilityRole="button" style={() => styles.close}><Icon name="close" size={20} /></MotionPressable>
         </View>
         <TimingNotices />
         {scrollable ? <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content} bounces={false} keyboardShouldPersistTaps="handled">{children}</ScrollView> : <View style={[styles.content, styles.staticContent]}>{children}</View>}
       </View>
     </KeyboardAvoidingView>
+    </MotionScope>
   </Modal>;
 }
 
@@ -50,8 +55,8 @@ export function ConfirmSheet({ visible, title, description, confirmLabel, onClos
   const styles = useThemeStyles(createStyles);
   return <Sheet visible={visible} title={title} onClose={onClose}>
     <Text style={styles.description}>{description}</Text>
-    <Pressable accessibilityRole="button" onPress={onConfirm} style={({ pressed }) => [styles.confirm, pressed && { opacity: 0.75 }]}><Text style={styles.confirmText}>{confirmLabel}</Text></Pressable>
-    <Pressable accessibilityRole="button" onPress={onClose} style={({ pressed }) => [styles.cancel, pressed && buttonPressedStyle]}><Text style={styles.cancelText}>{m.cancel}</Text></Pressable>
+    <MotionPressable accessibilityRole="button" onPress={onConfirm} style={[styles.confirm]}><Text style={styles.confirmText}>{confirmLabel}</Text></MotionPressable>
+    <MotionPressable accessibilityRole="button" onPress={onClose} style={[styles.cancel]}><Text style={styles.cancelText}>{m.cancel}</Text></MotionPressable>
   </Sheet>;
 }
 

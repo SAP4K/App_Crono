@@ -1,6 +1,7 @@
+import { MotionPressable } from '../components/MotionPressable';
 import { useI18n } from '../hooks/useI18n';
 import { useState } from 'react';
-import { Platform, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { Platform, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { Link } from 'expo-router';
 import { useCrono } from '../context/CronoContext';
 import { formatTime, Session } from '../core/stopwatch';
@@ -51,12 +52,12 @@ export default function HistoryScreen() {
       <View style={styles.emptyIcon}><Icon name="history" size={30} color={c.green} /></View>
       <Text style={styles.emptyTitle}>{m.historyEmptyTitle}</Text>
       <Text style={styles.emptyText}>{m.historyEmptyText}</Text>
-      <Link href="/" asChild><Pressable accessibilityRole="button" style={({ pressed }) => [styles.emptyAction, pressed && { opacity: 0.7 }]}><Icon name="play" size={15} color={c.actionIcon} /><Text style={styles.emptyActionText}>{m.toStopwatch}</Text></Pressable></Link>
-    </View> : data.sessions.map((session, index) => <Pressable key={session.id} accessibilityRole="button" accessibilityLabel={m.sessionLabel(sessionDate(session.savedAt, language), formatTime(session.durationMs), session.laps.length)} onPress={() => { feedback(); setSelected(session); }} style={({ pressed }) => [styles.card, pressed && { opacity: 0.65 }]}>
+      <Link href="/" asChild><MotionPressable accessibilityRole="button" style={styles.emptyAction}><Icon name="play" size={15} color={c.actionIcon} /><Text style={styles.emptyActionText}>{m.toStopwatch}</Text></MotionPressable></Link>
+    </View> : data.sessions.map((session, index) => <MotionPressable key={session.id} accessibilityRole="button" accessibilityLabel={m.sessionLabel(sessionDate(session.savedAt, language), formatTime(session.durationMs), session.laps.length)} onPress={() => { feedback(); setSelected(session); }} style={[styles.card]}>
       <View style={styles.cardMark}><Icon name="clock" size={21} color={c.green} /></View>
       <View style={styles.cardCopy}><Text style={styles.cardDate}>{sessionDate(session.savedAt, language)}{index === 0 && <Text style={styles.newLabel}> · {m.recent}</Text>}</Text><Text style={styles.cardTime}>{formatTime(session.durationMs)}</Text><Text style={styles.cardMeta}>{sessionTime(session.savedAt, language)}   ·   {m.lapCount(session.laps.length)}</Text></View>
       <Icon name="chevron" size={16} color={c.muted} />
-    </Pressable>)}
+    </MotionPressable>)}
     <View style={styles.privacy}><Icon name="check" size={13} color={c.muted} /><Text style={styles.privacyText}>{m.savedLocally}</Text></View>
     <Sheet visible={selected !== null} title={m.sessionTitle} onClose={() => setSelected(null)}>
       {selected && <>
@@ -64,8 +65,8 @@ export default function HistoryScreen() {
         <View style={styles.detailTotal}><Text style={styles.detailLabel}>{m.totalTimeUpper}</Text><Text style={styles.detailTime} adjustsFontSizeToFit numberOfLines={1}>{formatTime(selected.durationMs)}</Text></View>
         {selected.laps.length > 0 ? <LapList laps={selected.laps} /> : <Text style={styles.noLaps}>{m.noLaps}</Text>}
         <View style={styles.detailActions}>
-          <Pressable accessibilityRole="button" accessibilityLabel={m.deleteSession} onPress={() => { feedback(); setDeleting(selected.id); setSelected(null); }} style={styles.delete}><Icon name="trash" size={19} color={c.danger} /></Pressable>
-          <Pressable accessibilityRole="button" onPress={() => { feedback(); void share(selected); }} style={({ pressed }) => [styles.share, pressed && { opacity: 0.7 }]}><Icon name="share" size={17} color={c.actionIcon} /><Text style={styles.shareText}>{m.shareResults}</Text></Pressable>
+          <MotionPressable accessibilityRole="button" accessibilityLabel={m.deleteSession} onPress={() => { feedback(); setDeleting(selected.id); setSelected(null); }} style={styles.delete}><Icon name="trash" size={19} color={c.danger} /></MotionPressable>
+          <MotionPressable accessibilityRole="button" onPress={() => { feedback(); void share(selected); }} style={[styles.share]}><Icon name="share" size={17} color={c.actionIcon} /><Text style={styles.shareText}>{m.shareResults}</Text></MotionPressable>
         </View>
       </>}
     </Sheet>

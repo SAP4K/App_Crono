@@ -52,7 +52,7 @@ The app uses technical layers with shared pure stopwatch/countdown/schedule core
 src/
   app/          Expo Router routes and application shell
   components/   Dials, native/web duration wheels, schedule editor/run card, notices, sheets
-  context/      Shared state, saved theme, notices, and mobile feedback
+  context/      Shared state, saved theme, interaction motion, notices, and mobile feedback
   hooks/        Persistence, timing/playback owners, OS notifications, native/web adapters
   core/         Pure timing/schedule operations, notification projection, registries, validation
   i18n/         Typed catalogs, plural/date formatting, and localized sharing
@@ -68,6 +68,8 @@ tests/
   timerCompletion.test.ts Completion/audio coordination tests
   theme.test.ts         Preference resolution and palette contrast checks
   themeAppearance.test.ts Appearance lifecycle, cached snapshots and native background ordering
+  motionPreference.test.ts Live reduced-motion queries, event races and foreground cleanup
+  pressMotion.test.ts Press cancellation, disabled/inactive state and stale animation callbacks
   sounds.test.ts        Sound preferences and real PCM asset validation
   planning.test.ts      Schedule CRUD, restoration, and execution transitions
   planningTools.test.ts Template, duplicate and bounded repeated-sequence operations
@@ -117,6 +119,8 @@ scripts/                Reproducible notification sound generator
 | `src/hooks/useStopwatch.ts` | Hydration outcome, accepted-update subscriptions, functional updates, ordered writes |
 | `src/context/CronoContext.tsx` | Shared state, timer/planning runners, one audio owner, haptics, wake lock |
 | `src/context/ThemeContext.tsx` | Saved theme, navigation palette, native appearance |
+| `src/context/MotionContext.tsx`, `src/hooks/motionPreference.ts` | Shared live reduced-motion/activity policy and covered-surface scopes |
+| `src/components/MotionPressable.tsx`, `src/hooks/pressMotion.ts`, `usePressMotion.ts` | Ref-safe button feedback; finite cancellable visual transitions |
 | `src/core/themePreference.ts`, `src/hooks/themeAppearance.ts`, `useSystemTheme.ts` | Saved System/Light/Dark, resolved palettes and live/foreground appearance |
 | `src/hooks/timerCompletion.ts` | Injectable completion coordinator and fresh-state audio guards |
 | `src/hooks/useTimerCompletion.ts` | Readiness and foreground lifecycle bridge |
@@ -156,7 +160,7 @@ scripts/                Reproducible notification sound generator
 
 | File | Purpose |
 |---|---|
-| `README.md` | Setup, eight templates, themes, languages, notifications, checks and builds |
+| `README.md` | Setup, templates, themes, languages, motion, notifications and checks |
 | `docs/background-notifications.md` | Android minute playback, setup, limits and verification |
 | `docs/backups.md` | Portable export/import, selected theme compatibility, limits and recovery |
 | `AGENTS.md` | Repository map and authoritative Expo workflow requirements |

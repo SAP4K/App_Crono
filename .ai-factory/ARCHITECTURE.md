@@ -46,14 +46,18 @@ src/
 │   ├── ScheduleRepeatPanel.tsx # Explicit flat repeated-sequence draft preview
 │   ├── BackupSettings.tsx    # File transfer review and optional preferences
 │   ├── SettingsSheet.tsx     # Grouped user preferences
+│   ├── MotionPressable.tsx   # One ref-safe Pressable host with finite visual feedback
 │   └── Icon.tsx              # Shared SVG icons
 ├── context/
 │   ├── CronoContext.tsx      # Shared state, global runners/audio, mobile feedback
-│   └── ThemeContext.tsx      # Saved palette and platform appearance
+│   ├── ThemeContext.tsx      # Saved palette and platform appearance
+│   └── MotionContext.tsx     # One reduced-motion/activity owner and covered scopes
 ├── hooks/
 │   ├── useStopwatch.ts       # Hydration outcome, accepted updates, ordered storage
 │   ├── useI18n.ts            # Saved language projection and shared-state setter
 │   ├── themeAppearance.ts / useSystemTheme.ts # Appearance lifecycle and native background ordering
+│   ├── motionPreference.ts  # Injected live OS-query/event ordering and foreground refresh
+│   ├── pressMotion.ts / usePressMotion.ts # Cancellable visual controller and Animated binding
 │   ├── backupTransfer.ts / useBackupTransfer.ts # Fenced file operations and accepted imports
 │   ├── backupFiles.ts / .web.ts # Native system picker/share and browser upload/download
 │   ├── useForegroundNow.ts   # Presentation ticks only while active
@@ -144,7 +148,7 @@ modules/crono-completion-alerts/ # Atomic delivery ledger, alarm, bounded player
 |---|---|
 | `src/app/` | Compose UI, use context actions, call pure core helpers, and define Expo Router navigation |
 | `src/components/` | Render UI using props, theme, pure core helpers, and shared context when needed |
-| `src/context/` | Compose persistence, global timing runners, shared audio, one OS notification owner, notices, mobile feedback, and a derived theme provider |
+| `src/context/` | Compose persistence, global timing runners, shared audio, one OS notification owner, notices, mobile feedback, derived theme and transient motion providers |
 | `src/hooks/` | Manage state, lifecycle, persistence, timing coordinators, playback arbitration, serialized OS scheduling, file transfer lifecycle, and platform file/audio/notification adapters |
 | `src/i18n/` | Framework-free catalogs and Intl presentation helpers; may import pure core types/formatting, never owns state/storage |
 | `src/core/` | Use JavaScript/TypeScript primitives and other pure core functions |
@@ -221,7 +225,7 @@ The current storage unit is the complete `AppData` object at `@crono/app-v1`. Ch
 
 The Timer route holds numeric parts and fresh selection/motion refs. Only a settled, effective, valid change configures the existing timer coordinator; Start uses the latest parts and waits until all columns settle. Running/paused wheels are disabled. Zero stays an invalid local selection; focus and same-value alignment do not mutate a completed timer or cancel its audio.
 
-The schedule editor owns one selected action ID and temporary numeric parts inside its existing Sheet. Apply functionally changes that action's draft; Cancel/Back/close abandons temporary parts. Save remains the only template-persistence boundary. `EditorBody` preserves the outer FlatList's layout while the duration/discard panel covers it: native hides interaction/accessibility, while web also uses inertness and hidden visibility to exclude covered controls from tab order. A captured list offset and stable-ID button map restore the action's viewport/focus. Name inputs and shared notices remain separate; no stacked duration Modal, timing runner or storage owner is added.
+The schedule editor owns one selected action ID and temporary numeric parts inside its existing Sheet. Apply functionally changes that action's draft; Cancel/Back/close abandons temporary parts. Save remains the only template-persistence boundary. One FlatList owns the whole draft: its stable header element contains the name, Scheduling, Repeat and count/total; its footer contains Add, errors and Save. Actions remain virtualized with stable IDs, without a surrounding vertical ScrollView. `EditorBody` preserves that list's layout while duration/calendar/repeat/discard content covers it: native hides interaction/accessibility, while web also uses inertness and hidden visibility to exclude covered controls from tab order. Each active panel has one bounded body ScrollView, with numeric duration columns as independent input scrollers. A captured whole-list offset and pending source target restore the opening position/focus; a virtualized action target remains pending until its button registers. Shared timing notices remain accessible through Sheet. No stacked duration Modal, timing runner or storage owner is added. The title/Close placement remains unchanged pending the explicit choice in the active scrolling plan.
 
 Each saved schedule can store an optional calendar rule with ISO weekdays or one civil date. The schedule parser validates new rules and the restoration path recovers a valid template as Manual when its stored rule is invalid. The calendar panel updates the editor draft on Apply and Save persists the template. The Planning date filter uses the same date fields and pure matching, with the active run in the list header. Explicit Start and the replacement confirmation own execution.
 
@@ -244,6 +248,10 @@ iOS/older Android audio uses SDK 57 `createAudioPlayer` with explicit source cle
 `useSystemTheme` binds an injected `themeAppearance` observer to native/web Appearance and foreground events. Native manual selection applies an app override; System clears it with the installed React Native 0.86 `unspecified` value and explicitly rereads the snapshot. Foreground System refresh also clears/rereads the native cache to recover a missed background change. Web observes its existing media-query adapter without calling a native override API. Subscriptions clean up and stale callbacks cannot publish. Theme selection requires loaded hydration and uses the shared functional update API; device-only changes never update AppData.
 
 `ThemeContext` projects the resolved mode into stable semantic palettes/cached styles and navigation/status contrast. A serialized latest-value native background writer prevents older asynchronous updates from winning; web sets document color scheme and body background directly. It has no independent persistence and does not key/remount routes, clock/audio owners or editor drafts. The pre-hydration native launch image and branding remain separate.
+
+`MotionProvider` owns one AccessibilityInfo reduced-motion subscription and one shared app-activity subscription through `motionPreference`. It subscribes before querying, fences stale reads/events, refreshes on foreground return and starts conservatively with reduced motion. `MotionScope` suspends hidden Sheet/covered EditorBody controls without a layout wrapper or remounting drafts. Motion state never enters AppData.
+
+`MotionPressable` forwards the actual View ref and stock Pressable props, including Router-injected link/click behavior. Its adapter resolves callback styles inside Pressable, outside Animated's style flattening. `usePressMotion` binds one stable value to the injected `pressMotion` visual controller; normal presses use finite 90 ms down / 140 ms return opacity/scale transitions, with the native driver on mobile and non-interaction animations. Reduced motion uses immediate opacity without scaling. Cancellation, disablement, inactivity, covered surfaces and disposal stop obsolete transitions; animation callbacks never execute domain actions. Web switches animate only thumb transform/track color; native Switch, wheel gestures and passive clock/notice rendering keep their existing owners. Haptics and audio stay in CronoContext.
 
 `useI18n` derives stable module catalogs from the saved `language` preference and applies effective changes through the existing functional update API. The registry covers `ro/en/ru/es/fr/de` with complete Romanian, English, Russian, Spanish, French and German catalogs; Romanian is the manual default/fallback and no device locale is detected. The framework-free translation layer owns plural/date/share presentation; `sessionText` lives here rather than in the pure timing core. Catalogs use stable sound IDs and preserve user-entered schedule/action names. Toast, timer-completion and audio-failure values are semantic codes, translated when rendered or announced with a fresh snapshot. Language does not recreate timing/playback controllers, refresh foreground notice lifetimes, or key/remount routes or controlled inputs. It updates future system-notification content through the separate notification owner. Web document language follows selection; native speech voice remains an OS concern.
 

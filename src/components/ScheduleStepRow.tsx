@@ -1,9 +1,10 @@
+import { MotionPressable } from './MotionPressable';
 import { useI18n } from '../hooks/useI18n';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { useTheme, useThemeStyles } from '../context/ThemeContext';
 import { MAX_NAME_LENGTH } from '../core/planning';
 import { formatRemaining, parseDuration } from '../core/timer';
-import { textSizes, buttonPressedStyle, fonts as f, Palette } from '../theme';
+import { textSizes, fonts as f, Palette } from '../theme';
 import { Icon } from './Icon';
 
 export type StepDraft = { id: string; name: string; hours: string; minutes: string; seconds: string };
@@ -18,18 +19,18 @@ export function ScheduleStepRow({ value, index, count, onChange, onMove, onRemov
   return <View style={styles.row}>
     <View style={styles.heading}><Text style={styles.label}>{m.stepNumber(index + 1)}</Text>
       <View style={styles.controls}>
-        <Pressable accessibilityRole="button" accessibilityLabel={m.moveStepUp(index + 1)} disabled={index === 0} onPress={() => onMove(-1)} style={({ pressed }) => [styles.control, pressed && index !== 0 && buttonPressedStyle, index === 0 && styles.disabled]}><Text style={styles.arrow}>↑</Text></Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel={m.moveStepDown(index + 1)} disabled={index === count - 1} onPress={() => onMove(1)} style={({ pressed }) => [styles.control, pressed && index !== count - 1 && buttonPressedStyle, index === count - 1 && styles.disabled]}><Text style={styles.arrow}>↓</Text></Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel={m.removeStep(index + 1)} onPress={onRemove} style={({ pressed }) => [styles.control, pressed && buttonPressedStyle]}><Icon name="trash" size={17} color={c.danger} /></Pressable>
+        <MotionPressable accessibilityRole="button" accessibilityLabel={m.moveStepUp(index + 1)} disabled={index === 0} onPress={() => onMove(-1)} style={[styles.control, index === 0 && styles.disabled]}><Text style={styles.arrow}>↑</Text></MotionPressable>
+        <MotionPressable accessibilityRole="button" accessibilityLabel={m.moveStepDown(index + 1)} disabled={index === count - 1} onPress={() => onMove(1)} style={[styles.control, index === count - 1 && styles.disabled]}><Text style={styles.arrow}>↓</Text></MotionPressable>
+        <MotionPressable accessibilityRole="button" accessibilityLabel={m.removeStep(index + 1)} onPress={onRemove} style={[styles.control]}><Icon name="trash" size={17} color={c.danger} /></MotionPressable>
       </View>
     </View>
     <TextInput accessibilityLabel={m.stepName(index + 1)} value={value.name} maxLength={MAX_NAME_LENGTH} onChangeText={(name) => onChange({ name })} placeholder={m.stepPlaceholder} placeholderTextColor={c.muted} style={styles.input} selectionColor={c.green} />
-    <Pressable ref={durationRef} accessibilityRole="button" accessibilityLabel={m.editStepDuration(index + 1)} onPress={onEditDuration}
-      style={({ pressed }) => [styles.duration, pressed && buttonPressedStyle]}>
+    <MotionPressable ref={durationRef} accessibilityRole="button" accessibilityLabel={m.editStepDuration(index + 1)} onPress={onEditDuration}
+      style={[styles.duration]}>
       <Text style={styles.unit}>{m.duration}</Text>
       <Text style={styles.number}>{formatRemaining(parseDuration(value.hours, value.minutes, value.seconds) ?? 0)}</Text>
       <Icon name="timer" size={18} color={c.green} />
-    </Pressable>
+    </MotionPressable>
   </View>;
 }
 
