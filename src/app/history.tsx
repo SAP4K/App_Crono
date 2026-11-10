@@ -11,6 +11,7 @@ import { LapList } from '../components/LapList';
 import { ConfirmSheet, Sheet } from '../components/Sheet';
 import { textSizes, fonts as f, Palette } from '../theme';
 import { useTheme, useThemeStyles } from '../context/ThemeContext';
+import { useSheetPresentation } from '../hooks/useSheetPresentation';
 
 
 export default function HistoryScreen() {
@@ -18,7 +19,8 @@ export default function HistoryScreen() {
   const { colors: c } = useTheme();
   const styles = useThemeStyles(createStyles);
   const { data, update, feedback, notify } = useCrono();
-  const [selected, setSelected] = useState<Session | null>(null);
+  const details = useSheetPresentation<Session>();
+  const selected = details.presentation?.value;
   const [deleting, setDeleting] = useState<string | null>(null);
   const total = data.sessions.reduce((sum, session) => sum + session.durationMs, 0);
   const totalLaps = data.sessions.reduce((sum, session) => sum + session.laps.length, 0);
@@ -53,19 +55,20 @@ export default function HistoryScreen() {
       <Text style={styles.emptyTitle}>{m.historyEmptyTitle}</Text>
       <Text style={styles.emptyText}>{m.historyEmptyText}</Text>
       <Link href="/" asChild><MotionPressable accessibilityRole="button" style={styles.emptyAction}><Icon name="play" size={15} color={c.actionIcon} /><Text style={styles.emptyActionText}>{m.toStopwatch}</Text></MotionPressable></Link>
-    </View> : data.sessions.map((session, index) => <MotionPressable key={session.id} accessibilityRole="button" accessibilityLabel={m.sessionLabel(sessionDate(session.savedAt, language), formatTime(session.durationMs), session.laps.length)} onPress={() => { feedback(); setSelected(session); }} style={[styles.card]}>
+    </View> : data.sessions.map((session, index) => <MotionPressable key={session.id} accessibilityRole="button" accessibilityLabel={m.sessionLabel(sessionDate(session.savedAt, language), formatTime(session.durationMs), session.laps.length)} onPress={() => { feedback(); details.open(session); }} style={[styles.card]}>
       <View style={styles.cardMark}><Icon name="clock" size={21} color={c.green} /></View>
       <View style={styles.cardCopy}><Text style={styles.cardDate}>{sessionDate(session.savedAt, language)}{index === 0 && <Text style={styles.newLabel}> · {m.recent}</Text>}</Text><Text style={styles.cardTime}>{formatTime(session.durationMs)}</Text><Text style={styles.cardMeta}>{sessionTime(session.savedAt, language)}   ·   {m.lapCount(session.laps.length)}</Text></View>
       <Icon name="chevron" size={16} color={c.muted} />
     </MotionPressable>)}
     <View style={styles.privacy}><Icon name="check" size={13} color={c.muted} /><Text style={styles.privacyText}>{m.savedLocally}</Text></View>
-    <Sheet visible={selected !== null} title={m.sessionTitle} onClose={() => setSelected(null)}>
+    <Sheet visible={details.presentation?.visible ?? false} title={m.sessionTitle} onClose={details.close}
+      onAfterClose={() => { if (details.presentation) details.afterClose(details.presentation.token); }}>
       {selected && <>
         <Text style={styles.detailDate}>{sessionDate(selected.savedAt, language)} · {sessionTime(selected.savedAt, language)}</Text>
         <View style={styles.detailTotal}><Text style={styles.detailLabel}>{m.totalTimeUpper}</Text><Text style={styles.detailTime} adjustsFontSizeToFit numberOfLines={1}>{formatTime(selected.durationMs)}</Text></View>
         {selected.laps.length > 0 ? <LapList laps={selected.laps} /> : <Text style={styles.noLaps}>{m.noLaps}</Text>}
         <View style={styles.detailActions}>
-          <MotionPressable accessibilityRole="button" accessibilityLabel={m.deleteSession} onPress={() => { feedback(); setDeleting(selected.id); setSelected(null); }} style={styles.delete}><Icon name="trash" size={19} color={c.danger} /></MotionPressable>
+          <MotionPressable accessibilityRole="button" accessibilityLabel={m.deleteSession} onPress={() => { feedback(); setDeleting(selected.id); details.close(); }} style={styles.delete}><Icon name="trash" size={19} color={c.danger} /></MotionPressable>
           <MotionPressable accessibilityRole="button" onPress={() => { feedback(); void share(selected); }} style={[styles.share]}><Icon name="share" size={17} color={c.actionIcon} /><Text style={styles.shareText}>{m.shareResults}</Text></MotionPressable>
         </View>
       </>}

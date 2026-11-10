@@ -70,6 +70,7 @@ tests/
   themeAppearance.test.ts Appearance lifecycle, cached snapshots and native background ordering
   motionPreference.test.ts Live reduced-motion queries, event races and foreground cleanup
   pressMotion.test.ts Press cancellation, disabled/inactive state and stale animation callbacks
+  transitionMotion.test.ts Sheet/panel readiness, supersession, lifecycle and driver failure fallback
   sounds.test.ts        Sound preferences and real PCM asset validation
   planning.test.ts      Schedule CRUD, restoration, and execution transitions
   planningTools.test.ts Template, duplicate and bounded repeated-sequence operations
@@ -121,6 +122,9 @@ scripts/                Reproducible notification sound generator
 | `src/context/ThemeContext.tsx` | Saved theme, navigation palette, native appearance |
 | `src/context/MotionContext.tsx`, `src/hooks/motionPreference.ts` | Shared live reduced-motion/activity policy and covered-surface scopes |
 | `src/components/MotionPressable.tsx`, `src/hooks/pressMotion.ts`, `usePressMotion.ts` | Ref-safe button feedback; finite cancellable visual transitions |
+| `src/components/NavigationScene.tsx`, `.web.tsx` | Focused input/accessibility gates around navigator fades |
+| `src/hooks/transitionMotion.ts`, `useSheetMotion.ts`, `src/components/PanelTransition.tsx` | Finite visual controllers, sheet presence and incoming panels |
+| `src/hooks/useSheetPresentation.ts` | Bounded token-guarded display payloads through visual exits |
 | `src/core/themePreference.ts`, `src/hooks/themeAppearance.ts`, `useSystemTheme.ts` | Saved System/Light/Dark, resolved palettes and live/foreground appearance |
 | `src/hooks/timerCompletion.ts` | Injectable completion coordinator and fresh-state audio guards |
 | `src/hooks/useTimerCompletion.ts` | Readiness and foreground lifecycle bridge |
@@ -155,6 +159,7 @@ scripts/                Reproducible notification sound generator
 | `app.json` | Expo app identity, plugins, and native configuration |
 | `eas.json` | Development, preview, and production build profiles |
 | `playwright.config.ts` | Browser setup and web server on port 8091 |
+| `tests/e2e/navigationTransitions.spec.ts`, `sheetTransitions.spec.ts` | Real route/sheet/panel motion, isolation and lifecycle regressions |
 
 ## Documentation and AI Context
 
@@ -167,6 +172,7 @@ scripts/                Reproducible notification sound generator
 | `.ai-factory/DESCRIPTION.md` | Project purpose, stack, data model, and known follow-ups |
 | `.ai-factory/ARCHITECTURE.md` | Layered architecture, dependencies, and data flow |
 | `.ai-factory/rules/base.md` | Naming, state, persistence, UI, and testing conventions |
+| `.ai-factory/plans/feature-screen-sheet-transitions.md` | Transition checks, source identity and deferred native acceptance |
 | `.ai-factory/config.yaml` | Languages, artifact paths, Git defaults, and workflow preferences |
 
 ## Project Workflow

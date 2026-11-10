@@ -122,7 +122,8 @@ test('rapid re-presses and window blur cancel safely and leave no recurring anim
 test('background suspension clears a held visual and foreground return permits a fresh press', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await seed(page); await page.goto('/'); const sheet = await settings(page), before = await stored(page);
-  const close = sheet.getByRole('button', { name: 'Închide', exact: true });
+  // Background controls are intentionally excluded from the accessibility tree.
+  const close = sheet.getByRole('button', { name: 'Închide', exact: true, includeHidden: true });
   const visibility = (state: 'visible' | 'hidden') => page.evaluate((value) => {
     Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => value });
     document.dispatchEvent(new Event('visibilitychange'));

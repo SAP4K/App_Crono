@@ -130,7 +130,7 @@ test('saved user text keeps its language while the next template uses the newly 
 
 for (const status of ['running', 'paused'] as const) test(`creating another built-in retains the ${status} run and independent active clocks`, async ({ page }) => {
   const now = Date.parse('2026-11-10T10:00:00Z');
-  await page.clock.install({ time: now }); await page.clock.pauseAt(now + 1000);
+  await page.emulateMedia({ reducedMotion: 'reduce' }); await page.clock.install({ time: now }); await page.clock.pauseAt(now + 1000);
   const data = initialData(); data.stopwatch.startedAt = now - 2000;
   data.timer = { ...initialTimer(600000), status: 'running', deadlineAt: now + 600000, runId: 'independent-timer' };
   data.planning.schedules = [{ id: 'active', name: 'Existing run', steps: [{ id: 'existing', name: 'Keep working', durationMs: 600000 }] }];

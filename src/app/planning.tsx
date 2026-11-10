@@ -1,7 +1,7 @@
 import { MotionPressable } from '../components/MotionPressable';
 import { useI18n } from '../hooks/useI18n';
 import { useState } from 'react';
-import { FlatList, Keyboard, StyleSheet, Text, View } from 'react-native';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { useCrono } from '../context/CronoContext';
 import { useThemeStyles } from '../context/ThemeContext';
 import { deleteSchedule, isProtectedSchedule, MAX_NAME_LENGTH, MAX_SCHEDULES, saveSchedule } from '../core/planning';
@@ -17,15 +17,18 @@ import { createTimingId } from '../hooks/createTimingId';
 import { PlanningRunCard } from '../components/PlanningRunCard';
 import { ScheduleCard } from '../components/ScheduleCard';
 import { textSizes, fonts as f, Palette } from '../theme';
+import { useSheetPresentation } from '../hooks/useSheetPresentation';
 
 export default function PlanningScreen() {
   const { language, messages: m } = useI18n();
   const { data, update, getSnapshot, feedback, notify, planning, notifications } = useCrono(); const styles = useThemeStyles(createStyles);
-  const [editor, setEditor] = useState<{ schedule: Schedule; isNew: boolean } | null>(null);
+  const editorSheet = useSheetPresentation<{ schedule: Schedule; isNew: boolean }>();
+  const editor = editorSheet.presentation?.value;
   const [deleting, setDeleting] = useState<Schedule | null>(null);
   const [replacing, setReplacing] = useState<Schedule | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [dateDraft, setDateDraft] = useState<CalendarDateParts | null>(null);
+  const dateSheet = useSheetPresentation<CalendarDateParts>();
+  const dateDraft = dateSheet.presentation?.value;
   const [templatesOpen, setTemplatesOpen] = useState(false), [menuId, setMenuId] = useState<string | null>(null);
   const schedules = data.planning.schedules;
   const scheduleLimit = schedules.length >= MAX_SCHEDULES;
@@ -38,7 +41,7 @@ export default function PlanningScreen() {
       name: copy.name, stepNames: copy.steps });
     if (!schedule || getSnapshot().planning.schedules.length >= MAX_SCHEDULES) return;
     feedback(); setTemplatesOpen(false); setMenuId(null);
-    setEditor({ isNew: true, schedule: selectedDate ? { ...schedule, calendar: { kind: 'once', date: selectedDate } } : schedule });
+    editorSheet.open({ isNew: true, schedule: selectedDate ? { ...schedule, calendar: { kind: 'once', date: selectedDate } } : schedule });
   };
   const duplicate = (id: string) => {
     const current = getSnapshot().planning;
@@ -47,12 +50,11 @@ export default function PlanningScreen() {
     const suffix = ` (${m.scheduleCopySuffix})`;
     const schedule = duplicateSchedule(source, { id: createTimingId(), stepIds: source.steps.map(() => createTimingId()),
       name: source.name.slice(0, MAX_NAME_LENGTH - suffix.length).trimEnd() + suffix });
-    if (schedule) { feedback(); setMenuId(null); setEditor({ isNew: true, schedule }); }
+    if (schedule) { feedback(); setMenuId(null); editorSheet.open({ isNew: true, schedule }); }
   };
   const closeDatePicker = () => {
     feedback();
-    Keyboard.dismiss();
-    setDateDraft(null);
+    dateSheet.close();
   };
   const start = (schedule: Schedule) => {
     feedback();
@@ -77,7 +79,7 @@ export default function PlanningScreen() {
         <Text style={styles.subtitle}>{m.planningSubtitle}</Text>
         <MotionPressable accessibilityRole="button" disabled={scheduleLimit} onPress={() => {
           feedback();
-          setEditor({ isNew: true, schedule: {
+          editorSheet.open({ isNew: true, schedule: {
             id: createTimingId(),
             name: '',
             steps: [{ id: createTimingId(), name: m.stepNumber(1), durationMs: 300000 }],
@@ -109,7 +111,7 @@ export default function PlanningScreen() {
           </MotionPressable>
           <MotionPressable accessibilityRole="button"
             accessibilityLabel={selectedDateLabel ? `${m.calendarChooseDay} · ${selectedDateLabel}` : m.calendarChooseDay}
-            onPress={() => { feedback(); setDateDraft(datePartsFromKey(selectedDate ?? localDateKey(new Date()))); }}
+            onPress={() => { feedback(); dateSheet.open(datePartsFromKey(selectedDate ?? localDateKey(new Date()))); }}
             style={[styles.filterButton, selectedDate !== null && styles.filterSelected]}>
             <Text style={styles.secondaryText}>{selectedDateLabel ?? m.calendarChooseDay}</Text>
           </MotionPressable>
@@ -121,16 +123,17 @@ export default function PlanningScreen() {
         const protectedTemplate = isProtectedSchedule(data.planning, item.id);
         return <ScheduleCard schedule={item} protectedTemplate={protectedTemplate} canDuplicate={!scheduleLimit} expanded={menuId === item.id}
           onToggle={() => { feedback(); setMenuId((id) => id === item.id ? null : item.id); }} onStart={() => { setMenuId(null); start(item); }}
-          onEdit={() => { feedback(); setMenuId(null); setEditor({ schedule: item, isNew: false }); }}
+          onEdit={() => { feedback(); setMenuId(null); editorSheet.open({ schedule: item, isNew: false }); }}
           onDelete={() => { feedback(); setMenuId(null); setDeleting(item); }} onDuplicate={() => duplicate(item.id)} />;
       }} />
-    {dateDraft && <Sheet visible title={m.calendarChooseDay} onClose={closeDatePicker}>
+    {dateDraft && dateSheet.presentation && <Sheet visible={dateSheet.presentation.visible} title={m.calendarChooseDay} onClose={closeDatePicker}
+      onAfterClose={() => dateSheet.afterClose(dateSheet.presentation!.token)}>
       <View style={styles.dateControls}>
         <CalendarDateFields value={dateDraft}
-          onChange={(field, text) => setDateDraft((previous) => previous && { ...previous, [field]: text })} />
+          onChange={(field, text) => dateSheet.change((previous) => ({ ...previous, [field]: text }))} />
         {!dateCandidate && <Text accessibilityLiveRegion="polite" style={styles.danger}>{m.calendarInvalidDate}</Text>}
         <MotionPressable accessibilityRole="button"
-          onPress={() => { feedback(); setDateDraft(datePartsFromKey(localDateKey(new Date()))); }}
+          onPress={() => { feedback(); dateSheet.change(() => datePartsFromKey(localDateKey(new Date()))); }}
           style={[styles.filterButton]}>
           <Text style={styles.secondaryText}>{m.calendarToday}</Text>
         </MotionPressable>
@@ -147,7 +150,8 @@ export default function PlanningScreen() {
         </MotionPressable>
       </View>
     </Sheet>}
-    {editor && <ScheduleEditorSheet schedule={editor.schedule} isNew={editor.isNew} onClose={() => setEditor(null)} onSave={save} />}
+    {editor && editorSheet.presentation && <ScheduleEditorSheet key={editorSheet.presentation.token} schedule={editor.schedule} isNew={editor.isNew}
+      visible={editorSheet.presentation.visible} onClose={editorSheet.close} onAfterClose={() => editorSheet.afterClose(editorSheet.presentation!.token)} onSave={save} />}
     <ConfirmSheet visible={deleting !== null} title={m.deleteScheduleTitle} description={m.deleteScheduleHelp} confirmLabel={m.deleteScheduleConfirm} onClose={() => setDeleting(null)} onConfirm={() => {
       if (!deleting) return;
       feedback(); update((previous) => { const planning = deleteSchedule(previous.planning, deleting.id); return planning === previous.planning ? previous : { ...previous, planning }; }); setDeleting(null);

@@ -105,6 +105,13 @@ test('a new built-in keeps literal legacy records through unsaved close, editing
   editor = await open();
   await editor.getByRole('textbox', { name: m.scheduleName, exact: true }).fill('Dimineață · Учёба');
   await editor.getByRole('textbox', { name: m.stepName(1), exact: true }).fill('Primul meu pas');
+  // Exercise the literal legacy artifact through a staged duration and discard return before transfer.
+  await editor.getByRole('button', { name: m.editStepDuration(1), exact: true }).click();
+  await page.getByRole('button', { name: m.cancel, exact: true }).click();
+  await editor.getByRole('button', { name: m.close, exact: true }).click();
+  await page.getByRole('button', { name: m.continueEditing, exact: true }).click();
+  await expect(editor.getByRole('textbox', { name: m.scheduleName, exact: true })).toHaveValue('Dimineață · Учёба');
+  await expect(editor.getByRole('textbox', { name: m.stepName(1), exact: true })).toHaveValue('Primul meu pas');
   await editor.getByRole('button', { name: m.saveSchedule, exact: true }).click();
   await expect.poll(async () => (await stored(page)).planning.schedules.length).toBe(1);
   await page.reload(); const saved = await stored(page), original = saved.planning.schedules[0];

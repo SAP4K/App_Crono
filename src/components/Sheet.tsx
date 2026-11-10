@@ -1,6 +1,6 @@
 import { useI18n } from '../hooks/useI18n';
-import { PropsWithChildren, useCallback, useEffect, useRef, type Ref } from 'react';
-import { Pressable, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { PropsWithChildren, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, type Ref } from 'react';
+import { Animated, Pressable, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fonts as f, textSizes, Palette } from '../theme';
 import { useThemeStyles } from '../context/ThemeContext';
@@ -8,29 +8,82 @@ import { Icon } from './Icon';
 import { isolateSheetBackground } from '../hooks/sheetIsolation';
 import { TimingNotices } from './TimingNotices';
 import { MotionPressable } from './MotionPressable';
-import { MotionScope, useMotionPreference } from '../context/MotionContext';
+import { MotionScope } from '../context/MotionContext';
+import { useSheetMotion } from '../hooks/useSheetMotion';
+import { isAppActive } from '../hooks/appActivity';
 
-export function Sheet({ visible, title, onClose, onBack, children, scrollable = true, closeButtonRef }: PropsWithChildren<{
-  visible: boolean; title: string; onClose: () => void; onBack?: () => void; scrollable?: boolean; closeButtonRef?: Ref<View>;
+export function Sheet({ visible, title, onClose, onBack, children, scrollable = true, closeButtonRef, onAfterClose }: PropsWithChildren<{
+  visible: boolean; title: string; onClose: () => void; onBack?: () => void; scrollable?: boolean; closeButtonRef?: Ref<View>; onAfterClose?: () => void;
 }>) {
   const { messages: m } = useI18n();
-  const { reduceMotion } = useMotionPreference();
+  const motion = useSheetMotion(visible, onAfterClose);
   const styles = useThemeStyles(createStyles);
   const insets = useSafeAreaInsets();
   const isolation = useRef<(() => void) | null>(null);
+  const opener = useRef<HTMLElement | null>(null);
+  const focusedControl = useRef<HTMLElement | null>(null), focusInitialized = useRef(false);
+  const surface = useRef<View>(null), close = useRef<View>(null), presented = useRef(false), dismissing = useRef(false);
+  useImperativeHandle(closeButtonRef, () => close.current!);
+  useLayoutEffect(() => {
+    if (visible) { focusedControl.current = null; focusInitialized.current = false; }
+  }, [visible]);
+  useLayoutEffect(() => { presented.current = motion.present; }, [motion.present]);
+  useLayoutEffect(() => { dismissing.current = false; }, [visible, title, onBack]);
   const releaseIsolation = useCallback(() => {
     isolation.current?.(); isolation.current = null;
   }, []);
-  useEffect(() => {
-    if (visible && isolation.current === null) isolation.current = isolateSheetBackground();
-    else if (!visible && Platform.OS !== 'web') releaseIsolation();
-  }, [visible, releaseIsolation]);
-  useEffect(() => () => releaseIsolation(), [releaseIsolation]);
-  return <Modal visible={visible} transparent animationType={reduceMotion ? 'none' : 'fade'} accessibilityLabel={title} onDismiss={() => { if (!visible) releaseIsolation(); }} onRequestClose={onBack ?? onClose} statusBarTranslucent>
-    <MotionScope active={visible}>
-    <KeyboardAvoidingView aria-hidden={!visible} pointerEvents={visible ? 'auto' : 'none'} style={styles.overlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityRole="button" accessibilityLabel={m.closeWindow} />
-      <View testID="sheet-surface" style={[styles.sheet, !scrollable && styles.tallSheet, { paddingBottom: Math.max(insets.bottom, 20) }]}
+  const finishDismiss = useCallback(() => {
+    releaseIsolation();
+    const target = opener.current; opener.current = null;
+    // RNW's trap can unmount before root inertness is released. Restore afterward,
+    // but never steal focus from another sheet which still owns isolation.
+    if (target?.isConnected && !target.closest('[inert]')) target.focus({ preventScroll: true });
+  }, [releaseIsolation]);
+  useLayoutEffect(() => {
+    if (motion.present && isolation.current === null) {
+      if (Platform.OS === 'web') opener.current = document.activeElement as HTMLElement | null;
+      isolation.current = isolateSheetBackground();
+    }
+    else if (!motion.present && Platform.OS !== 'web') releaseIsolation();
+  }, [motion.present, releaseIsolation]);
+  useEffect(() => () => finishDismiss(), [finishDismiss]);
+  useLayoutEffect(() => {
+    if (Platform.OS === 'web' && surface.current) {
+      const node = surface.current as unknown as HTMLElement;
+      node.inert = !motion.interactive;
+      if (!motion.interactive) return;
+      const rememberFocus = () => {
+        // A background focus trap must not replace the user's last eligible control.
+        if (isAppActive() && node.closest('[role="dialog"]') && node.contains(document.activeElement))
+          focusedControl.current = document.activeElement as HTMLElement;
+      };
+      node.addEventListener('focusin', rememberFocus);
+      if (node.closest('[role="dialog"]')) {
+        const target = focusedControl.current;
+        const eligible = target?.isConnected && node.contains(target) && !target.closest('[inert]')
+          && !target.matches(':disabled, [aria-disabled="true"]');
+        (eligible ? target : close.current as unknown as HTMLElement | null)?.focus({ preventScroll: true });
+      }
+      return () => node.removeEventListener('focusin', rememberFocus);
+    }
+    if (motion.interactive && !focusInitialized.current) {
+      focusInitialized.current = true; close.current?.focus();
+    }
+  }, [motion.present, motion.interactive]);
+  const requestClose = (callback: () => void) => {
+    if (!visible || dismissing.current) return;
+    dismissing.current = true; callback();
+  };
+  return <Modal visible={motion.present} transparent animationType="none" accessibilityLabel={title} onShow={motion.onShow}
+    onDismiss={() => { if (!presented.current) finishDismiss(); }} onRequestClose={() => requestClose(onBack ?? onClose)} statusBarTranslucent>
+    <MotionScope active={motion.interactive}>
+    <KeyboardAvoidingView style={styles.overlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <Animated.View testID="sheet-backdrop" pointerEvents={motion.interactive ? 'auto' : 'none'} style={[StyleSheet.absoluteFill, styles.backdrop, { opacity: motion.progress }]}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={() => requestClose(onClose)} accessibilityRole="button" accessibilityLabel={m.closeWindow} />
+      </Animated.View>
+      <Animated.View ref={surface} onLayout={motion.onLayout} testID="sheet-surface" pointerEvents={motion.interactive ? 'auto' : 'none'}
+        aria-hidden={!motion.interactive} accessibilityElementsHidden={!motion.interactive} importantForAccessibility={motion.interactive ? 'auto' : 'no-hide-descendants'}
+        style={[styles.sheet, !scrollable && styles.tallSheet, { paddingBottom: Math.max(insets.bottom, 20) }, motion.surfaceStyle]}
         role={Platform.OS === 'web' ? undefined : 'dialog'} accessibilityLabel={Platform.OS === 'web' ? undefined : title}
         accessibilityViewIsModal onAccessibilityEscape={onBack ?? onClose}>
         <View style={styles.handle} />
@@ -38,11 +91,12 @@ export function Sheet({ visible, title, onClose, onBack, children, scrollable = 
           {onBack && <MotionPressable onPress={onBack} accessibilityLabel={m.back} accessibilityRole="button"
             style={[styles.close]}><Icon name="arrow" size={20} /></MotionPressable>}
           <Text accessibilityRole="header" style={styles.title}>{title}</Text>
-          <MotionPressable ref={closeButtonRef} onPress={onClose} accessibilityLabel={m.close} accessibilityRole="button" style={() => styles.close}><Icon name="close" size={20} /></MotionPressable>
+          <MotionPressable ref={close}
+            onPress={() => requestClose(onClose)} accessibilityLabel={m.close} accessibilityRole="button" style={() => styles.close}><Icon name="close" size={20} /></MotionPressable>
         </View>
         <TimingNotices />
         {scrollable ? <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content} bounces={false} keyboardShouldPersistTaps="handled">{children}</ScrollView> : <View style={[styles.content, styles.staticContent]}>{children}</View>}
-      </View>
+      </Animated.View>
     </KeyboardAvoidingView>
     </MotionScope>
   </Modal>;
@@ -61,7 +115,8 @@ export function ConfirmSheet({ visible, title, description, confirmLabel, onClos
 }
 
 const createStyles = (c: Palette) => StyleSheet.create({
-  overlay: { flex: 1, justifyContent: 'flex-end', alignItems: 'center', backgroundColor: c.overlay, paddingTop: 60 },
+  overlay: { flex: 1, justifyContent: 'flex-end', alignItems: 'center', paddingTop: 60 },
+  backdrop: { backgroundColor: c.overlay },
   sheet: { width: '100%', maxWidth: 480, maxHeight: '100%', backgroundColor: c.background, borderTopLeftRadius: 28, borderTopRightRadius: 28, overflow: 'hidden' },
   tallSheet: { height: '94%' },
   staticContent: { flex: 1, minHeight: 0 },

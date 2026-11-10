@@ -9,10 +9,11 @@ import { planningWeekdayLabel } from '../i18n/formatters';
 import { fonts as f, type Palette } from '../theme';
 import { CalendarDateFields } from './CalendarDateFields';
 
-export function ScheduleCalendarPanel({ initialCalendar, onApply, onCancel }: {
+export function ScheduleCalendarPanel({ initialCalendar, onApply, onCancel, autoFocus = true }: {
   initialCalendar?: ScheduleCalendar;
   onApply: (calendar: ScheduleCalendar | undefined) => void;
   onCancel: () => void;
+  autoFocus?: boolean;
 }) {
   const { language, messages: m } = useI18n();
   const { feedback } = useCrono();
@@ -24,7 +25,7 @@ export function ScheduleCalendarPanel({ initialCalendar, onApply, onCancel }: {
     initialCalendar?.kind === 'once' ? initialCalendar.date : localDateKey(new Date()),
   ));
   const initialModeButton = useRef<View>(null);
-  useEffect(() => { initialModeButton.current?.focus(); }, []);
+  useEffect(() => { if (autoFocus) initialModeButton.current?.focus(); }, [autoFocus]);
 
   const modes = [
     { id: 'manual', label: m.calendarManual },

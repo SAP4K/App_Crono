@@ -4,12 +4,12 @@ import { settingsGroup, audioEvents, audioSpy, duration, expectNoPageErrors, obs
 
 test.beforeEach(async ({ page }) => {
   observePageErrors(page);
-  await page.clock.install({ time: new Date('2026-11-05T10:00:00Z') });
-  await page.clock.pauseAt(new Date('2026-11-05T10:00:01Z'));
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.clock.install({ time: new Date('2026-11-05T10:00:00Z') }); await page.clock.pauseAt(new Date('2026-11-05T10:00:01Z'));
 });
 test.afterEach(({ page }) => expectNoPageErrors(page));
 
-test('sound selections persist and a looping preview lasts the saved 15 seconds', async ({ page }) => {
+test('sound selections and a saved five-second choice persist across reload', async ({ page }) => {
   await audioSpy(page); await page.goto('/'); let dialog = await settings(page, 'sounds');
   await expect(dialog.getByRole('radio', { name: 'Sunet Clasic', exact: true })).toBeChecked();
   await expect(dialog.getByRole('radio', { name: 'Durata sunetului 60 secunde', exact: true })).toBeChecked();
@@ -21,6 +21,12 @@ test('sound selections persist and a looping preview lasts the saved 15 seconds'
   await expect.poll(async () => (await stored(page)).preferences.alertDurationSeconds).toBe(5);
   await page.reload(); dialog = await settings(page, 'sounds');
   await expect(dialog.getByRole('radio', { name: 'Durata sunetului 5 secunde', exact: true })).toBeChecked();
+  await expect(dialog.getByRole('radio', { name: 'Sunet Gong', exact: true })).toBeChecked();
+});
+
+test('a saved 15-second choice persists and its looping preview lasts exactly that duration', async ({ page }) => {
+  await audioSpy(page); await page.goto('/'); let dialog = await settings(page, 'sounds');
+  await dialog.getByRole('radio', { name: 'Sunet Gong', exact: true }).click();
   await dialog.getByRole('radio', { name: 'Durata sunetului 15 secunde', exact: true }).click();
   await expect.poll(async () => (await stored(page)).preferences.alertDurationSeconds).toBe(15);
   await page.reload(); dialog = await settings(page, 'sounds');
@@ -189,11 +195,11 @@ test('legacy data retains Bell and 60 seconds through reload, concurrent timer a
   await dialog.getByRole('button', { name: 'Închide', exact: true }).click(); await page.clock.runFor(300);
   await page.getByRole('button', { name: 'Orar nou', exact: true }).click();
   dialog = page.getByRole('dialog', { name: 'Orar nou', exact: true });
-  await dialog.getByLabel('Nume orar', { exact: true }).fill('Un minut');
-  await dialog.getByLabel('Nume etapa 1', { exact: true }).fill('Lucru');
+  await dialog.getByRole('textbox', { name: 'Nume orar', exact: true }).fill('Un minut');
+  await dialog.getByRole('textbox', { name: 'Nume etapa 1', exact: true }).fill('Lucru');
   await stepDuration(page, 1, [0, 0, 3]);
   await dialog.getByRole('button', { name: 'Adaugă etapă', exact: true }).click();
-  await dialog.getByLabel('Nume etapa 2', { exact: true }).fill('Pauză');
+  await dialog.getByRole('textbox', { name: 'Nume etapa 2', exact: true }).fill('Pauză');
   await stepDuration(page, 2, [0, 0, 5]);
   await dialog.getByRole('button', { name: 'Salvează orarul', exact: true }).click(); await page.clock.runFor(300);
   await expect.poll(async () => (await stored(page)).planning.schedules.length).toBe(1);

@@ -1,7 +1,7 @@
 import { MotionPressable } from './MotionPressable';
 import { useI18n } from '../hooks/useI18n';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { FlatList, Keyboard, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, Keyboard, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { MAX_NAME_LENGTH, MAX_STEPS, readSchedule, readScheduleSteps } from '../core/planning';
 import type { Schedule, ScheduleStep } from '../core/planning';
 import { repeatSequence } from '../core/planningTools';
@@ -21,6 +21,7 @@ import { durationMilliseconds } from '../core/durationPicker';
 import type { DurationParts } from '../core/durationPicker';
 import { useCrono } from '../context/CronoContext';
 import type { StepDraft } from './ScheduleStepRow';
+import { PanelTransition } from './PanelTransition';
 
 function stepDrafts(steps: ScheduleStep[]) {
   return steps.map((step): StepDraft => {
@@ -33,8 +34,8 @@ function draftOf(schedule: Schedule) { return { name: schedule.name, calendar: s
 
 type ReturnTarget = { kind: 'duration'; stepId: string } | { kind: 'calendar' | 'repeat' | 'close' };
 
-export function ScheduleEditorSheet({ schedule, isNew, onClose, onSave }: {
-  schedule: Schedule; isNew: boolean; onClose: () => void; onSave: (schedule: Schedule) => boolean;
+export function ScheduleEditorSheet({ schedule, isNew, visible = true, onClose, onSave, onAfterClose }: {
+  schedule: Schedule; isNew: boolean; visible?: boolean; onClose: () => void; onSave: (schedule: Schedule) => boolean; onAfterClose?: () => void;
 }) {
   const { language, messages: m } = useI18n();
   const { colors: c } = useTheme(); const styles = useThemeStyles(createStyles);
@@ -45,21 +46,28 @@ export function ScheduleEditorSheet({ schedule, isNew, onClose, onSave }: {
   const [wheelBusy, setWheelBusy] = useState(false);
   const [calendarEdit, setCalendarEdit] = useState(false);
   const [repeatEdit, setRepeatEdit] = useState(false);
+  const [readyPanel, setReadyPanel] = useState<string | null>(null);
   const repeatButton = useRef<View>(null), calendarButton = useRef<View>(null), closeButton = useRef<View>(null);
   const temporaryParts = useRef<DurationParts | null>(null), moving = useRef(false);
   const list = useRef<FlatList<StepDraft>>(null), listOffset = useRef(0);
   const durationButtons = useRef(new Map<string, View>());
   const panelReturn = useRef<{ offset: number; target: ReturnTarget } | null>(null), restoring = useRef(false);
+  const editorReady = useRef(false);
   const covered = discard || !!durationEdit || calendarEdit || repeatEdit;
   const rememberReturn = (target: ReturnTarget) => { panelReturn.current = { offset: listOffset.current, target }; };
   const restoreList = useCallback(() => {
     const pending = panelReturn.current;
     if (!restoring.current || !pending) return;
     list.current?.scrollToOffset({ offset: pending.offset, animated: false });
+    if (!editorReady.current) return;
     const button = pending.target.kind === 'duration' ? durationButtons.current.get(pending.target.stepId)
       : pending.target.kind === 'calendar' ? calendarButton.current
         : pending.target.kind === 'repeat' ? repeatButton.current : closeButton.current;
-    if (button) { button.focus(); restoring.current = false; panelReturn.current = null; }
+    if (button) {
+      if (Platform.OS === 'web') (button as unknown as HTMLElement).focus({ preventScroll: true });
+      else button.focus();
+      restoring.current = false; panelReturn.current = null;
+    }
   }, []);
   useEffect(() => { if (!covered) restoreList(); }, [covered, restoreList]);
   const closeDuration = () => {
@@ -130,13 +138,17 @@ export function ScheduleEditorSheet({ schedule, isNew, onClose, onSave }: {
     : calendarEdit ? m.calendarSchedule
     : repeatEdit ? m.repeatSequence
     : discard ? m.discardTitle : isNew ? m.newSchedule : m.editScheduleTitle;
-  return <Sheet visible title={title} onClose={close} scrollable={false} closeButtonRef={closeButton}>
+  return <Sheet visible={visible} title={title} onClose={close} onAfterClose={onAfterClose} scrollable={false} closeButtonRef={closeButton}>
     {discard && <ScrollView style={styles.discard} contentContainerStyle={styles.discardContent} keyboardShouldPersistTaps="handled" bounces={false}>
+      <PanelTransition identity="discard" active={visible}>
       <Text style={styles.help}>{m.discardHelp}</Text>
       <MotionPressable accessibilityRole="button" onPress={onClose} style={[styles.secondary]}><Text style={styles.danger}>{m.discardChanges}</Text></MotionPressable>
       <MotionPressable accessibilityRole="button" onPress={() => { restoring.current = true; setDiscard(false); }} style={[styles.primary]}><Text style={styles.primaryText}>{m.continueEditing}</Text></MotionPressable>
+      </PanelTransition>
     </ScrollView>}
     <EditorBody hidden={covered}>
+      <PanelTransition identity="editor" active={!covered && visible} style={styles.editorFrame}
+        onPending={() => { editorReady.current = false; }} onReady={() => { editorReady.current = true; restoreList(); }}>
       <FlatList ref={list} data={draft.steps} onLayout={restoreList}
         onScroll={({ nativeEvent }) => { if (!covered) listOffset.current = nativeEvent.contentOffset.y; }} scrollEventThrottle={32} keyExtractor={(step) => step.id} keyboardShouldPersistTaps="handled" initialNumToRender={4} style={styles.list}
         ListHeaderComponent={<>
@@ -165,10 +177,14 @@ export function ScheduleEditorSheet({ schedule, isNew, onClose, onSave }: {
       {saveError && <Text accessibilityLiveRegion="polite" style={styles.danger}>{m.saveScheduleError}</Text>}
       <MotionPressable accessibilityRole="button" disabled={!candidate} onPress={() => { if (candidate) { if (onSave(candidate)) onClose(); else setSaveError(true); } }} style={[styles.primary, !candidate && styles.disabled]}><Text style={styles.primaryText}>{m.saveSchedule}</Text></MotionPressable>
         </>} />
+      </PanelTransition>
     </EditorBody>
     {durationEdit && <ScrollView style={styles.durationPanel} contentContainerStyle={styles.durationContent} keyboardShouldPersistTaps="handled" bounces={false}>
+      <PanelTransition identity={`duration:${durationEdit.stepId}`} active={visible}
+        onPending={() => setReadyPanel(null)} onReady={() => setReadyPanel(`duration:${durationEdit.stepId}`)}>
       <Text style={styles.help}>{draft.steps[selectedIndex]?.name}</Text>
-      <DurationPicker value={durationEdit.parts} onChange={changeDuration} stepNumber={selectedIndex + 1} autoFocus
+      <DurationPicker value={durationEdit.parts} onChange={changeDuration} stepNumber={selectedIndex + 1}
+        autoFocus={readyPanel === `duration:${durationEdit.stepId}`} disabled={!visible}
         onInteractionChange={(busy) => { moving.current = busy; setWheelBusy(busy); }} />
       <Text style={styles.help}>{durationMilliseconds(durationEdit.parts) === null ? m.durationInvalid : m.durationWheelHint}</Text>
       <MotionPressable accessibilityRole="button" disabled={wheelBusy || selectedIndex < 0 || durationMilliseconds(durationEdit.parts) === null}
@@ -178,14 +194,19 @@ export function ScheduleEditorSheet({ schedule, isNew, onClose, onSave }: {
       <MotionPressable accessibilityRole="button" onPress={closeDuration} style={[styles.secondary]}>
         <Text style={styles.secondaryText}>{m.cancel}</Text>
       </MotionPressable>
+      </PanelTransition>
     </ScrollView>}
     {repeatEdit && repeatable && <ScrollView style={styles.calendarPanel} contentContainerStyle={styles.calendarContent}
       keyboardShouldPersistTaps="handled" bounces={false}>
+      <PanelTransition identity="repeat" active={visible}>
       <ScheduleRepeatPanel steps={repeatable} onApply={applyRepeat} onCancel={closeRepeat} />
+      </PanelTransition>
     </ScrollView>}
     {calendarEdit && <ScrollView style={styles.calendarPanel} contentContainerStyle={styles.calendarContent}
       keyboardShouldPersistTaps="handled" bounces={false}>
-      <ScheduleCalendarPanel initialCalendar={draft.calendar} onApply={applyCalendar} onCancel={closeCalendar} />
+      <PanelTransition identity="calendar" active={visible} onPending={() => setReadyPanel(null)} onReady={() => setReadyPanel('calendar')}>
+      <ScheduleCalendarPanel initialCalendar={draft.calendar} onApply={applyCalendar} onCancel={closeCalendar} autoFocus={readyPanel === 'calendar'} />
+      </PanelTransition>
     </ScrollView>}
   </Sheet>;
 }
@@ -199,6 +220,7 @@ const createStyles = (c: Palette) => StyleSheet.create({
   name: { minHeight: 48, borderWidth: 1, borderColor: c.border, borderRadius: 12, paddingHorizontal: 12, fontFamily: f.semibold, color: c.ink, fontSize: textSizes.input, backgroundColor: c.surface },
   help: { fontFamily: f.regular, fontSize: textSizes.small, lineHeight: 21, color: c.muted, marginVertical: 12 },
   list: { flex: 1 },
+  editorFrame: { flex: 1, minHeight: 0 },
   primary: { minHeight: 48, paddingHorizontal: 14, backgroundColor: c.action, borderRadius: 13, justifyContent: 'center', alignItems: 'center', marginTop: 12 },
   primaryText: { fontFamily: f.semibold, fontSize: textSizes.body, color: c.actionText },
   secondary: { minHeight: 46, borderRadius: 12, padding: 12, backgroundColor: c.secondary, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },

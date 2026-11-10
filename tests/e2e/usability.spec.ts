@@ -12,7 +12,7 @@ test.beforeEach(({ page }) => observePageErrors(page));
 test.afterEach(({ page }) => expectNoPageErrors(page));
 
 test('System appearance preserves three active clocks and unsaved name and duration drafts', async ({ page }) => {
-  const now = Date.parse('2026-11-09T12:00:00Z'); await page.clock.install({ time: now }); await page.clock.pauseAt(now + 1000);
+  const now = Date.parse('2026-11-09T12:00:00Z'); await page.emulateMedia({ reducedMotion: 'reduce' }); await page.clock.install({ time: now }); await page.clock.pauseAt(now + 1000);
   const data = initialData(); data.stopwatch.startedAt = now - 2000;
   data.timer = { ...initialTimer(600000), status: 'running', deadlineAt: now + 600000, runId: 'draft-timer' };
   data.planning.schedules = [{ id: 'active', name: 'Active', steps: [{ id: 'a', name: 'Keep working', durationMs: 600000 }] }];

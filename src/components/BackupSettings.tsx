@@ -7,16 +7,17 @@ import { useBackupTransfer } from '../hooks/useBackupTransfer';
 import { useI18n } from '../hooks/useI18n';
 import { fonts as f, textSizes, type Palette } from '../theme';
 import { SettingsSwitch } from './SettingsSwitch';
+import { PanelTransition } from './PanelTransition';
 
-export function BackupSettings() {
+export function BackupSettings({ active = true }: { active?: boolean }) {
   const { messages: m } = useI18n();
   const { storageError, feedback } = useCrono();
-  const { controller, state, available } = useBackupTransfer();
+  const { controller, state, available } = useBackupTransfer(active);
   const [applyPreferences, setApplyPreferences] = useState(false);
   const styles = useThemeStyles(createStyles);
   const busy = state.status === 'reading' || state.status === 'exporting';
   const preview = state.status === 'preview';
-  return <View style={styles.content}>
+  return <PanelTransition identity={preview ? 'review' : 'operations'} active={active} style={styles.content}>
     <Text style={styles.body}>{m.backup.help}</Text>
     {state.error && <Text accessibilityLiveRegion="polite" style={styles.error}>{m.backup.errors[state.error]}</Text>}
     {storageError && <Text accessibilityLiveRegion="polite" style={styles.error}>{m.storageWarning}</Text>}
@@ -44,8 +45,8 @@ export function BackupSettings() {
     {busy && <Text accessibilityLiveRegion="polite" style={styles.body}>{m.backup.busy}</Text>}
     {(busy || preview) && <MotionPressable accessibilityRole="button" accessibilityLabel={m.cancel} onPress={() => { feedback(); controller.cancel(); setApplyPreferences(false); }} style={[styles.secondary]}><Text style={styles.body}>{m.cancel}</Text></MotionPressable>}
     {(state.status === 'imported' || state.status === 'exported') && <Text accessibilityLiveRegion="polite" style={styles.body}>{state.status === 'imported' ? m.backup.imported : m.backup.exported}</Text>}
-    {!available && <Text style={styles.error}>{m.backup.errors.notReady}</Text>}
-  </View>;
+    {active && !available && <Text style={styles.error}>{m.backup.errors.notReady}</Text>}
+  </PanelTransition>;
 }
 const createStyles = (c: Palette) => StyleSheet.create({
   content: { gap: 16, paddingVertical: 12 },

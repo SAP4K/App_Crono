@@ -18,8 +18,8 @@ function scheduleData() {
 
 test.beforeEach(async ({ page }) => {
   observePageErrors(page);
-  await page.clock.install({ time: new Date('2026-11-05T10:00:00Z') });
-  await page.clock.pauseAt(new Date('2026-11-05T10:00:01Z'));
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.clock.install({ time: new Date('2026-11-05T10:00:00Z') }); await page.clock.pauseAt(new Date('2026-11-05T10:00:01Z'));
 });
 test.afterEach(({ page }) => expectNoPageErrors(page));
 
@@ -29,8 +29,8 @@ test('schedule editor saves ordered actions, validates durations, and preserves 
   let dialog = page.getByRole('dialog', { name: 'Orar nou', exact: true });
   const save = dialog.getByRole('button', { name: 'Salvează orarul', exact: true });
   await expect(save).toBeDisabled();
-  await dialog.getByLabel('Nume orar', { exact: true }).fill('Studiu');
-  await dialog.getByLabel('Nume etapa 1', { exact: true }).fill('Lucru');
+  await dialog.getByRole('textbox', { name: 'Nume orar', exact: true }).fill('Studiu');
+  await dialog.getByRole('textbox', { name: 'Nume etapa 1', exact: true }).fill('Lucru');
   await dialog.getByRole('button', { name: 'Modifică durata etapei 1', exact: true }).click();
   const panel = page.getByRole('dialog', { name: 'Durata etapei 1', exact: true });
   await selectDuration(panel, [0, 0, 0], undefined, 1);
@@ -38,7 +38,7 @@ test('schedule editor saves ordered actions, validates durations, and preserves 
   await selectDuration(panel, [0, 0, 2], undefined, 1);
   await panel.getByRole('button', { name: 'Aplică durata', exact: true }).click();
   await dialog.getByRole('button', { name: 'Adaugă etapă', exact: true }).click();
-  await dialog.getByLabel('Nume etapa 2', { exact: true }).fill('Pauză');
+  await dialog.getByRole('textbox', { name: 'Nume etapa 2', exact: true }).fill('Pauză');
   await stepDuration(page, 2, [0, 0, 1]);
   await dialog.getByRole('button', { name: 'Mută etapa 2 mai sus', exact: true }).click();
   await save.click(); await page.clock.runFor(300);
@@ -48,10 +48,10 @@ test('schedule editor saves ordered actions, validates durations, and preserves 
   await scheduleOptions(page, 'Studiu');
   await page.getByRole('button', { name: 'Editează orarul Studiu', exact: true }).click();
   dialog = page.getByRole('dialog', { name: 'Editează orarul', exact: true });
-  await dialog.getByLabel('Nume orar', { exact: true }).fill('Alt nume');
+  await dialog.getByRole('textbox', { name: 'Nume orar', exact: true }).fill('Alt nume');
   await dialog.getByRole('button', { name: 'Închide', exact: true }).click();
   await page.getByRole('button', { name: 'Continuă editarea', exact: true }).click();
-  await expect(dialog.getByLabel('Nume orar', { exact: true })).toHaveValue('Alt nume');
+  await expect(dialog.getByRole('textbox', { name: 'Nume orar', exact: true })).toHaveValue('Alt nume');
   await dialog.getByRole('button', { name: 'Închide', exact: true }).click();
   await page.getByRole('button', { name: 'Renunță la modificări', exact: true }).click(); await page.clock.runFor(300);
   expect((await stored(page)).planning).toEqual(before);
@@ -324,12 +324,12 @@ test('schedule notices and sound stop preserve an open editor and its draft', as
   await scheduleOptions(page, 'Relaxare');
   await page.getByRole('button', { name: 'Editează orarul Relaxare', exact: true }).click();
   const editor = page.getByRole('dialog', { name: 'Editează orarul', exact: true });
-  await editor.getByLabel('Nume orar', { exact: true }).fill('Respirație');
+  await editor.getByRole('textbox', { name: 'Nume orar', exact: true }).fill('Respirație');
   await page.clock.runFor(2000);
   await expect(editor.getByLabel('Etapă finalizată', { exact: true })).toBeVisible();
   await editor.getByRole('button', { name: 'Oprește sunetul', exact: true }).click();
   expect((await stored(page)).planning.run?.status).toBe('running');
-  await expect(editor.getByLabel('Nume orar', { exact: true })).toHaveValue('Respirație');
+  await expect(editor.getByRole('textbox', { name: 'Nume orar', exact: true })).toHaveValue('Respirație');
   await page.clock.runFor(1000);
   await expect(editor.getByLabel('Orar finalizat', { exact: true })).toBeVisible();
   await editor.getByRole('button', { name: 'Oprește sunetul', exact: true }).click();

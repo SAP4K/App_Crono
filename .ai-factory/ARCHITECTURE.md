@@ -46,6 +46,8 @@ src/
 │   ├── ScheduleRepeatPanel.tsx # Explicit flat repeated-sequence draft preview
 │   ├── BackupSettings.tsx    # File transfer review and optional preferences
 │   ├── SettingsSheet.tsx     # Grouped user preferences
+│   ├── NavigationScene.tsx / .web.tsx # Focus gates around navigator-owned fades
+│   ├── PanelTransition.tsx   # Stable incoming-only presentation frame
 │   ├── MotionPressable.tsx   # One ref-safe Pressable host with finite visual feedback
 │   └── Icon.tsx              # Shared SVG icons
 ├── context/
@@ -57,6 +59,8 @@ src/
 │   ├── useI18n.ts            # Saved language projection and shared-state setter
 │   ├── themeAppearance.ts / useSystemTheme.ts # Appearance lifecycle and native background ordering
 │   ├── motionPreference.ts  # Injected live OS-query/event ordering and foreground refresh
+│   ├── transitionMotion.ts / useSheetMotion.ts # Finite presence and Animated lifecycle bridge
+│   ├── useSheetPresentation.ts # Token-guarded exit payload, separate from logical visibility
 │   ├── pressMotion.ts / usePressMotion.ts # Cancellable visual controller and Animated binding
 │   ├── backupTransfer.ts / useBackupTransfer.ts # Fenced file operations and accepted imports
 │   ├── backupFiles.ts / .web.ts # Native system picker/share and browser upload/download
@@ -120,6 +124,7 @@ tests/
 ├── timer.test.ts             # Countdown boundaries/transitions
 ├── durationPicker.test.ts    # Parts, valid bounds and snapping geometry
 ├── durationWheel.test.ts     # Motion, stale callbacks, disposal and geometry changes
+├── transitionMotion.test.ts  # Readiness, cancellation, reopening, policy and failure fallback
 ├── timerCompletion.test.ts   # Coordination, cancellation, and audio races
 ├── theme.test.ts             # Text/surface contrast
 ├── themeAppearance.test.ts   # Appearance cache/lifecycle and native background races
@@ -252,6 +257,14 @@ iOS/older Android audio uses SDK 57 `createAudioPlayer` with explicit source cle
 `MotionProvider` owns one AccessibilityInfo reduced-motion subscription and one shared app-activity subscription through `motionPreference`. It subscribes before querying, fences stale reads/events, refreshes on foreground return and starts conservatively with reduced motion. `MotionScope` suspends hidden Sheet/covered EditorBody controls without a layout wrapper or remounting drafts. Motion state never enters AppData.
 
 `MotionPressable` forwards the actual View ref and stock Pressable props, including Router-injected link/click behavior. Its adapter resolves callback styles inside Pressable, outside Animated's style flattening. `usePressMotion` binds one stable value to the injected `pressMotion` visual controller; normal presses use finite 90 ms down / 140 ms return opacity/scale transitions, with the native driver on mobile and non-interaction animations. Reduced motion uses immediate opacity without scaling. Cancellation, disablement, inactivity, covered surfaces and disposal stop obsolete transitions; animation callbacks never execute domain actions. Web switches animate only thumb transform/track color; native Switch, wheel gestures and passive clock/notice rendering keep their existing owners. Haptics and audio stay in CronoContext.
+
+The public SDK-57 `expo-router/js-tabs` navigator owns the four routes' 180 ms fade. `NavigationScene` uses focus to exclude outgoing scene input and accessibility while retaining its layout/state. Web uses DOM inertness without hiding the fading visual. Header, navigation, activity controls, notices and global owners remain outside the scene animation; scene gates do not suspend portaled sheets.
+
+`transitionMotion` contains injected finite presentation controllers, with cancellation generations invalidated before stopping a driver. `useSheetMotion` binds one stable Animated value to measured sheet translation and separate backdrop opacity. `Sheet` uses Modal animationType none, retains visual presence through its 180 ms exit and restores web opener focus after reference-counted isolation releases. A viewport fallback avoids waiting indefinitely for missing surface geometry. Android exit cleanup uses the controller rather than iOS-only onDismiss. The active web modal restores its last eligible control after suspension; native initial focus runs once per logical opening. Native smoothness and keyboard/Back/accessibility behavior still require physical acceptance.
+
+`useSheetPresentation` retains at most one display payload and token for conditional editor/date/details callers. Logical close immediately dismisses input and excludes outgoing controls; only a matching after-close callback may release that payload. Settings cancels preview immediately and gives `useBackupTransfer` an explicit logical-active lifecycle. Disposal fences late reads/imports even while outgoing content remains mounted; reactivation starts from the owner's cleared state. These callbacks never perform a Save, import, clock transition, permission request or feedback action.
+
+`PanelTransition` animates only the current incoming panel (140 ms opacity and at most 8 px travel), using semantic identity rather than data/theme/notice updates. Obsolete subpanels unmount promptly; the covered editor's existing FlatList stays mounted at the same geometry. Offset restoration can occur after layout, while source focus waits for the current destination's readiness. Live reduced motion or inactivity settles presentation immediately, without foreground replay or persisted motion state. Mobile sheet/panel drivers use non-interaction native animations; web uses the JS driver. Unexpected driver failures produce bounded WARN messages and immediate endpoints; normal transitions remain quiet.
 
 `useI18n` derives stable module catalogs from the saved `language` preference and applies effective changes through the existing functional update API. The registry covers `ro/en/ru/es/fr/de` with complete Romanian, English, Russian, Spanish, French and German catalogs; Romanian is the manual default/fallback and no device locale is detected. The framework-free translation layer owns plural/date/share presentation; `sessionText` lives here rather than in the pure timing core. Catalogs use stable sound IDs and preserve user-entered schedule/action names. Toast, timer-completion and audio-failure values are semantic codes, translated when rendered or announced with a fresh snapshot. Language does not recreate timing/playback controllers, refresh foreground notice lifetimes, or key/remount routes or controlled inputs. It updates future system-notification content through the separate notification owner. Web document language follows selection; native speech voice remains an OS concern.
 
