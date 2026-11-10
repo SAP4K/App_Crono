@@ -193,7 +193,7 @@ const createStyles = (c: Palette) => StyleSheet.create({
   durationPanel: { position: 'absolute', top: 0, bottom: 0, left: 26, right: 26, zIndex: 1, backgroundColor: c.background, justifyContent: 'center', paddingBottom: 16 },
   calendarPanel: { position: 'absolute', top: 0, bottom: 0, left: 26, right: 26, zIndex: 1, backgroundColor: c.background },
   calendarContent: { flexGrow: 1, justifyContent: 'center', paddingVertical: 12 },
-  calendarButton: { marginTop: 8, marginBottom: 0, alignItems: 'flex-start' },
+  calendarButton: { marginTop: 8, marginBottom: 12, alignItems: 'flex-start' },
   name: { minHeight: 48, borderWidth: 1, borderColor: c.border, borderRadius: 12, paddingHorizontal: 12, fontFamily: f.semibold, color: c.ink, fontSize: textSizes.input, backgroundColor: c.surface },
   help: { fontFamily: f.regular, fontSize: textSizes.small, lineHeight: 21, color: c.muted, marginVertical: 12 },
   list: { flex: 1 },

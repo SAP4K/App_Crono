@@ -8,6 +8,7 @@ import type { Schedule } from '../core/planning';
 import { dateKeyFromParts, datePartsFromKey, localDateKey, matchesScheduleDate, type CalendarDateParts } from '../core/planningCalendar';
 import { planningDateLabel } from '../i18n/formatters';
 import { duplicateSchedule, PLANNING_TEMPLATES, scheduleFromTemplate, type PlanningTemplateId } from '../core/planningTools';
+import { formatRemaining } from '../core/timer';
 import { ScheduleEditorSheet } from '../components/ScheduleEditorSheet';
 import { ConfirmSheet, Sheet } from '../components/Sheet';
 import { CalendarDateFields } from '../components/CalendarDateFields';
@@ -87,11 +88,18 @@ export default function PlanningScreen() {
           style={({ pressed }) => [styles.filterButton, styles.templateToggle, scheduleLimit && styles.disabled, pressed && buttonPressedStyle]}>
           <Text style={styles.secondaryText}>{m.planningTemplates}</Text>
         </Pressable>
-        {templatesOpen && <View style={styles.templateChoices}>{(Object.keys(PLANNING_TEMPLATES) as PlanningTemplateId[]).map((id) =>
-          <Pressable key={id} accessibilityRole="button" accessibilityLabel={m.planningTemplateNames[id].name} onPress={() => openTemplate(id)} style={({ pressed }) => [styles.filterButton, pressed && buttonPressedStyle]}>
-            <Text style={styles.secondaryText}>{m.planningTemplateNames[id].name}</Text>
-            <Text style={styles.subtitle}>{m.planningTemplateNames[id].steps.join(' → ')}</Text>
-          </Pressable>)}</View>}
+        {templatesOpen && <View style={styles.templateChoices}>{(Object.keys(PLANNING_TEMPLATES) as PlanningTemplateId[]).map((id) => {
+          const copy = m.planningTemplateNames[id], durations = PLANNING_TEMPLATES[id];
+          const summary = `${m.stepCount(durations.length)} · ${formatRemaining(durations.reduce((sum: number, value) => sum + value, 0))}`;
+          const preview = copy.steps.slice(0, 3).join(' → ') + (copy.steps.length > 3 ? ' …' : '');
+          return <Pressable key={id} accessibilityRole="button" accessibilityLabel={copy.name} accessibilityHint={summary}
+            disabled={scheduleLimit} accessibilityState={{ disabled: scheduleLimit }} onPress={() => openTemplate(id)}
+            style={({ pressed }) => [styles.filterButton, styles.templateChoice, scheduleLimit && styles.disabled, pressed && !scheduleLimit && buttonPressedStyle]}>
+            <Text style={styles.secondaryText}>{copy.name}</Text>
+            <Text style={styles.templateSummary}>{summary}</Text>
+            <Text numberOfLines={2} style={styles.templatePreview}>{preview}</Text>
+          </Pressable>;
+        })}</View>}
         <Text style={styles.limit}>{m.scheduleLimit(schedules.length, MAX_SCHEDULES)}</Text>
         <View style={styles.filters}>
           <Pressable accessibilityRole="button" onPress={() => { feedback(); setSelectedDate(null); }}
@@ -164,6 +172,9 @@ const createStyles = (c: Palette) => StyleSheet.create({
   limit: { color: c.muted, fontFamily: f.regular, fontSize: textSizes.small, lineHeight: 21, marginVertical: 10 },
   filters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
   templateToggle: { marginTop: 10 }, templateChoices: { marginTop: 8, gap: 8 },
+  templateChoice: { alignItems: 'stretch', padding: 12 },
+  templateSummary: { fontFamily: f.regular, color: c.muted, fontSize: textSizes.caption, lineHeight: 21, marginTop: 4 },
+  templatePreview: { fontFamily: f.regular, color: c.ink, fontSize: textSizes.caption, lineHeight: 21, marginTop: 4 },
   filterButton: { minHeight: 44, minWidth: 44, flexShrink: 1, borderWidth: 1, borderColor: c.border, borderRadius: 10,
     backgroundColor: c.secondary, paddingHorizontal: 12, paddingVertical: 6, alignItems: 'center', justifyContent: 'center' },
   filterSelected: { backgroundColor: c.limeSoft, borderColor: c.green },

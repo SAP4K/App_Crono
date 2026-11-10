@@ -1,4 +1,10 @@
 import type { SoundId } from '../core/sounds.ts';
+import type { PLANNING_TEMPLATES, PlanningTemplateId } from '../core/planningTools.ts';
+
+type StepLabels<T extends readonly number[]> = { readonly [Index in keyof T]: string };
+type PlanningTemplateMessages = {
+  [Id in PlanningTemplateId]: { name: string; steps: StepLabels<(typeof PLANNING_TEMPLATES)[Id]> };
+};
 
 export type Messages = {
   openActiveTimer: string;
@@ -152,7 +158,7 @@ export type Messages = {
   stopSound: string;
   planningSubtitle: string;
   planningTemplates: string;
-  planningTemplateNames: { focus: { name: string; steps: readonly [string, string] }; workout: { name: string; steps: readonly [string, string, string] } };
+  planningTemplateNames: PlanningTemplateMessages;
   duplicate: string;
   duplicateSchedule: (name: string) => string;
   scheduleOptions: (name: string) => string;

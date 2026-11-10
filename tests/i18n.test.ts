@@ -3,6 +3,8 @@ import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 import { notificationStatus } from '../src/i18n/notificationStatus.ts';
 import { LANGUAGES } from '../src/core/language.ts';
+import { MAX_NAME_LENGTH } from '../src/core/planning.ts';
+import { PLANNING_TEMPLATES, scheduleFromTemplate, type PlanningTemplateId } from '../src/core/planningTools.ts';
 import { getMessages } from '../src/i18n/index.ts';
 import { countPhrase } from '../src/i18n/plurals.ts';
 import { deadlineLabel, planningDateLabel, planningWeekdayLabel, scheduleCalendarLabel, sessionDate, sessionTime, sessionText } from '../src/i18n/formatters.ts';
@@ -60,6 +62,28 @@ test('catalogs have identical widened contracts, nonempty values and a stable Ro
     for (const [key, value] of Object.entries(messages)) {
       assert.equal(typeof value, typeof getMessages('ro')[key as keyof typeof messages]);
       if (typeof value === 'string') assert.ok(value.trim(), `${id}:${key}`);
+    }
+  }
+});
+
+test('every localized built-in has exact action labels and creates a valid detached draft', () => {
+  const ids = Object.keys(PLANNING_TEMPLATES) as PlanningTemplateId[];
+  for (const { id: language } of LANGUAGES) {
+    const catalog = getMessages(language).planningTemplateNames;
+    assert.deepEqual(Object.keys(catalog).sort(), [...ids].sort(), language);
+    for (const template of ids) {
+      const { name, steps } = catalog[template];
+      assert.equal(steps.length, PLANNING_TEMPLATES[template].length, `${language}:${template}`);
+      for (const value of [name, ...steps]) {
+        assert.equal(value, value.trim());
+        assert.ok(value.length > 0 && value.length <= MAX_NAME_LENGTH, `${language}:${template}:${value}`);
+      }
+      const draft = scheduleFromTemplate({ template, id: 'draft', name, stepNames: steps,
+        stepIds: steps.map((_, index) => `action-${index}`) });
+      assert.ok(draft, `${language}:${template}`);
+      assert.equal(draft.name, name); assert.equal(draft.calendar, undefined);
+      assert.deepEqual(draft.steps.map((step) => step.name), [...steps]);
+      assert.deepEqual(draft.steps.map((step) => step.durationMs), [...PLANNING_TEMPLATES[template]]);
     }
   }
 });

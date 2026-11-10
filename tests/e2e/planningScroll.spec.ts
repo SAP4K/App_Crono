@@ -130,6 +130,48 @@ test('wheel scrolling over a schedule also moves the page controls without chang
   expect(await playCount(page)).toBe(0);
 });
 
+test('wheel scrolling over expanded built-ins moves the whole page and reaches saved schedules', async ({ page }) => {
+  await seed(page, scheduleData(2)); await audioSpy(page); await page.goto('/planning');
+  await page.getByRole('button', { name: m.planningTemplates, exact: true }).click();
+  const heading = page.getByRole('heading', { name: m.planningTab, exact: true });
+  const first = page.getByRole('button', { name: m.planningTemplateNames.focus.name, exact: true });
+  const original = await positions(page, [heading, first]), shell = await shellPosition(page), before = await stored(page);
+  await wheelOver(page, first, 240);
+  await expect.poll(() => top(heading)).toBeLessThan(original[0] - 80);
+  const moved = await positions(page, [heading, first]);
+  expect(Math.abs((original[0] - moved[0]) - (original[1] - moved[1]))).toBeLessThan(2);
+  const finalChoice = page.getByRole('button', { name: m.planningTemplateNames.activeBreak.name, exact: true });
+  await finalChoice.scrollIntoViewIfNeeded(); await expect(finalChoice).toBeInViewport();
+  const finalSaved = page.getByRole('button', { name: m.startSchedule('Orar 02'), exact: true });
+  await finalSaved.scrollIntoViewIfNeeded(); await expect(finalSaved).toBeInViewport();
+  expect(await shellPosition(page)).toEqual(shell); expect(await stored(page)).toEqual(before);
+  expect(await playCount(page)).toBe(0); await expect(page.getByRole('dialog')).toHaveCount(0);
+});
+
+test('a real touch drag over a built-in scrolls without opening its draft', async ({ page, context }) => {
+  await seed(page, scheduleData(2)); await audioSpy(page); await page.goto('/planning');
+  await page.getByRole('button', { name: m.planningTemplates, exact: true }).click();
+  const heading = page.getByRole('heading', { name: m.planningTab, exact: true });
+  const first = page.getByRole('button', { name: m.planningTemplateNames.focus.name, exact: true });
+  await expect(first).toBeInViewport();
+  const origin = await top(heading), shell = await shellPosition(page), before = await stored(page), box = (await first.boundingBox())!;
+  const x = box.x + box.width / 2, y = box.y + box.height / 2;
+  const session = await context.newCDPSession(page);
+  try {
+    await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+    for (let index = 1; index <= 6; index++) {
+      await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: y - index * 15 }] });
+      await page.waitForTimeout(35);
+    }
+  } finally {
+    try { await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); }
+    finally { await session.detach(); }
+  }
+  await expect.poll(() => top(heading)).toBeLessThan(origin - 30);
+  expect(await shellPosition(page)).toEqual(shell); expect(await stored(page)).toEqual(before);
+  expect(await playCount(page)).toBe(0); await expect(page.getByRole('dialog')).toHaveCount(0);
+});
+
 test('a real touch drag over New Schedule scrolls the page without activating the button', async ({ page, context }) => {
   await seed(page, scheduleData(8)); await audioSpy(page); await page.goto('/planning');
   const heading = page.getByRole('heading', { name: m.planningTab, exact: true });

@@ -4,6 +4,8 @@ import { test } from 'node:test';
 import { BackupError, MAX_BACKUP_BYTES, importBackup, parseBackup, serializeBackup, utf8Bytes, type BackupErrorCode } from '../src/core/backup.ts';
 import { initialData, restoreData } from '../src/core/stopwatch.ts';
 import { MAX_SCHEDULES, startSchedule } from '../src/core/planning.ts';
+import { PLANNING_TEMPLATES, scheduleFromTemplate, type PlanningTemplateId } from '../src/core/planningTools.ts';
+import { getMessages } from '../src/i18n/index.ts';
 
 const schedule = { id: 'source', name: 'Работа', steps: [{ id: 'action', name: 'Pauză', durationMs: 1000 }], calendar: { kind: 'weekly' as const, weekdays: [1, 3] as (1 | 3)[] } };
 function data() { const value = initialData(); value.planning.schedules = [structuredClone(schedule)]; return value; }
@@ -27,6 +29,36 @@ test('portable roundtrip whitelists saved records and preserves literal legacy d
   const restored = restoreData(JSON.stringify(imported));
   assert.deepEqual(restored.sessions, imported.sessions); assert.deepEqual(restored.planning.schedules, imported.planning.schedules);
   assert.equal(readFileSync(new URL('./fixtures/app-v1-before-planning.json', import.meta.url), 'utf8'), legacyRaw);
+});
+
+test('every built-in remains an ordinary portable schedule with edited text and independent imported IDs', () => {
+  const legacy = restoreData(readFileSync(new URL('./fixtures/app-v1-before-planning.json', import.meta.url), 'utf8'));
+  const m = getMessages('ro');
+  legacy.planning.schedules = (Object.keys(PLANNING_TEMPLATES) as PlanningTemplateId[]).map((template) => {
+    const copy = m.planningTemplateNames[template];
+    const value = scheduleFromTemplate({ template, id: template, name: copy.name, stepNames: copy.steps,
+      stepIds: copy.steps.map((_, index) => `${template}-${index}`) })!;
+    value.name += ' · Учёба'; value.steps[0].name = 'My saved action'; return value;
+  });
+  const backup = parseBackup(serializeBackup(legacy, 2000));
+  assert.equal(backup.version, 1); assert.deepEqual(backup.schedules, legacy.planning.schedules);
+  const current = initialData(); current.preferences.language = 'ru';
+  current.planning = startSchedule(data().planning, 'source', 1000, 'existing-run');
+  const imported = importBackup(current, backup, {
+    schedules: backup.schedules.map((_, index) => `import-${index}`),
+    steps: backup.schedules.map((item, index) => item.steps.map((_, step) => `import-${index}-${step}`)), sessions: ['import-history'],
+  });
+  assert.equal(imported.planning.run, current.planning.run);
+  assert.equal(imported.stopwatch, current.stopwatch); assert.equal(imported.timer, current.timer);
+  assert.equal(imported.preferences, current.preferences); assert.equal(imported.preferences.language, 'ru');
+  for (const [index, original] of backup.schedules.entries()) {
+    const copy = imported.planning.schedules[index + 1];
+    assert.notEqual(copy.id, original.id);
+    assert.deepEqual(copy.steps.map(({ name, durationMs }) => ({ name, durationMs })), original.steps.map(({ name, durationMs }) => ({ name, durationMs })));
+    assert.ok(copy.steps.every((step, i) => step.id !== original.steps[i].id));
+  }
+  assert.deepEqual(restoreData(JSON.stringify(imported)).planning.schedules, imported.planning.schedules);
+  assert.deepEqual(backup.sessions, legacy.sessions);
 });
 
 test('strict parser rejects invalid records, preferences, versions and duplicate IDs as a whole', () => {

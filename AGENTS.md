@@ -156,7 +156,7 @@ scripts/                Reproducible notification sound generator
 
 | File | Purpose |
 |---|---|
-| `README.md` | Setup, wheels, languages, System/Light/Dark, schedules, notifications, checks, builds |
+| `README.md` | Setup, eight templates, themes, languages, notifications, checks and builds |
 | `docs/background-notifications.md` | Android minute playback, setup, limits and verification |
 | `docs/backups.md` | Portable export/import, selected theme compatibility, limits and recovery |
 | `AGENTS.md` | Repository map and authoritative Expo workflow requirements |
