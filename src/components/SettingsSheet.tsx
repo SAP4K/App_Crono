@@ -1,7 +1,7 @@
 import { MotionPressable } from './MotionPressable';
 import { useI18n } from '../hooks/useI18n';
-import { useEffect, useRef, useState } from 'react';
-import { Platform, StyleSheet, Text, View } from 'react-native';
+import { useLayoutEffect, useRef, useState } from 'react';
+import { Keyboard, Platform, StyleSheet, Text, View } from 'react-native';
 import { useCrono } from '../context/CronoContext';
 import { textSizes, fonts as f, Palette } from '../theme';
 import { useTheme, useThemeStyles } from '../context/ThemeContext';
@@ -13,6 +13,7 @@ import { LANGUAGES } from '../core/language';
 import { ALERT_DURATIONS, SOUND_CHOICES } from '../core/sounds';
 import { BackgroundNotificationHelp } from './BackgroundNotificationHelp';
 import { notificationStatus } from '../i18n/notificationStatus';
+import { PanelTransition } from './PanelTransition';
 
 type SettingsGroup = 'appearance' | 'language' | 'sounds' | 'notifications' | 'device' | 'data' | 'about';
 
@@ -23,9 +24,11 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
   const { data, update, feedback, alerts, notifications, hydrationStatus } = useCrono();
   const [section, setSection] = useState<SettingsGroup | null>(null);
   const groupButtons = useRef(new Map<SettingsGroup, View>()), returningTo = useRef<SettingsGroup | null>(null);
-  useEffect(() => {
-    if (section === null && returningTo.current) { groupButtons.current.get(returningTo.current)?.focus(); returningTo.current = null; }
-  }, [section]);
+  const wasVisible = useRef(false);
+  useLayoutEffect(() => {
+    if (visible && !wasVisible.current) { setSection(null); returningTo.current = null; }
+    wasVisible.current = visible;
+  }, [visible]);
   const [blockedPreviewEventId, setBlockedPreviewEventId] = useState<string | null>(null);
   const { controller } = alerts;
   const capability = notifications.state.capability;
@@ -35,9 +38,12 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
   const previewError = alerts.state.request?.owner === 'preview' && alerts.state.error ? m.soundUnavailable : null;
   const previewNotice = alerts.state.status !== 'idle' && alerts.state.request?.owner !== 'preview'
     && alerts.state.request?.eventId === blockedPreviewEventId ? m.alertAlreadyPlaying : null;
-  useEffect(() => { if (!visible || section !== 'sounds') controller.cancelOwner('preview'); }, [visible, section, controller]);
-  const close = () => { controller.cancelOwner('preview'); setBlockedPreviewEventId(null); setSection(null); onClose(); };
-  const back = () => { feedback(); returningTo.current = section; setSection(null); };
+  useLayoutEffect(() => {
+    if (!visible || section !== 'sounds') controller.cancelOwner('preview');
+    return () => controller.cancelOwner('preview');
+  }, [visible, section, controller]);
+  const close = () => { controller.cancelOwner('preview'); Keyboard.dismiss(); setBlockedPreviewEventId(null); onClose(); };
+  const back = () => { feedback(); controller.cancelOwner('preview'); returningTo.current = section; setSection(null); };
   const toggle = (key: 'haptics' | 'keepAwake' | 'timerSound', enabled: boolean) => {
     feedback();
     update((previous) => ({ ...previous, preferences: { ...previous.preferences, [key]: enabled } }));
@@ -51,7 +57,16 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
     device: `${m.haptics}: ${data.preferences.haptics ? m.enabled : m.disabledSetting}`,
     data: m.backupSummary, about: 'CRONO 1.0',
   };
-  return <Sheet visible={visible} title={section ? m.settingsGroups[section] : m.settingsTitle} onClose={close} onBack={section ? back : undefined}>
+  return <Sheet visible={visible} title={section ? m.settingsGroups[section] : m.settingsTitle} onClose={close} onBack={section ? back : undefined}
+    onAfterClose={() => { if (!visible) { setSection(null); returningTo.current = null; } }}>
+    <PanelTransition identity={section ?? 'groups'} active={visible} onReady={() => {
+      if (section === null && returningTo.current) {
+        const button = groupButtons.current.get(returningTo.current);
+        if (Platform.OS === 'web') (button as unknown as HTMLElement | undefined)?.focus({ preventScroll: true });
+        else button?.focus();
+        returningTo.current = null;
+      }
+    }}>
     {section === null && <Text style={styles.subtitle}>{m.settingsSubtitle}</Text>}
     {section === null && <View style={styles.groups}>{(Object.keys(m.settingsGroups) as SettingsGroup[]).map((group) =>
       <MotionPressable key={group} ref={(node) => { if (node) groupButtons.current.set(group, node); else groupButtons.current.delete(group); }}
@@ -157,7 +172,8 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
     </>}
     {section === 'about' && <>
     <View style={styles.about}><View style={styles.aboutMark}><Icon name="clock" size={28} color={c.onAccent} /></View><Text style={styles.brand}>CRONO <Text style={styles.version}>1.0</Text></Text><Text style={styles.tagline}>{m.tagline}</Text><View style={styles.divider} /><Text style={styles.privacy}>{m.privacy}</Text><Text style={styles.limit}>{m.historyLimit}</Text></View>    </>}
-    {section === 'data' && visible && <BackupSettings />}
+    {section === 'data' && <BackupSettings active={visible} />}
+    </PanelTransition>
   </Sheet>;
 }
 

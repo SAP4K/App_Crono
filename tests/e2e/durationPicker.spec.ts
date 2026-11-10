@@ -222,8 +222,8 @@ test('literal legacy data survives no-op wheels, a translated action draft, an u
   expect((await stored(page)).timer).toEqual(legacy.timer); expect(await playCount(page)).toBe(0);
   await page.getByRole('tab', { name: 'Planificare', exact: true }).click();
   await page.getByRole('button', { name: 'Orar nou', exact: true }).click();
-  await page.getByLabel('Nume orar', { exact: true }).fill('Учёба · Școală');
-  await page.getByLabel('Nume etapa 1', { exact: true }).fill('Respiră · Отдых');
+  await page.getByRole('textbox', { name: 'Nume orar', exact: true }).fill('Учёба · Școală');
+  await page.getByRole('textbox', { name: 'Nume etapa 1', exact: true }).fill('Respiră · Отдых');
   const edit = page.getByRole('button', { name: 'Modifică durata etapei 1', exact: true });
   await edit.click(); await selectDuration(page, [0, 0, 1], undefined, 1);
   await page.getByRole('button', { name: 'Renunță', exact: true }).click();
@@ -280,7 +280,7 @@ test('fifty-action editing restores list position and focus and preserves IDs th
   await page.getByRole('button', { name: 'Aplică durata', exact: true }).click();
   await expect(last).toBeFocused(); await expect(last).toContainText('00:00:03');
   await page.getByRole('button', { name: 'Mută etapa 50 mai sus', exact: true }).click();
-  await expect(page.getByLabel('Nume etapa 49', { exact: true })).toHaveValue('Acțiune 50');
+  await expect(page.getByRole('textbox', { name: 'Nume etapa 49', exact: true })).toHaveValue('Acțiune 50');
   const moved = page.getByRole('button', { name: 'Modifică durata etapei 49', exact: true });
   await moved.click(); await expect(page.getByRole('spinbutton', { name: 'Secunde etapa 49', exact: true })).toHaveAttribute('aria-valuenow', '3');
   await selectDuration(page, [0, 0, 4], undefined, 49); await page.getByRole('button', { name: 'Aplică durata', exact: true }).click();
@@ -295,7 +295,7 @@ test('fifty-action editing restores list position and focus and preserves IDs th
 
 test('timer and schedule completions remain visible and stoppable inside an unsaved duration panel', async ({ page }) => {
   const now = Date.parse('2026-11-06T10:00:00Z');
-  await page.clock.install({ time: now }); await page.clock.pauseAt(now);
+  await page.emulateMedia({ reducedMotion: 'reduce' }); await page.clock.install({ time: now - 1000 }); await page.clock.pauseAt(now);
   const data = initialData(); data.timer = startTimer(initialTimer(2000), now, 'parallel-timer');
   data.planning.schedules = [
     { id: 'run', name: 'Activ', steps: [{ id: 'a', name: 'Lucru', durationMs: 2000 }, { id: 'b', name: 'Pauză', durationMs: 1000 }] },
@@ -318,7 +318,7 @@ test('timer and schedule completions remain visible and stoppable inside an unsa
   await expect(panel.getByLabel('Orar finalizat', { exact: true })).toBeVisible();
   await panel.getByRole('button', { name: 'Oprește sunetul', exact: true }).click();
   await panel.getByRole('button', { name: 'Aplică durata', exact: true }).click();
-  await expect(page.getByLabel('Nume etapa 1', { exact: true })).toHaveValue('Respiră · Отдых');
+  await expect(page.getByRole('textbox', { name: 'Nume etapa 1', exact: true })).toHaveValue('Respiră · Отдых');
   await page.getByRole('button', { name: 'Salvează orarul', exact: true }).click();
   await expect.poll(async () => (await stored(page)).planning.schedules[1].steps[0].durationMs).toBe(4000);
   const saved = await stored(page);

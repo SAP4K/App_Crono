@@ -35,6 +35,19 @@ test('one transfer at a time, file cancellation and failures never write data', 
   assert.equal(bad.owner.getState().error, 'file'); assert.deepEqual(bad.warnings, ['file-operation']); assert.equal(bad.counts().writes, 0);
 });
 
+test('a retained but inactive transfer cannot act, and reactivation rejects the previous file', async () => {
+  const f = fixture(); const oldRead = f.owner.read();
+  f.owner.dispose();
+  await f.owner.read(); await f.owner.export(); assert.equal(f.owner.confirm(true), false);
+  assert.deepEqual(f.counts(), { cancels: 1, writes: 0, picks: 1, saves: 0 });
+  f.owner.activate();
+  f.pending.resolve(f.raw); await oldRead;
+  assert.equal(f.owner.getState().status, 'idle'); assert.equal(f.owner.confirm(true), false);
+  assert.equal(f.counts().writes, 0);
+  await f.owner.read(); assert.equal(f.owner.getState().status, 'preview');
+  assert.equal(f.owner.confirm(), true); assert.equal(f.counts().writes, 1);
+});
+
 test('loaded hydration is required before export/read and again after picking', async () => {
   const f = fixture(); f.setHydration('failed'); await f.owner.read(); await f.owner.export();
   assert.deepEqual(f.counts(), { cancels: 0, writes: 0, picks: 0, saves: 0 }); assert.equal(f.owner.getState().error, 'notReady');

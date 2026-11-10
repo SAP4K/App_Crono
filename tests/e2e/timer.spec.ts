@@ -5,8 +5,8 @@ import { selectTheme, settingsGroup, audioSpy, duration, expectNoPageErrors, obs
 
 test.beforeEach(async ({ page }) => {
   observePageErrors(page);
-  await page.clock.install({ time: new Date('2026-11-05T10:00:00Z') });
-  await page.clock.pauseAt(new Date('2026-11-05T10:00:01Z'));
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.clock.install({ time: new Date('2026-11-05T10:00:00Z') }); await page.clock.pauseAt(new Date('2026-11-05T10:00:01Z'));
 });
 test.afterEach(({ page }) => expectNoPageErrors(page));
 

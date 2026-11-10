@@ -52,9 +52,32 @@ async function shellPosition(page: Page) {
 }
 
 async function wheelPage(page: Page, delta: number) {
-  const viewport = page.viewportSize()!;
-  await page.mouse.move(viewport.width / 2, viewport.height - 150);
+  const box = await page.getByTestId('scene-planning').evaluate((root) => {
+    const owner = [...root.querySelectorAll<HTMLElement>('div')]
+      .find((node) => getComputedStyle(node).overflowY === 'auto' && node.clientHeight > 0);
+    if (!owner) throw new Error('Missing Planning content scroll owner');
+    return owner.getBoundingClientRect().toJSON();
+  });
+  await page.mouse.move(box.right - 10, box.y + box.height / 2);
   await page.mouse.wheel(0, delta);
+}
+
+async function reachSchedule(page: Page, target: Locator) {
+  // A large jump can exhaust the current estimate before virtualized rows are measured.
+  await expect.poll(async () => {
+    if (await target.isVisible()) {
+      const inside = await target.evaluate((node) => {
+        let owner = node.parentElement;
+        while (owner && getComputedStyle(owner).overflowY !== 'auto') owner = owner.parentElement;
+        if (!owner) throw new Error('Missing schedule scroll owner');
+        const box = node.getBoundingClientRect(), clip = owner.getBoundingClientRect();
+        return box.top >= clip.top && box.bottom <= clip.bottom;
+      });
+      if (inside) return true;
+    }
+    await wheelPage(page, 9000); return false;
+  }, { intervals: [100, 200, 300] }).toBe(true);
+  await expect(target).toBeInViewport();
 }
 
 async function expectHorizontalFit(page: Page) {
@@ -107,9 +130,8 @@ test('wheel scrolling over the page header moves all Planning content and reache
   await wheelOver(page, page.getByText(m.planningSubtitle, { exact: true }), 240);
   await expect.poll(() => top(heading)).toBeLessThan(origin - 80);
   expect(await shellPosition(page)).toEqual(shell);
-  await page.mouse.move(195, 440); await page.mouse.wheel(0, 9000);
   const finalEdit = page.getByRole('button', { name: m.startSchedule('Orar 20'), exact: true });
-  await expect(finalEdit).toBeInViewport();
+  await reachSchedule(page, finalEdit);
   await page.mouse.wheel(0, -9000);
   await expect.poll(() => top(heading)).toBeCloseTo(origin, 0);
   await expect(page.getByRole('button', { name: m.newSchedule, exact: true })).toBeInViewport();
@@ -248,8 +270,7 @@ for (const { language, theme, width, height } of layouts) {
     const moved = origin - headingAfter;
     expect(createTop - createAfter).toBeCloseTo(moved, 0);
     expect(filterTop - filterAfter).toBeCloseTo(moved, 0);
-    await wheelPage(page, 9000);
-    await expect(page.getByRole('button', { name: messages.startSchedule('Orar 20'), exact: true })).toBeInViewport();
+    await reachSchedule(page, page.getByRole('button', { name: messages.startSchedule('Orar 20'), exact: true }));
     await expectHorizontalFit(page);
     if (capture) await page.screenshot({ path: `${screenshot}-bottom.png` });
     await wheelPage(page, -9000);
@@ -281,8 +302,7 @@ test('date filters keep the active run and the total template limit when results
   await seed(page, data); await page.goto('/planning');
   const create = page.getByRole('button', { name: m.newSchedule, exact: true });
   await expect(create).toBeDisabled(); const before = await stored(page);
-  await wheelPage(page, 9000);
-  await expect(page.getByRole('button', { name: m.startSchedule('Orar 20'), exact: true })).toBeInViewport();
+  await reachSchedule(page, page.getByRole('button', { name: m.startSchedule('Orar 20'), exact: true }));
   await wheelPage(page, -9000);
   await selectDay(page, '2026-11-10');
   await expect(page.getByRole('button', { name: m.resumeSchedule, exact: true })).toBeEnabled();
@@ -313,8 +333,7 @@ for (const status of ['running', 'paused', 'completed'] as const) {
     const before = await stored(page);
     const edit = page.getByRole('button', { name: m.startSchedule('Orar 01'), exact: true });
     if (status === 'completed') await expect(edit).toBeEnabled(); else await expect(edit).toBeDisabled();
-    await wheelPage(page, 9000);
-    await expect(page.getByRole('button', { name: m.startSchedule('Orar 20'), exact: true })).toBeInViewport();
+    await reachSchedule(page, page.getByRole('button', { name: m.startSchedule('Orar 20'), exact: true }));
     await wheelPage(page, -9000);
     expect(await stored(page)).toEqual(before); expect(await playCount(page)).toBe(0);
     if (status === 'running') {
@@ -335,7 +354,7 @@ for (const status of ['running', 'paused', 'completed'] as const) {
 
 test('a run reset confirmation survives a parent update from independent timer completion', async ({ page }) => {
   const now = Date.parse('2026-11-09T10:00:00Z');
-  await page.clock.install({ time: now }); await page.clock.pauseAt(now);
+  await page.emulateMedia({ reducedMotion: 'reduce' }); await page.clock.install({ time: now - 1000 }); await page.clock.pauseAt(now);
   const data = scheduleData(3);
   data.planning = startSchedule(data.planning, 'scroll-schedule-0', now, 'scroll-run');
   data.timer = startTimer(initialTimer(1000), now, 'independent-timer');

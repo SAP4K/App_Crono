@@ -4,7 +4,7 @@ import { useI18n } from '../hooks/useI18n';
 import { ComponentProps, useEffect, useState } from 'react';
 import { ActivityIndicator, Platform, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
-import { Tabs } from 'expo-router';
+import { Tabs } from 'expo-router/js-tabs';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
@@ -18,9 +18,13 @@ import { Icon, IconName } from '../components/Icon';
 import { ActiveActivities } from '../components/ActiveActivities';
 import { SettingsSheet } from '../components/SettingsSheet';
 import { TimingNotices } from '../components/TimingNotices';
-import { textSizes, fonts as f, Palette } from '../theme';
+import { textSizes, motionTokens, fonts as f, Palette } from '../theme';
 import { ThemeProvider, useTheme, useThemeStyles } from '../context/ThemeContext';
-import { MotionProvider } from '../context/MotionContext';
+import { MotionProvider, useMotionPreference } from '../context/MotionContext';
+import { NavigationScene } from '../components/NavigationScene';
+
+const sceneLayout: NonNullable<ComponentProps<typeof Tabs>['screenLayout']> = ({ children, route }) =>
+  <NavigationScene name={route.name}>{children}</NavigationScene>;
 
 if (Platform.OS !== 'web') {
   void SplashScreen.preventAutoHideAsync().catch((error) => console.warn('[theme] Splash could not be held.', error));
@@ -89,6 +93,7 @@ function AppShell() {
   const styles = useThemeStyles(createStyles);
   const insets = useSafeAreaInsets();
   const { ready, notice, storageError, dismissStorageError, feedback } = useCrono();
+  const { reduceMotion, active } = useMotionPreference();
   const [settings, setSettings] = useState(false);
   const [tabBarHeight, setTabBarHeight] = useState(100);
   const compact = useWindowDimensions().height < 740;
@@ -100,7 +105,9 @@ function AppShell() {
     </View>
     {storageError && <MotionPressable onPress={dismissStorageError} accessibilityRole="button" accessibilityLabel={m.dismissStorage} style={styles.warning}><Text style={styles.warningText}>{m.storageWarning}</Text><Icon name="close" size={15} color={c.danger} /></MotionPressable>}
     <TimingNotices />
-    <Tabs initialRouteName="index" backBehavior="initialRoute" tabBar={(props) => <TabBar {...props} onHeight={setTabBarHeight} />} screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: c.background }, animation: 'none' }}>
+    <Tabs initialRouteName="index" backBehavior="initialRoute" screenLayout={sceneLayout} tabBar={(props) => <TabBar {...props} onHeight={setTabBarHeight} />} screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: c.background },
+      animation: !reduceMotion && active ? 'fade' : 'none',
+      transitionSpec: { animation: 'timing', config: { duration: !reduceMotion && active ? motionTokens.routeMs : 0 } } }}>
       <Tabs.Screen name="index" options={{ title: m.stopwatchTab }} />
       <Tabs.Screen name="timer" options={{ title: m.timerTab }} />
       <Tabs.Screen name="planning" options={{ title: m.planningTab }} />

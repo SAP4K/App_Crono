@@ -58,7 +58,7 @@ for (const [preference, initial, next] of [
   ['light', 'light', 'dark'], ['dark', 'dark', 'light'],
 ] as const) test(`${preference} refresh after a missed ${initial}-to-${next} browser event preserves clocks and drafts`, async ({ page }) => {
   const m = getMessages('ro'), now = Date.parse('2026-11-09T12:00:00Z');
-  await page.clock.install({ time: now }); await page.clock.pauseAt(now + 1000);
+  await page.emulateMedia({ reducedMotion: 'reduce' }); await page.clock.install({ time: now }); await page.clock.pauseAt(now + 1000);
   const data = initialData(); data.preferences.theme = preference; data.stopwatch.startedAt = now - 2000;
   data.timer = { ...initialTimer(600000), status: 'running', deadlineAt: now + 600000, runId: 'foreground-timer' };
   data.planning.schedules = [{ id: 'foreground', name: 'Existing schedule', steps: [{ id: 'work', name: 'Keep working', durationMs: 600000 }] }];
@@ -194,7 +194,7 @@ test('manual theme choices survive rapid selections and ignore OS appearance', a
 
 test('legacy running stopwatch, laps and history survive theme changes and reload', async ({ page }) => {
   const now = new Date('2026-11-05T10:00:00Z').getTime();
-  await page.clock.setFixedTime(now);
+  await page.emulateMedia({ reducedMotion: 'reduce' }); await page.clock.setFixedTime(now);
   const data = initialData();
   data.sessions = [{ id: 'saved', savedAt: now - 1000, durationMs: 2000, laps: [] }];
   await seed(page, { ...data, preferences: { haptics: false, keepAwake: false } });
@@ -252,8 +252,8 @@ test('literal legacy-v1 clocks, history and false preferences survive the blue t
 
 for (const source of ['manual', 'system']) for (const owner of ['timer', 'planning']) for (const startup of ['pending', 'playing']) {
   test(`${source} theme changes preserve a ${startup} ${owner} alert without canceling or replaying`, async ({ page }) => {
-    await page.clock.install({ time: new Date('2026-11-05T10:00:00Z') });
-    await page.clock.pauseAt(new Date('2026-11-05T10:00:01Z'));
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.clock.install({ time: new Date('2026-11-05T10:00:00Z') }); await page.clock.pauseAt(new Date('2026-11-05T10:00:01Z'));
     const data = initialData();
     data.preferences.theme = source === 'system' ? 'system' : 'light';
     await page.emulateMedia({ colorScheme: 'light' });
@@ -297,8 +297,8 @@ for (const source of ['manual', 'system']) for (const owner of ['timer', 'planni
 for (const dark of [false, true]) for (const width of [320, 390, 430, 1024]) {
   test(`${dark ? 'dark' : 'light'} screens and sheets fit ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 740 });
-    await page.clock.install({ time: new Date('2026-11-05T10:00:00Z') });
-    await page.clock.pauseAt(new Date('2026-11-05T10:00:01Z'));
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.clock.install({ time: new Date('2026-11-05T10:00:00Z') }); await page.clock.pauseAt(new Date('2026-11-05T10:00:01Z'));
     const data = initialData(); data.preferences.theme = dark ? 'dark' : 'light';
     data.stopwatch = { accumulatedMs: 3500, startedAt: null, laps: [{ number: 1, elapsedMs: 2000, splitMs: 2000 }, { number: 2, elapsedMs: 3500, splitMs: 1500 }] };
     data.sessions = [{ id: 'saved', savedAt: 1700000000000, durationMs: 4000, laps: data.stopwatch.laps }];
@@ -336,18 +336,18 @@ for (const dark of [false, true]) for (const width of [320, 390, 430, 1024]) {
     await page.getByRole('button', { name: `Editează orarul ${longName}`, exact: true }).click();
     const editor = page.getByRole('dialog', { name: 'Editează orarul', exact: true });
     await page.clock.runFor(300);
-    await editor.getByLabel('Nume orar', { exact: true }).focus();
-    await expect(editor.getByLabel('Nume orar', { exact: true })).toBeFocused();
+    await editor.getByRole('textbox', { name: 'Nume orar', exact: true }).focus();
+    await expect(editor.getByRole('textbox', { name: 'Nume orar', exact: true })).toBeFocused();
     await expect(editor.getByTestId('sheet-surface')).toHaveCSS('background-color', dark ? 'rgb(15, 23, 42)' : 'rgb(255, 255, 255)');
-    await expect(editor.getByLabel('Nume orar', { exact: true })).toHaveValue(longName);
+    await expect(editor.getByRole('textbox', { name: 'Nume orar', exact: true })).toHaveValue(longName);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     if (width === 320) await page.screenshot({ path: `previews/planning-editor-${dark ? 'dark' : 'light'}-320.png`, fullPage: true, animations: 'disabled' });
-    await editor.getByLabel('Nume orar', { exact: true }).fill(longName + '!');
+    await editor.getByRole('textbox', { name: 'Nume orar', exact: true }).fill(longName + '!');
     await editor.getByRole('button', { name: 'Închide', exact: true }).click();
     const discard = page.getByRole('dialog', { name: 'Renunți la modificări?', exact: true });
     await expect(discard.getByTestId('sheet-surface')).toHaveCSS('background-color', dark ? 'rgb(15, 23, 42)' : 'rgb(255, 255, 255)');
     await discard.getByRole('button', { name: 'Continuă editarea', exact: true }).click();
-    await expect(editor.getByLabel('Nume orar', { exact: true })).toHaveValue(longName + '!');
+    await expect(editor.getByRole('textbox', { name: 'Nume orar', exact: true })).toHaveValue(longName + '!');
     await editor.getByRole('button', { name: 'Închide', exact: true }).click();
     await discard.getByRole('button', { name: 'Renunță la modificări', exact: true }).click();
     await page.clock.runFor(300);
@@ -383,8 +383,8 @@ for (const dark of [false, true]) for (const width of [320, 390, 430, 1024]) {
 for (const dark of [false, true]) for (const width of [320, 390, 430, 1024]) {
   test(`${dark ? 'dark' : 'light'} timing notices and confirmations fit ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 740 });
-    await page.clock.install({ time: new Date('2026-11-05T10:00:00Z') });
-    await page.clock.pauseAt(new Date('2026-11-05T10:00:01Z'));
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.clock.install({ time: new Date('2026-11-05T10:00:00Z') }); await page.clock.pauseAt(new Date('2026-11-05T10:00:01Z'));
     const data = initialData(); data.preferences.theme = dark ? 'dark' : 'light';
     data.preferences.alertDurationSeconds = 15;
     data.planning.schedules = [

@@ -4,7 +4,7 @@ test('stopwatch, laps, reload, history, preferences and reset work together', as
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   let now = new Date('2026-11-04T10:00:00Z').getTime();
-  await page.clock.setFixedTime(now);
+  await page.emulateMedia({ reducedMotion: 'reduce' }); await page.clock.setFixedTime(now);
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'Pornește', exact: true })).toBeVisible();
   await page.screenshot({ path: 'previews/01-cronometru.png', fullPage: true, animations: 'disabled' });

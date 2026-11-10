@@ -33,7 +33,7 @@ export function createBackupTransfer(a: Adapter) {
   const cancel = () => { generation++; operation?.cancel(); operation = undefined; backup = undefined; emit({ status: 'idle' }); };
   return {
     getState: () => state,
-    activate: () => { active = true; },
+    activate: () => { active = true; a.changed(state); },
     cancel,
     dispose: () => { active = false; cancel(); },
     read: async () => {

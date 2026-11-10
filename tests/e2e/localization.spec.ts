@@ -113,7 +113,7 @@ for (const { id } of LANGUAGES) {
 
   test(`${id} stopwatch timer and planning flows retain controlled user text and confirmations`, async ({ page }) => {
     const data = initialData(); data.preferences.language = id; data.preferences.timerSound = false;
-    let now = Date.now(); await page.clock.setFixedTime(now);
+    let now = Date.now(); await page.emulateMedia({ reducedMotion: 'reduce' }); await page.clock.setFixedTime(now);
     await seed(page, data); await page.goto('/');
     const m = getMessages(id);
     await page.getByRole('button', { name: m.start, exact: true }).click();
@@ -138,18 +138,18 @@ for (const { id } of LANGUAGES) {
     const editor = page.getByRole('dialog', { name: m.newSchedule, exact: true });
     await expect(editor.getByRole('button', { name: m.saveSchedule, exact: true })).toBeDisabled();
     const name = 'Учёба · Școală'; const action = 'Respiră · Отдых';
-    await editor.getByLabel(m.scheduleName, { exact: true }).fill(name);
-    await editor.getByLabel(m.stepName(1), { exact: true }).fill(action);
+    await editor.getByRole('textbox', { name: m.scheduleName, exact: true }).fill(name);
+    await editor.getByRole('textbox', { name: m.stepName(1), exact: true }).fill(action);
     await editor.getByRole('button', { name: m.addStep, exact: true }).click();
-    await expect(editor.getByLabel(m.stepName(2), { exact: true })).toHaveValue(m.stepNumber(2));
+    await expect(editor.getByRole('textbox', { name: m.stepName(2), exact: true })).toHaveValue(m.stepNumber(2));
     await editor.getByRole('button', { name: m.moveStepUp(2), exact: true }).click();
-    await expect(editor.getByLabel(m.stepName(2), { exact: true })).toHaveValue(action);
+    await expect(editor.getByRole('textbox', { name: m.stepName(2), exact: true })).toHaveValue(action);
     await editor.getByRole('button', { name: m.moveStepDown(1), exact: true }).click();
     await editor.getByRole('button', { name: m.removeStep(2), exact: true }).click();
     await editor.getByRole('button', { name: m.close, exact: true }).click();
     await page.getByRole('dialog', { name: m.discardTitle, exact: true }).getByRole('button', { name: m.continueEditing, exact: true }).click();
-    await expect(editor.getByLabel(m.scheduleName, { exact: true })).toHaveValue(name);
-    await expect(editor.getByLabel(m.stepName(1), { exact: true })).toHaveValue(action);
+    await expect(editor.getByRole('textbox', { name: m.scheduleName, exact: true })).toHaveValue(name);
+    await expect(editor.getByRole('textbox', { name: m.stepName(1), exact: true })).toHaveValue(action);
     await editor.getByRole('button', { name: m.saveSchedule, exact: true }).click();
     await expect(editor).not.toBeVisible();
     const template = (await stored(page)).planning.schedules[0];
@@ -158,9 +158,9 @@ for (const { id } of LANGUAGES) {
     await scheduleOptions(page, name, n);
     await page.getByRole('button', { name: n.editSchedule(name), exact: true }).click();
     const edit = page.getByRole('dialog', { name: n.editScheduleTitle, exact: true });
-    await expect(edit.getByLabel(n.stepName(1), { exact: true })).toHaveValue(action);
+    await expect(edit.getByRole('textbox', { name: n.stepName(1), exact: true })).toHaveValue(action);
     await edit.getByRole('button', { name: n.addStep, exact: true }).click();
-    await expect(edit.getByLabel(n.stepName(2), { exact: true })).toHaveValue(n.stepNumber(2));
+    await expect(edit.getByRole('textbox', { name: n.stepName(2), exact: true })).toHaveValue(n.stepNumber(2));
     await edit.getByRole('button', { name: n.close, exact: true }).click();
     await page.getByRole('button', { name: n.discardChanges, exact: true }).click();
     expect((await stored(page)).planning.schedules[0]).toEqual(template);
@@ -224,7 +224,7 @@ test('translated web share payloads handle cancellation and show real failures w
 
 async function timingFixture(page: Page) {
   const now = Date.parse('2026-11-06T10:00:01Z');
-  await page.clock.install({ time: new Date(now - 1000) }); await page.clock.pauseAt(new Date(now));
+  await page.emulateMedia({ reducedMotion: 'reduce' }); await page.clock.install({ time: new Date(now - 1000) }); await page.clock.pauseAt(new Date(now));
   const data = initialData(); data.stopwatch.startedAt = now;
   data.timer = { status: 'running', durationMs: 5000, remainingMs: 5000, deadlineAt: now + 5000, runId: 'language-timer' };
   data.planning.schedules = [{ id: 'study', name: 'Учёба · Studiu', steps: [
@@ -244,8 +244,8 @@ test('mounted unsaved draft retains mixed text and clocks through all new langua
   await page.getByRole('button', { name: original.newSchedule, exact: true }).click();
   let editor = page.getByRole('dialog', { name: original.newSchedule, exact: true });
   const name = 'École · Español · Übung · Учёба · Școală';
-  await editor.getByLabel(original.scheduleName, { exact: true }).fill(name);
-  await editor.getByLabel(original.stepName(1), { exact: true }).fill(name);
+  await editor.getByRole('textbox', { name: original.scheduleName, exact: true }).fill(name);
+  await editor.getByRole('textbox', { name: original.stepName(1), exact: true }).fill(name);
   let previous = original;
   const names = [name];
   for (const id of ['es', 'fr', 'de'] as const) {
@@ -259,20 +259,20 @@ test('mounted unsaved draft retains mixed text and clocks through all new langua
     await settings.getByRole('button', { name: m.close, exact: true, includeHidden: true }).dispatchEvent('click');
     await expect(settings).not.toBeVisible();
     editor = page.getByRole('dialog', { name: m.newSchedule, exact: true });
-    await expect(editor.getByLabel(m.scheduleName, { exact: true })).toHaveValue(name);
+    await expect(editor.getByRole('textbox', { name: m.scheduleName, exact: true })).toHaveValue(name);
     for (let index = 0; index < names.length; index++) {
-      await expect(editor.getByLabel(m.stepName(index + 1), { exact: true })).toHaveValue(names[index]);
+      await expect(editor.getByRole('textbox', { name: m.stepName(index + 1), exact: true })).toHaveValue(names[index]);
     }
     await editor.getByRole('button', { name: m.addStep, exact: true }).click();
     names.push(m.stepNumber(names.length + 1));
-    await expect(editor.getByLabel(m.stepName(names.length), { exact: true })).toHaveValue(names.at(-1)!);
+    await expect(editor.getByRole('textbox', { name: m.stepName(names.length), exact: true })).toHaveValue(names.at(-1)!);
     const saved = await stored(page);
     expect(saved.stopwatch).toEqual(data.stopwatch); expect(saved.timer).toEqual(data.timer); expect(saved.planning).toEqual(data.planning);
     previous = m;
   }
   await editor.getByRole('button', { name: previous.close, exact: true }).click();
   await page.getByRole('button', { name: previous.continueEditing, exact: true }).click();
-  await expect(editor.getByLabel(previous.scheduleName, { exact: true })).toHaveValue(name);
+  await expect(editor.getByRole('textbox', { name: previous.scheduleName, exact: true })).toHaveValue(name);
   await editor.getByRole('button', { name: previous.close, exact: true }).click();
   await page.getByRole('button', { name: previous.discardChanges, exact: true }).click();
   expect((await stored(page)).planning).toEqual(data.planning);
@@ -333,7 +333,7 @@ for (const target of ['ru', 'es', 'fr', 'de'] as const) {
   });
 
   test(`${target} language relabels an existing toast without extending its lifetime`, async ({ page }) => {
-    await page.clock.install({ time: new Date('2026-11-06T10:00:00Z') }); await page.clock.pauseAt(new Date('2026-11-06T10:00:01Z'));
+    await page.emulateMedia({ reducedMotion: 'reduce' }); await page.clock.install({ time: new Date('2026-11-06T10:00:00Z') }); await page.clock.pauseAt(new Date('2026-11-06T10:00:01Z'));
     const data = initialData(); data.stopwatch.accumulatedMs = 1500;
     await seed(page, data); await page.goto('/');
     await page.getByRole('button', { name: 'Salvează sesiunea', exact: true }).click();
@@ -349,7 +349,7 @@ for (const target of ['ru', 'es', 'fr', 'de'] as const) {
   });
 
   test(`${target} preview failure clears on leaving Sounds and a new failure uses the selected language`, async ({ page }) => {
-    await page.clock.install({ time: new Date('2026-11-06T10:00:00Z') }); await page.clock.pauseAt(new Date('2026-11-06T10:00:01Z'));
+    await page.emulateMedia({ reducedMotion: 'reduce' }); await page.clock.install({ time: new Date('2026-11-06T10:00:00Z') }); await page.clock.pauseAt(new Date('2026-11-06T10:00:01Z'));
     const wav = readFileSync(new URL('../../assets/audio/timer-complete.wav', import.meta.url));
     await page.route(/timer-complete[^/]*\.wav/, (route) => route.fulfill({ contentType: 'audio/wav', body: wav }));
     await seed(page); await audioSpy(page, true); await page.goto('/');
@@ -422,11 +422,11 @@ for (const { id, theme, width } of layouts) {
     await page.getByRole('tab', { name: m.planningTab, exact: true }).click();
     await page.getByRole('button', { name: m.newSchedule, exact: true }).click();
     const editor = page.getByRole('dialog', { name: m.newSchedule, exact: true });
-    await editor.getByLabel(m.scheduleName, { exact: true }).fill('Учёба · Școală');
+    await editor.getByRole('textbox', { name: m.scheduleName, exact: true }).fill('Учёба · Școală');
     await editor.getByRole('button', { name: m.addStep, exact: true }).click();
     await expectControlsFit(page);
     await page.screenshot({ path: `${prefix}-editor.png`, animations: 'disabled' });
-    await editor.getByLabel(m.stepName(2), { exact: true }).scrollIntoViewIfNeeded();
+    await editor.getByRole('textbox', { name: m.stepName(2), exact: true }).scrollIntoViewIfNeeded();
     await editor.getByRole('button', { name: m.editStepDuration(2), exact: true }).click();
     const panel = page.getByRole('dialog', { name: m.durationPickerTitle(2), exact: true });
     await expect(panel.getByRole('spinbutton', { name: m.stepField(m.timeUnits[2], 2), exact: true })).toHaveAttribute('aria-valuenow', '0');
@@ -437,7 +437,7 @@ for (const { id, theme, width } of layouts) {
     await expectControlsFit(page);
     await page.screenshot({ path: `${prefix}-confirmation.png`, animations: 'disabled' });
     await discard.getByRole('button', { name: m.continueEditing, exact: true }).click();
-    await expect(editor.getByLabel(m.scheduleName, { exact: true })).toHaveValue('Учёба · Școală');
+    await expect(editor.getByRole('textbox', { name: m.scheduleName, exact: true })).toHaveValue('Учёба · Școală');
     await editor.getByRole('button', { name: m.close, exact: true }).click();
     await page.getByRole('button', { name: m.discardChanges, exact: true }).click();
     await page.getByRole('tab', { name: m.timerTab, exact: true }).click();

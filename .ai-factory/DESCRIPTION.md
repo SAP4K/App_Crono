@@ -7,6 +7,7 @@ CRONO is a local stopwatch, countdown, and action schedule app for iOS and Andro
 ## Implemented Features
 
 - Short shared button press/release animations across routes, sheets, Planning and Settings. A live OS/browser reduced-motion observer suppresses scaling/interpolation and refreshes on foreground return. Web switches use bounded thumb/track transitions; native switches and duration wheels retain their own interaction behavior. Motion is transient and does not delay handlers or add haptics/audio/persisted settings. Physical native motion/accessibility acceptance remains pending.
+- Fade between the four tabs (180 ms), slide shared sheets with a separate fading backdrop (240 ms in / 180 ms out), and animate incoming Settings/backup/editor panels (140 ms, at most 8 px). Live reduced motion or inactivity settles to the logical destination without replay on return. Retained exit payloads never retain active previews or file operations; animation callbacks only finish presentation/focus cleanup. No new dependency, saved setting or timing owner is added.
 
 - Start, pause, resume, and reset a stopwatch; resetting requires confirmation.
 - Display centiseconds and show hours for long sessions.
@@ -87,6 +88,9 @@ Read [ARCHITECTURE.md](ARCHITECTURE.md) for the actual folder structure, depende
 | `src/context/ThemeContext.tsx` | Resolved theme, navigation palette and serialized native root background |
 | `src/context/MotionContext.tsx`, `src/hooks/motionPreference.ts` | One live reduced-motion/activity observer and layout-free covered-surface scopes |
 | `src/components/MotionPressable.tsx`, `src/hooks/pressMotion.ts`, `usePressMotion.ts` | Ref/style-safe single Pressable host and cancellable finite visual transitions |
+| `src/components/NavigationScene.tsx`, `.web.tsx` | Focused scene input/accessibility gates around navigator-owned fades |
+| `src/hooks/transitionMotion.ts`, `useSheetMotion.ts`, `src/components/PanelTransition.tsx` | Injected finite presence/entrance controllers and stable Animated bindings |
+| `src/hooks/useSheetPresentation.ts` | One token-guarded display payload retained through a logical close |
 | `src/core/themePreference.ts` | Pure saved System/Light/Dark validation/default and effective Light/Dark resolution |
 | `src/hooks/themeAppearance.ts`, `useSystemTheme.ts` | Appearance override release, fresh reads, live/foreground observation and bounded background writes |
 | `src/hooks/timerCompletion.ts` | Injectable completion coordinator with current-state guards and cancellation |
@@ -162,6 +166,8 @@ Time is derived from `Date.now()` timestamps and accumulated paused time. Backgr
 
 ## Development and Verification
 
+The [screen and sheet transition plan](plans/feature-screen-sheet-transitions.md) records the current implementation and final quality-gate evidence. Its controller tests cover readiness, interrupted/reopened requests, stale/synchronous callbacks, disposal and immediate failure fallback. Browser checks observe actual route/sheet/panel movement, root isolation, focus, retained drafts, immediate file cancellation and the literal legacy file through real backup/import. Frozen-clock domain fixtures use Reduce motion; normal-motion cases retain real frames. Native physical transition/keyboard/Back/accessibility acceptance remains deferred; exports establish bundling only.
+
 The [interaction animation plan](plans/feature-interaction-animations.md) records current implementation progress and source-bound checks. Its registered Node tests cover query/event ordering, foreground refresh, cancellation and stale completions; browser checks exercise real holds/cancellation, keyboard/Link/ref behavior, disabled controls, idle settling, file transfer and all six language/palette compact layouts. Native touch feel, reduced-motion changes, native-driver behavior and assistive-technology acceptance remain pending under the existing device-test deferral.
 
 Usability improvements verified on 2026-11-09: lint/typecheck, **227 registered Node tests**, and Android/iOS/web bundle exports passed. All **282 distinct browser cases** have passing results across the focused journeys, the 265-pass remaining-suite run and the 15-case scrolling rerun; this is combined coverage, not one clean full-suite invocation. Application source/configuration fingerprint: `461fd2ce42e87271e8053326cf8bc50386a6054d5f702ff5cb676efc5c3731a1` (SHA256 over sorted `src/**/*.ts`, `src/**/*.tsx`, `package.json`, `package-lock.json`, `app.json` paths and contents, each separated/terminated by NUL).
@@ -227,7 +233,7 @@ Findings 1–4 remain separate follow-ups. Keep the remaining native acceptance 
 - Installed workflow skills: `../.agents/skills/` (33 existing AI Factory skills).
 - Communication and generated artifact languages: English, as configured.
 - Git base branch: `master`; new full/ultra plans may create branches using `feature/`.
-- Latest implementation: [Interaction animations](plans/feature-interaction-animations.md), including live reduced motion, one Pressable host, immediate accepted actions and finite feedback. The plan records current progress/checks and deferred native acceptance.
+- Latest implementation: [Screen and sheet transitions](plans/feature-screen-sheet-transitions.md), extending the existing [interaction animations](plans/feature-interaction-animations.md) with route fades, sheet presence and incoming panels. Both plans distinguish source-bound checks from deferred native acceptance.
 - The earlier active [Unified window scrolling plan](plans/feature-unified-window-scrolling.md) has implemented the complete editor body and bounded subpanels. The explicit title/Close choice is still unanswered; shared-window acceptance and final documentation/validation closure remain pending. Existing and new browser evidence is scoped to tested behavior, not physical native acceptance.
 - The completed [Planning template library plan](plans/feature-more-planning-templates.md) expands the bundled chooser to eight localized editable drafts with count/duration summaries and retained saved-data/backup compatibility. Lint/typecheck, all 245 Node tests and Android/iOS/web exports passed; all 105 selected browser cases have passing results across focused and regression runs. Source identities and exact selections are recorded in the plan; physical native gesture/accessibility acceptance remains pending.
 - The earlier completed [System theme detection plan](plans/feature-system-theme-detection.md) adds saved System/Light/Dark choices, fresh and foreground appearance detection, backward-compatible manual saves and portable preferences, localized controls and continuity coverage. Lint/typecheck, all 241 registered core tests and Android/iOS/web exports passed; all 267 selected browser cases have passing results across the main run and targeted reruns. Source identity and earlier navigation/worker failures are recorded in the plan; physical native appearance acceptance remains deferred.

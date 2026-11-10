@@ -34,7 +34,8 @@ export const darkPalette: Palette = {
 
 export const palettes = { light: lightPalette, dark: darkPalette };
 
-export const motionTokens = { pressMs: 90, releaseMs: 140, pressedScale: 0.98, pressedOpacity: 0.72 } as const;
+export const motionTokens = { pressMs: 90, releaseMs: 140, pressedScale: 0.98, pressedOpacity: 0.72,
+  routeMs: 180, sheetEnterMs: 240, sheetExitMs: 180, panelMs: 140, panelTravel: 8 } as const;
 
 export const fonts = {
   regular: 'Inter_400Regular',
