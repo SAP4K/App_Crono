@@ -1,7 +1,8 @@
+import { MotionPressable } from '../components/MotionPressable';
 import { useNotificationNavigation } from '../hooks/useNotificationNavigation';
 import { useI18n } from '../hooks/useI18n';
 import { ComponentProps, useEffect, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { Tabs } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -19,6 +20,7 @@ import { SettingsSheet } from '../components/SettingsSheet';
 import { TimingNotices } from '../components/TimingNotices';
 import { textSizes, fonts as f, Palette } from '../theme';
 import { ThemeProvider, useTheme, useThemeStyles } from '../context/ThemeContext';
+import { MotionProvider } from '../context/MotionContext';
 
 if (Platform.OS !== 'web') {
   void SplashScreen.preventAutoHideAsync().catch((error) => console.warn('[theme] Splash could not be held.', error));
@@ -26,7 +28,7 @@ if (Platform.OS !== 'web') {
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({ Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold });
-  return <SafeAreaProvider><CronoProvider><ThemeProvider><RootContent fontsReady={loaded || !!error} /></ThemeProvider></CronoProvider></SafeAreaProvider>;
+  return <SafeAreaProvider><CronoProvider><ThemeProvider><MotionProvider><RootContent fontsReady={loaded || !!error} /></MotionProvider></ThemeProvider></CronoProvider></SafeAreaProvider>;
 }
 
 function RootContent({ fontsReady }: { fontsReady: boolean }) {
@@ -67,15 +69,15 @@ function TabBar({ state, navigation, onHeight }: TabBarProps & { onHeight: (heig
       const item = tabItems[route.name];
       if (!item) return null;
       const running = route.name === 'timer' ? data.timer.status === 'running' : route.name === 'planning' ? data.planning.run?.status === 'running' : route.name === 'index' && data.stopwatch.startedAt !== null;
-      return <Pressable key={route.key} accessibilityRole="tab" accessibilityLabel={m[item.title]} accessibilityState={{ selected }} aria-selected={selected} onPress={() => {
+      return <MotionPressable key={route.key} accessibilityRole="tab" accessibilityLabel={m[item.title]} accessibilityState={{ selected }} aria-selected={selected} onPress={() => {
         const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
         if (!selected && !event.defaultPrevented) { feedback(); navigation.navigate(route.name, route.params); }
-      }} style={({ pressed }) => [styles.tab, compact && styles.compactTab, selected && styles.selectedTab, pressed && { opacity: 0.6 }]}>
+      }} style={[styles.tab, compact && styles.compactTab, selected && styles.selectedTab]}>
         <Icon name={item.icon} size={19} color={selected ? c.ink : c.muted} />
         <Text style={[styles.tabText, selected && styles.selectedTabText]}>{m[item.title]}</Text>
         {history && data.sessions.length > 0 && <View style={styles.badge}><Text style={styles.badgeText}>{data.sessions.length}</Text></View>}
         {running && <View style={styles.runningDot} />}
-      </Pressable>;
+      </MotionPressable>;
     })}
   </View></View>;
 }
@@ -94,9 +96,9 @@ function AppShell() {
   return <View nativeID="crono-app" style={styles.desktop}><View style={styles.app}>
     <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) }, compact && { paddingBottom: 16 }]}>
       <View style={styles.logoGroup}><View style={styles.logo}><Icon name="clock" size={22} color={c.onAccent} /></View><Text style={styles.wordmark}>CRONO<Text style={{ color: c.green }}>.</Text></Text></View>
-      <Pressable accessibilityLabel={m.settings} accessibilityRole="button" onPress={() => { feedback(); setSettings(true); }} style={({ pressed }) => [styles.settings, pressed && { opacity: 0.55 }]}><Icon name="settings" size={19} /></Pressable>
+      <MotionPressable accessibilityLabel={m.settings} accessibilityRole="button" onPress={() => { feedback(); setSettings(true); }} style={[styles.settings]}><Icon name="settings" size={19} /></MotionPressable>
     </View>
-    {storageError && <Pressable onPress={dismissStorageError} accessibilityRole="button" accessibilityLabel={m.dismissStorage} style={styles.warning}><Text style={styles.warningText}>{m.storageWarning}</Text><Icon name="close" size={15} color={c.danger} /></Pressable>}
+    {storageError && <MotionPressable onPress={dismissStorageError} accessibilityRole="button" accessibilityLabel={m.dismissStorage} style={styles.warning}><Text style={styles.warningText}>{m.storageWarning}</Text><Icon name="close" size={15} color={c.danger} /></MotionPressable>}
     <TimingNotices />
     <Tabs initialRouteName="index" backBehavior="initialRoute" tabBar={(props) => <TabBar {...props} onHeight={setTabBarHeight} />} screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: c.background }, animation: 'none' }}>
       <Tabs.Screen name="index" options={{ title: m.stopwatchTab }} />

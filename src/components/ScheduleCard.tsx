@@ -1,10 +1,11 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { MotionPressable } from './MotionPressable';
+import { StyleSheet, Text, View } from 'react-native';
 import type { Schedule } from '../core/planning';
 import { formatRemaining } from '../core/timer';
 import { scheduleCalendarLabel } from '../i18n/formatters';
 import { useI18n } from '../hooks/useI18n';
 import { useTheme, useThemeStyles } from '../context/ThemeContext';
-import { textSizes, buttonPressedStyle, fonts, type Palette } from '../theme';
+import { textSizes, fonts, type Palette } from '../theme';
 import { Icon } from './Icon';
 
 export function ScheduleCard({ schedule, protectedTemplate, canDuplicate, expanded, onToggle, onStart, onEdit, onDuplicate, onDelete }: {
@@ -24,22 +25,22 @@ export function ScheduleCard({ schedule, protectedTemplate, canDuplicate, expand
     {schedule.calendar && <Text style={styles.summary}>{scheduleCalendarLabel(schedule.calendar, language)}</Text>}
     {protectedTemplate && <Text style={styles.summary}>{m.protectedSchedule}</Text>}
     <View style={styles.actions}>
-      <Pressable accessibilityRole="button" accessibilityLabel={m.startSchedule(schedule.name)} disabled={protectedTemplate} onPress={onStart}
-        style={({ pressed }) => [styles.start, protectedTemplate && styles.disabled, pressed && !protectedTemplate && buttonPressedStyle]}>
+      <MotionPressable accessibilityRole="button" accessibilityLabel={m.startSchedule(schedule.name)} disabled={protectedTemplate} onPress={onStart}
+        style={[styles.start, protectedTemplate && styles.disabled]}>
         <Icon name="play" size={16} color={colors.actionIcon} /><Text style={styles.startText}>{m.start}</Text>
-      </Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel={m.scheduleOptions(schedule.name)} accessibilityState={{ expanded }} aria-expanded={expanded} onPress={onToggle}
-        style={({ pressed }) => [styles.more, pressed && buttonPressedStyle]}><Icon name="more" /></Pressable>
+      </MotionPressable>
+      <MotionPressable accessibilityRole="button" accessibilityLabel={m.scheduleOptions(schedule.name)} accessibilityState={{ expanded }} aria-expanded={expanded} onPress={onToggle}
+        style={[styles.more]}><Icon name="more" /></MotionPressable>
     </View>
     {expanded && <View style={styles.options}>
       {[
         { label: m.editSchedule(schedule.name), text: m.edit, disabled: protectedTemplate, onPress: onEdit },
         { label: m.duplicateSchedule(schedule.name), text: m.duplicate, disabled: !canDuplicate, onPress: onDuplicate },
         { label: m.deleteSchedule(schedule.name), text: m.delete, disabled: protectedTemplate, onPress: onDelete, danger: true },
-      ].map((item) => <Pressable key={item.label} accessibilityRole="button" accessibilityLabel={item.label} disabled={item.disabled} onPress={item.onPress}
-        style={({ pressed }) => [styles.option, item.disabled && styles.disabled, pressed && !item.disabled && buttonPressedStyle]}>
+      ].map((item) => <MotionPressable key={item.label} accessibilityRole="button" accessibilityLabel={item.label} disabled={item.disabled} onPress={item.onPress}
+        style={[styles.option, item.disabled && styles.disabled]}>
         <Text style={[styles.optionText, item.danger && styles.danger]}>{item.text}</Text>
-      </Pressable>)}
+      </MotionPressable>)}
     </View>}
   </View>;
 }

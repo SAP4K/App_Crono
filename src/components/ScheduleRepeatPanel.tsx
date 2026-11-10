@@ -1,10 +1,11 @@
+import { MotionPressable } from './MotionPressable';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { MAX_STEPS, type ScheduleStep } from '../core/planning';
 import { formatRemaining } from '../core/timer';
 import { useI18n } from '../hooks/useI18n';
 import { useThemeStyles } from '../context/ThemeContext';
-import { buttonPressedStyle, fonts, type Palette } from '../theme';
+import { fonts, type Palette } from '../theme';
 
 export function ScheduleRepeatPanel({ steps, onApply, onCancel }: {
   steps: ScheduleStep[]; onApply: (cycles: number) => void; onCancel: () => void;
@@ -15,18 +16,18 @@ export function ScheduleRepeatPanel({ steps, onApply, onCancel }: {
   const total = steps.reduce((sum, step) => sum + step.durationMs, 0) * cycles;
   return <View style={styles.panel}>
     <Text style={styles.help}>{m.repeatHelp}</Text>
-    <View style={styles.choices}>{[2, 3, 4].map((value) => <Pressable key={value} accessibilityRole="radio"
+    <View style={styles.choices}>{[2, 3, 4].map((value) => <MotionPressable key={value} accessibilityRole="radio"
       accessibilityLabel={m.repeatCycles(value)} accessibilityState={{ checked: cycles === value }} aria-checked={cycles === value}
-      onPress={() => setCycles(value)} style={({ pressed }) => [styles.choice, cycles === value && styles.selected, pressed && buttonPressedStyle]}>
+      onPress={() => setCycles(value)} style={[styles.choice, cycles === value && styles.selected]}>
       <Text style={styles.text}>{m.repeatCycles(value)}</Text>
-    </Pressable>)}</View>
+    </MotionPressable>)}</View>
     <Text style={styles.help}>{m.editorCount(count, MAX_STEPS)} · {m.editorTotal(formatRemaining(total))}</Text>
     {!valid && <Text accessibilityLiveRegion="polite" style={styles.error}>{m.repeatLimit}</Text>}
-    <Pressable accessibilityRole="button" disabled={!valid} onPress={() => { if (valid) onApply(cycles); }}
-      style={({ pressed }) => [styles.primary, !valid && styles.disabled, pressed && valid && buttonPressedStyle]}><Text style={styles.primaryText}>{m.applyRepeat}</Text></Pressable>
-    <Pressable accessibilityRole="button" onPress={onCancel} style={({ pressed }) => [styles.choice, pressed && buttonPressedStyle]}>
+    <MotionPressable accessibilityRole="button" disabled={!valid} onPress={() => { if (valid) onApply(cycles); }}
+      style={[styles.primary, !valid && styles.disabled]}><Text style={styles.primaryText}>{m.applyRepeat}</Text></MotionPressable>
+    <MotionPressable accessibilityRole="button" onPress={onCancel} style={[styles.choice]}>
       <Text style={styles.text}>{m.cancel}</Text>
-    </Pressable>
+    </MotionPressable>
   </View>;
 }
 const createStyles = (c: Palette) => StyleSheet.create({

@@ -1,6 +1,7 @@
+import { MotionPressable } from '../components/MotionPressable';
 import { useI18n } from '../hooks/useI18n';
 import { useLayoutEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useCrono } from '../context/CronoContext';
 import { useTheme, useThemeStyles } from '../context/ThemeContext';
 import { durationMilliseconds, durationParts } from '../core/durationPicker';
@@ -51,27 +52,26 @@ export default function TimerScreen() {
     <TimerFace timer={timer} compact={editable} />
     {editable && <>
     <Text style={styles.presetTitle}>{m.timerPresets}</Text>
-    <View style={styles.presets}>{[1, 5, 10, 25].map((minutes) => <Pressable key={minutes} accessibilityRole="button"
+    <View style={styles.presets}>{[1, 5, 10, 25].map((minutes) => <MotionPressable key={minutes} accessibilityRole="button"
       accessibilityLabel={m.presetMinutes(minutes)} disabled={wheelBusy} onPress={() => {
         if (moving.current) return;
         feedback(); changeDuration(durationParts(minutes * 60000));
-      }} style={({ pressed }) => [styles.preset, timer.durationMs === minutes * 60000 && styles.selectedPreset,
-        wheelBusy && styles.disabled, pressed && styles.pressed]}>
+      }} style={[styles.preset, timer.durationMs === minutes * 60000 && styles.selectedPreset, wheelBusy && styles.disabled]}>
       <Text style={styles.resetText}>{minutes} {m.minutesShort}</Text>
-    </Pressable>)}</View>
+    </MotionPressable>)}</View>
     <DurationPicker value={parts} onChange={changeDuration} onInteractionChange={(busy) => {
       moving.current = busy; setWheelBusy(busy);
     }} />
     </>}
     <Text style={styles.help}>{duration === null ? m.durationInvalid : m.timerSoundHelp}</Text>
-    {!editable && <Pressable accessibilityRole="button" accessibilityLabel={m.addMinute}
+    {!editable && <MotionPressable accessibilityRole="button" accessibilityLabel={m.addMinute}
       disabled={timer.durationMs > MAX_TIMER_MS - TIMER_EXTENSION_MS} onPress={() => { feedback(); timerControls.extend(); }}
-      style={({ pressed }) => [styles.addMinute, timer.durationMs > MAX_TIMER_MS - TIMER_EXTENSION_MS && styles.disabled, pressed && styles.pressed]}>
+      style={[styles.addMinute, timer.durationMs > MAX_TIMER_MS - TIMER_EXTENSION_MS && styles.disabled]}>
       <Text style={styles.resetText}>+1 {m.minutesShort}</Text>
-    </Pressable>}
+    </MotionPressable>}
     <View style={styles.actions}>
-      <Pressable accessibilityRole="button" accessibilityLabel={m.resetTimer} disabled={timer.status === 'idle'} onPress={() => { if (running || paused) { feedback(); setConfirmReset(true); } else reset(); }} style={({ pressed }) => [styles.reset, timer.status === 'idle' && styles.disabled, pressed && styles.pressed]}><Icon name="reset" size={20} /><Text style={styles.resetText}>{m.reset}</Text></Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel={actionLabel} disabled={editable && (duration === null || wheelBusy)} onPress={() => {
+      <MotionPressable accessibilityRole="button" accessibilityLabel={m.resetTimer} disabled={timer.status === 'idle'} onPress={() => { if (running || paused) { feedback(); setConfirmReset(true); } else reset(); }} style={[styles.reset, timer.status === 'idle' && styles.disabled]}><Icon name="reset" size={20} /><Text style={styles.resetText}>{m.reset}</Text></MotionPressable>
+      <MotionPressable accessibilityRole="button" accessibilityLabel={actionLabel} disabled={editable && (duration === null || wheelBusy)} onPress={() => {
         const previous = getSnapshot().timer;
         const milliseconds = durationMilliseconds(selected.current);
         if ((previous.status === 'idle' || previous.status === 'completed') && (moving.current || milliseconds === null)) return;
@@ -81,9 +81,9 @@ export default function TimerScreen() {
         else if (milliseconds !== null) { timerControls.configure(milliseconds); timerControls.start(); }
         const current = getSnapshot().timer;
         if (current !== previous && current.status === 'running') void notifications.controller.requestPermission();
-      }} style={({ pressed }) => [styles.primary, editable && (duration === null || wheelBusy) && styles.disabled, pressed && styles.pressed]}>
+      }} style={[styles.primary, editable && (duration === null || wheelBusy) && styles.disabled]}>
         <Icon name={running ? 'pause' : 'play'} size={19} color={c.actionIcon} /><Text style={styles.primaryText}>{running ? m.pause : paused ? m.resume : timer.status === 'completed' ? m.restart : m.start}</Text>
-      </Pressable>
+      </MotionPressable>
     </View>
     <Text style={styles.note}>{m.timerIndependent}</Text>
     <ConfirmSheet visible={confirmReset} title={m.resetTimerTitle} description={m.resetTimerHelp} confirmLabel={m.resetTimer} onClose={() => setConfirmReset(false)} onConfirm={reset} />
@@ -106,6 +106,5 @@ const createStyles = (c: Palette) => StyleSheet.create({
   reset: { flex: 1, minHeight: 56, borderRadius: 17, backgroundColor: c.secondary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   resetText: { fontFamily: f.semibold, color: c.ink, fontSize: textSizes.body },
   disabled: { opacity: 0.5 },
-  pressed: { opacity: 0.65 },
   note: { fontFamily: f.regular, color: c.muted, fontSize: textSizes.small, lineHeight: 21, textAlign: 'center', marginTop: 22 },
 });

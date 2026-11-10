@@ -14,6 +14,8 @@ function schedule(id: string, steps = 1) {
 }
 
 async function hold(page: Page, button: Locator) {
+  // Font reflow can move a sheet between measuring its button and mouseup.
+  await page.evaluate(() => document.fonts.ready);
   await button.scrollIntoViewIfNeeded();
   const box = await button.boundingBox();
   expect(box).not.toBeNull();
@@ -28,7 +30,10 @@ async function pressed(button: Locator) {
 
 async function released(button: Locator, opacity = '1') {
   await expect(button).toHaveCSS('opacity', opacity);
-  await expect(button).toHaveCSS('transform', 'none');
+  await expect.poll(() => button.evaluate((node) => {
+    const m = new DOMMatrixReadOnly(getComputedStyle(node).transform);
+    return [m.a, m.b, m.c, m.d, m.e, m.f];
+  })).toEqual([1, 0, 0, 1, 0, 0]);
 }
 
 async function cancelPress(page: Page, button: Locator) {

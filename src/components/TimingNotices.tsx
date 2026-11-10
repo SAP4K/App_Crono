@@ -1,8 +1,9 @@
+import { MotionPressable } from './MotionPressable';
 import { useI18n } from '../hooks/useI18n';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useCrono } from '../context/CronoContext';
 import { useThemeStyles } from '../context/ThemeContext';
-import { buttonPressedStyle, fonts as f, Palette } from '../theme';
+import { fonts as f, Palette } from '../theme';
 import { TimerCompletionNotice } from './TimerCompletionNotice';
 import { PlanningNotice } from './PlanningNotice';
 import { SystemNotificationNotice } from './SystemNotificationNotice';
@@ -18,7 +19,7 @@ export function TimingNotices() {
     <SystemNotificationNotice />
     {playing && <View style={styles.playback}>
       <Text style={styles.label}>{owner === 'timer' ? m.timerSound : owner === 'planning' ? m.planningSound : m.previewSound}</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel={m.stopSound} onPress={() => { feedback(); alerts.controller.stop(); }} style={({ pressed }) => [styles.stop, pressed && buttonPressedStyle]}><Text style={styles.stopText}>{m.stopSound}</Text></Pressable>
+      <MotionPressable accessibilityRole="button" accessibilityLabel={m.stopSound} onPress={() => { feedback(); alerts.controller.stop(); }} style={[styles.stop]}><Text style={styles.stopText}>{m.stopSound}</Text></MotionPressable>
     </View>}
   </>;
 }

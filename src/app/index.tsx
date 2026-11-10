@@ -1,6 +1,7 @@
+import { MotionPressable } from '../components/MotionPressable';
 import { useI18n } from '../hooks/useI18n';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useCrono } from '../context/CronoContext';
 import { emptyStopwatch, MAX_LAPS, pause, recordLap, saveSession, start } from '../core/stopwatch';
 import { StopwatchFace } from '../components/StopwatchFace';
@@ -38,16 +39,16 @@ export default function StopwatchScreen() {
     <Text style={[styles.subtitle, compact && { marginBottom: 8 }]}>{m.stopwatchSubtitle}</Text>
     <StopwatchFace stopwatch={stopwatch} />
     <View style={styles.actions}>
-      <Pressable accessibilityRole="button" accessibilityLabel={running ? m.recordLap : m.resetStopwatch} accessibilityState={{ disabled: secondaryDisabled }} disabled={secondaryDisabled} onPress={secondaryAction} style={({ pressed }) => [styles.secondary, secondaryDisabled && styles.disabled, pressed && styles.pressed]}>
+      <MotionPressable accessibilityRole="button" accessibilityLabel={running ? m.recordLap : m.resetStopwatch} accessibilityState={{ disabled: secondaryDisabled }} disabled={secondaryDisabled} onPress={secondaryAction} style={[styles.secondary, secondaryDisabled && styles.disabled]}>
         <Icon name={running ? 'flag' : 'reset'} size={19} color={secondaryDisabled ? c.subtle : c.ink} />
         <Text style={[styles.secondaryText, secondaryDisabled && { color: c.subtle }]}>{running ? m.lap : m.reset}</Text>
-      </Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel={running ? m.pause : hasTime ? m.resume : m.start} onPress={toggleRunning} style={({ pressed }) => [styles.primary, pressed && styles.pressed]}>
+      </MotionPressable>
+      <MotionPressable accessibilityRole="button" accessibilityLabel={running ? m.pause : hasTime ? m.resume : m.start} onPress={toggleRunning} style={[styles.primary]}>
         <Icon name={running ? 'pause' : 'play'} size={19} color={c.actionIcon} strokeWidth={1.4} />
         <Text style={styles.primaryText}>{running ? m.pause : hasTime ? m.resume : m.start}</Text>
-      </Pressable>
+      </MotionPressable>
     </View>
-    {hasTime && !running ? <Pressable accessibilityRole="button" onPress={() => { feedback(); update(saveSession); notify('sessionSaved'); }} style={({ pressed }) => [styles.save, pressed && styles.pressed]}><Icon name="save" size={15} color={c.green} /><Text style={styles.saveText}>{m.saveSession}</Text></Pressable> : <View style={styles.hint}><View style={styles.hintDot} /><Text style={styles.hintText}>{lapLimit ? m.lapLimit : running ? m.runningHint : m.readyHint}</Text></View>}
+    {hasTime && !running ? <MotionPressable accessibilityRole="button" onPress={() => { feedback(); update(saveSession); notify('sessionSaved'); }} style={[styles.save]}><Icon name="save" size={15} color={c.green} /><Text style={styles.saveText}>{m.saveSession}</Text></MotionPressable> : <View style={styles.hint}><View style={styles.hintDot} /><Text style={styles.hintText}>{lapLimit ? m.lapLimit : running ? m.runningHint : m.readyHint}</Text></View>}
     <LapList laps={stopwatch.laps} />
     <Text style={styles.footer}>{m.stopwatchFooter}</Text>
     <ConfirmSheet visible={resetDialog} title={m.resetStopwatchTitle} description={m.resetStopwatchHelp} confirmLabel={m.resetStopwatch} onClose={() => setResetDialog(false)} onConfirm={() => { feedback(); update((previous) => ({ ...previous, stopwatch: emptyStopwatch() })); setResetDialog(false); }} />
@@ -68,7 +69,6 @@ const createStyles = (c: Palette) => StyleSheet.create({
   secondary: { flex: 1, flexDirection: 'row', gap: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: c.secondary, minHeight: 61, paddingVertical: 19, borderRadius: 19 },
   secondaryText: { fontFamily: f.semibold, color: c.ink, fontSize: textSizes.caption },
   disabled: { backgroundColor: c.disabled },
-  pressed: { opacity: 0.72, transform: [{ scale: 0.98 }] },
   hint: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingTop: 3 },
   hintDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: c.subtle },
   hintText: { fontFamily: f.regular, color: c.muted, fontSize: textSizes.small },

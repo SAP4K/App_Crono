@@ -1,6 +1,7 @@
+import { MotionPressable } from '../components/MotionPressable';
 import { useI18n } from '../hooks/useI18n';
 import { useState } from 'react';
-import { FlatList, Keyboard, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Keyboard, StyleSheet, Text, View } from 'react-native';
 import { useCrono } from '../context/CronoContext';
 import { useThemeStyles } from '../context/ThemeContext';
 import { deleteSchedule, isProtectedSchedule, MAX_NAME_LENGTH, MAX_SCHEDULES, saveSchedule } from '../core/planning';
@@ -15,7 +16,7 @@ import { CalendarDateFields } from '../components/CalendarDateFields';
 import { createTimingId } from '../hooks/createTimingId';
 import { PlanningRunCard } from '../components/PlanningRunCard';
 import { ScheduleCard } from '../components/ScheduleCard';
-import { textSizes, buttonPressedStyle, fonts as f, Palette } from '../theme';
+import { textSizes, fonts as f, Palette } from '../theme';
 
 export default function PlanningScreen() {
   const { language, messages: m } = useI18n();
@@ -74,7 +75,7 @@ export default function PlanningScreen() {
       ListHeaderComponent={<>
         <Text accessibilityRole="header" style={styles.title}>{m.planningTab}</Text>
         <Text style={styles.subtitle}>{m.planningSubtitle}</Text>
-        <Pressable accessibilityRole="button" disabled={scheduleLimit} onPress={() => {
+        <MotionPressable accessibilityRole="button" disabled={scheduleLimit} onPress={() => {
           feedback();
           setEditor({ isNew: true, schedule: {
             id: createTimingId(),
@@ -82,36 +83,36 @@ export default function PlanningScreen() {
             steps: [{ id: createTimingId(), name: m.stepNumber(1), durationMs: 300000 }],
             calendar: selectedDate === null ? undefined : { kind: 'once', date: selectedDate },
           } });
-        }} style={({ pressed }) => [styles.primary, pressed && !scheduleLimit && buttonPressedStyle, scheduleLimit && styles.disabled]}><Text style={styles.primaryText}>{m.newSchedule}</Text></Pressable>
-        <Pressable accessibilityRole="button" accessibilityState={{ expanded: templatesOpen }} aria-expanded={templatesOpen} disabled={scheduleLimit}
+        }} style={[styles.primary, scheduleLimit && styles.disabled]}><Text style={styles.primaryText}>{m.newSchedule}</Text></MotionPressable>
+        <MotionPressable accessibilityRole="button" accessibilityState={{ expanded: templatesOpen }} aria-expanded={templatesOpen} disabled={scheduleLimit}
           onPress={() => { feedback(); setTemplatesOpen((open) => !open); }}
-          style={({ pressed }) => [styles.filterButton, styles.templateToggle, scheduleLimit && styles.disabled, pressed && buttonPressedStyle]}>
+          style={[styles.filterButton, styles.templateToggle, scheduleLimit && styles.disabled]}>
           <Text style={styles.secondaryText}>{m.planningTemplates}</Text>
-        </Pressable>
+        </MotionPressable>
         {templatesOpen && <View style={styles.templateChoices}>{(Object.keys(PLANNING_TEMPLATES) as PlanningTemplateId[]).map((id) => {
           const copy = m.planningTemplateNames[id], durations = PLANNING_TEMPLATES[id];
           const summary = `${m.stepCount(durations.length)} · ${formatRemaining(durations.reduce((sum: number, value) => sum + value, 0))}`;
           const preview = copy.steps.slice(0, 3).join(' → ') + (copy.steps.length > 3 ? ' …' : '');
-          return <Pressable key={id} accessibilityRole="button" accessibilityLabel={copy.name} accessibilityHint={summary}
+          return <MotionPressable key={id} accessibilityRole="button" accessibilityLabel={copy.name} accessibilityHint={summary}
             disabled={scheduleLimit} accessibilityState={{ disabled: scheduleLimit }} onPress={() => openTemplate(id)}
-            style={({ pressed }) => [styles.filterButton, styles.templateChoice, scheduleLimit && styles.disabled, pressed && !scheduleLimit && buttonPressedStyle]}>
+            style={[styles.filterButton, styles.templateChoice, scheduleLimit && styles.disabled]}>
             <Text style={styles.secondaryText}>{copy.name}</Text>
             <Text style={styles.templateSummary}>{summary}</Text>
             <Text numberOfLines={2} style={styles.templatePreview}>{preview}</Text>
-          </Pressable>;
+          </MotionPressable>;
         })}</View>}
         <Text style={styles.limit}>{m.scheduleLimit(schedules.length, MAX_SCHEDULES)}</Text>
         <View style={styles.filters}>
-          <Pressable accessibilityRole="button" onPress={() => { feedback(); setSelectedDate(null); }}
-            style={({ pressed }) => [styles.filterButton, selectedDate === null && styles.filterSelected, pressed && buttonPressedStyle]}>
+          <MotionPressable accessibilityRole="button" onPress={() => { feedback(); setSelectedDate(null); }}
+            style={[styles.filterButton, selectedDate === null && styles.filterSelected]}>
             <Text style={styles.secondaryText}>{m.calendarAll}</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button"
+          </MotionPressable>
+          <MotionPressable accessibilityRole="button"
             accessibilityLabel={selectedDateLabel ? `${m.calendarChooseDay} · ${selectedDateLabel}` : m.calendarChooseDay}
             onPress={() => { feedback(); setDateDraft(datePartsFromKey(selectedDate ?? localDateKey(new Date()))); }}
-            style={({ pressed }) => [styles.filterButton, selectedDate !== null && styles.filterSelected, pressed && buttonPressedStyle]}>
+            style={[styles.filterButton, selectedDate !== null && styles.filterSelected]}>
             <Text style={styles.secondaryText}>{selectedDateLabel ?? m.calendarChooseDay}</Text>
-          </Pressable>
+          </MotionPressable>
         </View>
         <PlanningRunCard />
       </>}
@@ -128,22 +129,22 @@ export default function PlanningScreen() {
         <CalendarDateFields value={dateDraft}
           onChange={(field, text) => setDateDraft((previous) => previous && { ...previous, [field]: text })} />
         {!dateCandidate && <Text accessibilityLiveRegion="polite" style={styles.danger}>{m.calendarInvalidDate}</Text>}
-        <Pressable accessibilityRole="button"
+        <MotionPressable accessibilityRole="button"
           onPress={() => { feedback(); setDateDraft(datePartsFromKey(localDateKey(new Date()))); }}
-          style={({ pressed }) => [styles.filterButton, pressed && buttonPressedStyle]}>
+          style={[styles.filterButton]}>
           <Text style={styles.secondaryText}>{m.calendarToday}</Text>
-        </Pressable>
-        <Pressable accessibilityRole="button" disabled={!dateCandidate} onPress={() => {
+        </MotionPressable>
+        <MotionPressable accessibilityRole="button" disabled={!dateCandidate} onPress={() => {
           if (!dateCandidate) return;
           setSelectedDate(dateCandidate);
           closeDatePicker();
-        }} style={({ pressed }) => [styles.primary, styles.datePrimary, !dateCandidate && styles.disabled, pressed && buttonPressedStyle]}>
+        }} style={[styles.primary, styles.datePrimary, !dateCandidate && styles.disabled]}>
           <Text style={styles.primaryText}>{m.calendarShow}</Text>
-        </Pressable>
-        <Pressable accessibilityRole="button" onPress={closeDatePicker}
-          style={({ pressed }) => [styles.filterButton, pressed && buttonPressedStyle]}>
+        </MotionPressable>
+        <MotionPressable accessibilityRole="button" onPress={closeDatePicker}
+          style={[styles.filterButton]}>
           <Text style={styles.secondaryText}>{m.cancel}</Text>
-        </Pressable>
+        </MotionPressable>
       </View>
     </Sheet>}
     {editor && <ScheduleEditorSheet schedule={editor.schedule} isNew={editor.isNew} onClose={() => setEditor(null)} onSave={save} />}

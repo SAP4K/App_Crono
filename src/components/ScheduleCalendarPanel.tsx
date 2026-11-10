@@ -1,11 +1,12 @@
+import { MotionPressable } from './MotionPressable';
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useCrono } from '../context/CronoContext';
 import { useThemeStyles } from '../context/ThemeContext';
 import { dateKeyFromParts, datePartsFromKey, localDateKey, WEEKDAYS, type ScheduleCalendar, type Weekday } from '../core/planningCalendar';
 import { useI18n } from '../hooks/useI18n';
 import { planningWeekdayLabel } from '../i18n/formatters';
-import { buttonPressedStyle, fonts as f, type Palette } from '../theme';
+import { fonts as f, type Palette } from '../theme';
 import { CalendarDateFields } from './CalendarDateFields';
 
 export function ScheduleCalendarPanel({ initialCalendar, onApply, onCancel }: {
@@ -46,36 +47,36 @@ export function ScheduleCalendarPanel({ initialCalendar, onApply, onCancel }: {
     <View accessibilityRole="radiogroup" style={styles.choices}>
       {modes.map(({ id, label }) => {
         const checked = mode === id;
-        return <Pressable key={id} ref={id === initialMode ? initialModeButton : undefined}
+        return <MotionPressable key={id} ref={id === initialMode ? initialModeButton : undefined}
           accessibilityRole="radio" accessibilityState={{ checked }} aria-checked={checked}
           onPress={() => { feedback(); setMode(id); }}
-          style={({ pressed }) => [styles.choice, checked && styles.chosen, pressed && buttonPressedStyle]}>
+          style={[styles.choice, checked && styles.chosen]}>
           <Text style={styles.choiceText}>{label}</Text>
-        </Pressable>;
+        </MotionPressable>;
       })}
     </View>
     {mode === 'weekly' && <View style={styles.choices}>
       {WEEKDAYS.map((day) => {
         const checked = weekdays.includes(day);
-        return <Pressable key={day} accessibilityRole="checkbox" accessibilityLabel={planningWeekdayLabel(day, language, 'long')}
+        return <MotionPressable key={day} accessibilityRole="checkbox" accessibilityLabel={planningWeekdayLabel(day, language, 'long')}
           accessibilityState={{ checked }} aria-checked={checked} onPress={() => toggleWeekday(day)}
-          style={({ pressed }) => [styles.choice, checked && styles.chosen, pressed && buttonPressedStyle]}>
+          style={[styles.choice, checked && styles.chosen]}>
           <Text style={styles.choiceText}>{planningWeekdayLabel(day, language, 'short')}</Text>
-        </Pressable>;
+        </MotionPressable>;
       })}
     </View>}
     {mode === 'once' && <CalendarDateFields value={dateParts}
       onChange={(field, text) => setDateParts((previous) => ({ ...previous, [field]: text }))} />}
     {error && <Text accessibilityLiveRegion="polite" style={styles.error}>{error}</Text>}
-    <Pressable accessibilityRole="button" disabled={!!error}
+    <MotionPressable accessibilityRole="button" disabled={!!error}
       onPress={() => { if (!error) onApply(calendar); }}
-      style={({ pressed }) => [styles.action, styles.primary, error && styles.disabled, pressed && buttonPressedStyle]}>
+      style={[styles.action, styles.primary, error && styles.disabled]}>
       <Text style={styles.primaryText}>{m.calendarApply}</Text>
-    </Pressable>
-    <Pressable accessibilityRole="button" onPress={onCancel}
-      style={({ pressed }) => [styles.action, styles.secondary, pressed && buttonPressedStyle]}>
+    </MotionPressable>
+    <MotionPressable accessibilityRole="button" onPress={onCancel}
+      style={[styles.action, styles.secondary]}>
       <Text style={styles.choiceText}>{m.cancel}</Text>
-    </Pressable>
+    </MotionPressable>
   </View>;
 }
 
