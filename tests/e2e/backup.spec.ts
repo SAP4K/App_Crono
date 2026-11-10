@@ -91,6 +91,50 @@ test('literal legacy data survives System selection and real optional backup imp
   await settings(page, 'appearance'); await expect(page.getByRole('radio', { name: m.systemMode, exact: true })).toBeChecked();
 });
 
+test('a new built-in keeps literal legacy records through unsaved close, editing and real file transfer', async ({ page }) => {
+  await seed(page, legacy); await page.goto('/planning'); const before = await stored(page);
+  const open = async () => {
+    await page.getByRole('button', { name: m.planningTemplates, exact: true }).click();
+    await page.getByRole('button', { name: m.planningTemplateNames.morning.name, exact: true }).click();
+    return page.getByRole('dialog', { name: m.newSchedule, exact: true });
+  };
+  let editor = await open();
+  expect(await stored(page)).toEqual(before);
+  await editor.getByRole('button', { name: m.close, exact: true }).click();
+  await expect(editor).not.toBeVisible(); expect(await stored(page)).toEqual(before);
+  editor = await open();
+  await editor.getByRole('textbox', { name: m.scheduleName, exact: true }).fill('Dimineață · Учёба');
+  await editor.getByRole('textbox', { name: m.stepName(1), exact: true }).fill('Primul meu pas');
+  await editor.getByRole('button', { name: m.saveSchedule, exact: true }).click();
+  await expect.poll(async () => (await stored(page)).planning.schedules.length).toBe(1);
+  await page.reload(); const saved = await stored(page), original = saved.planning.schedules[0];
+  expect(saved.version).toBe(1); expect(saved.stopwatch).toEqual(legacy.stopwatch); expect(saved.timer).toEqual(legacy.timer);
+  expect(saved.sessions).toEqual(legacy.sessions);
+  expect(saved.preferences).toEqual({ ...initialData().preferences, ...legacy.preferences });
+  expect(original.steps.map((step) => step.durationMs)).toEqual([300000, 600000, 600000, 900000]);
+  await settings(page, 'data');
+  const downloading = page.waitForEvent('download');
+  await page.getByRole('button', { name: m.backup.export, exact: true }).click();
+  const raw = readFileSync((await (await downloading).path())!, 'utf8'), file = parseBackup(raw);
+  expect(file.version).toBe(1); expect(file.schedules).toEqual([original]); expect(file.sessions).toEqual(legacy.sessions);
+  expect(file.preferences).toEqual(saved.preferences);
+  await upload(page, raw);
+  await expect(page.getByRole('switch', { name: m.backup.applyPreferences, exact: true })).not.toBeChecked();
+  await page.getByRole('button', { name: m.backup.confirm, exact: true }).click();
+  await expect.poll(async () => (await stored(page)).planning.schedules.length).toBe(2);
+  const imported = await stored(page), copy = imported.planning.schedules[1];
+  expect(imported.planning.schedules[0]).toEqual(original); expect(copy.id).not.toBe(original.id);
+  expect(copy.steps).toEqual(original.steps.map((step, index) => ({ ...step, id: copy.steps[index].id })));
+  expect(copy.steps.every((step, index) => step.id !== original.steps[index].id)).toBe(true);
+  expect(copy.name).toBe('Dimineață · Учёба'); expect(imported.planning.run).toBeNull();
+  expect(imported.sessions[0]).toEqual(legacy.sessions[0]); expect(imported.sessions).toHaveLength(2);
+  expect(imported.sessions[1]).toEqual({ ...legacy.sessions[0], id: imported.sessions[1].id });
+  expect(imported.sessions[1].id).not.toBe(legacy.sessions[0].id);
+  expect(imported.stopwatch).toEqual(legacy.stopwatch); expect(imported.timer).toEqual(legacy.timer);
+  expect(imported.preferences).toEqual(saved.preferences);
+  await page.reload(); expect(await stored(page)).toEqual(imported);
+});
+
 test('confirmation preserves clocks that changed during preview and repeated imports create independent schedules', async ({ page }) => {
   await page.clock.install(); const now = Date.now(); const data = initialData(); data.preferences.timerSound = false;
   data.stopwatch.startedAt = now; data.timer = { ...data.timer, durationMs: 15000, remainingMs: 15000, status: 'running', deadlineAt: now + 15000, runId: 'live' };

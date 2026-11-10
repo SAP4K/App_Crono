@@ -85,7 +85,20 @@ See [Background and Lock-Screen Notifications](docs/background-notifications.md)
 
 Open **Planificare**, next to Timer, and tap **Orar nou**. Name it “Studiu”, set the first action to “Lucru”, and tap its **Durată** value to open the wheels. Select 25 minutes and tap **Aplică durata**, then use **Adaugă etapă** for “Pauză” lasting 5 minutes. Move actions with the arrow buttons and tap **Salvează orarul**, then **Pornește**. Planning controls fade and shrink slightly while pressed.
 
-Saved cards emphasize **Pornește** (Start), show a short sequence preview and place Edit, Duplicate and Delete under the labelled ellipsis options button. **Templates** opens Focus (25-minute focus → 5-minute break) or Workout (5-minute warm up → 20-minute exercise → 5-minute cool down) as unsaved drafts. Duplicate also opens an independent unsaved copy, including calendar rules. Save creates the new schedule; closing an unchanged draft adds nothing.
+Saved cards emphasize **Pornește** (Start), show a short sequence preview and place Edit, Duplicate and Delete under the labelled ellipsis options button. Open **Șabloane** (Templates) to choose from eight built-ins. Each choice shows its action count, total duration and a short sequence preview, using the selected language.
+
+| Template | Default sequence in minutes | Total |
+|---|---|---|
+| Focus | Focus 25 → Break 5 | 30 min |
+| Workout | Warm up 5 → Exercise 20 → Cool down 5 | 30 min |
+| Pomodoro | Four 25-minute focus blocks, three 5-minute breaks, then a 15-minute long break | 130 min |
+| Study | Study 45 → Break 10 → Study 45 → Review 10 | 110 min |
+| Meditation | Settle in 1 → Meditation 8 → Finish 1 | 10 min |
+| Morning routine | Wake up 5 → Stretch 10 → Get ready 10 → Breakfast 15 | 40 min |
+| Stretching | Warm up 2 → Stretch 6 → Relax 2 | 10 min |
+| Active break | Walk 2 → Move 2 → Rest 1 | 5 min |
+
+Choosing a template opens an independent unsaved draft. Adjust its name, actions and durations, then **Salvează orarul** (Save schedule). Closing an unchanged draft adds nothing; closing an edited draft asks before discarding it. Duplicate also opens an independent unsaved copy, including calendar rules. Templates opened from a chosen date inherit that one-time date; **Toate** creates a draft without a calendar rule. The eight built-ins do not consume saved-schedule slots until Save. Use **Pornește** to start the saved sequence. Changing the interface language leaves previously saved names unchanged.
 
 In the editor, **Repeat sequence** previews **2, 3 or 4 total cycles**. Apply copies the steps into the draft in order, then **Save schedule** persists them. The resulting sequence must fit the existing 50-action limit; Cancel preserves the draft.
 

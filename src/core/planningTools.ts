@@ -3,6 +3,12 @@ import { MAX_STEPS, readSchedule, readScheduleSteps, validId, type Schedule, typ
 export const PLANNING_TEMPLATES = {
   focus: [25 * 60000, 5 * 60000],
   workout: [5 * 60000, 20 * 60000, 5 * 60000],
+  pomodoro: [25 * 60000, 5 * 60000, 25 * 60000, 5 * 60000, 25 * 60000, 5 * 60000, 25 * 60000, 15 * 60000],
+  study: [45 * 60000, 10 * 60000, 45 * 60000, 10 * 60000],
+  meditation: [60000, 8 * 60000, 60000],
+  morning: [5 * 60000, 10 * 60000, 10 * 60000, 15 * 60000],
+  stretching: [2 * 60000, 6 * 60000, 2 * 60000],
+  activeBreak: [2 * 60000, 2 * 60000, 60000],
 } as const;
 export type PlanningTemplateId = keyof typeof PLANNING_TEMPLATES;
 

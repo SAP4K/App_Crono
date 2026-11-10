@@ -211,6 +211,8 @@ Version 1 and the storage key remain unchanged. Optional independently restored 
 
 A schedule run snapshots its source ID/name/ordered actions. A running or paused source template is protected, while other templates remain editable. Starting another schedule requires confirmed atomic replacement; reset clears only the run. Boundaries use run/index identities and cumulative deadlines. Limits are 20 templates, 50 actions each, 80-character trimmed names, and one second to 23:59:59 per action. These bounds do not resolve the existing oversized-history storage finding.
 
+The eight bundled Planning presets are separate from the saved-schedule limit. `planningTools` owns their ordered duration tuples; the i18n catalog type derives each template ID and action-label count through type-only imports. The route combines those values with fresh IDs into an ordinary detached schedule, adding the selected one-time date when applicable. The chooser stays in the main list header and never persists or starts a run. Save stores full text/actions rather than a preset reference, so restoration, language selection and portable imports keep existing schedules independent of the built-in catalog.
+
 The current storage unit is the complete `AppData` object at `@crono/app-v1`. Changes to that layout need an explicit compatibility and migration plan; splitting storage is follow-up implementation work.
 
 ### Display and Device Behavior
