@@ -11,6 +11,7 @@ export function DurationWheel(props: DurationWheelProps) {
   const content = useRef<HTMLDivElement>(null);
   const activePointer = useRef<number | null>(null);
   const alignment = useRef<{ frame: number; offset: number; restore: () => void } | null>(null);
+  const animation = useRef<{ target: number; finished: () => void } | null>(null);
   const { colors: c } = useTheme(); const styles = useThemeStyles(createStyles);
   const releaseAlignment = useCallback(() => {
     const pending = alignment.current;
@@ -36,7 +37,21 @@ export function DurationWheel(props: DurationWheelProps) {
     alignment.current = pending;
     pending.frame = requestAnimationFrame(() => { pending.frame = requestAnimationFrame(releaseAlignment); });
   }, [releaseAlignment]);
-  const controller = useDurationWheel(props, align);
+  const animate = useCallback((target: number, finished: () => void) => {
+    releaseAlignment();
+    const node = element.current;
+    if (!node) { finished(); return () => {}; }
+    const request = { target, finished }; animation.current = request;
+    node.scrollTo({ top: target, behavior: 'smooth' });
+    return () => {
+      if (animation.current !== request) return;
+      animation.current = null;
+      if (node === element.current && node.isConnected) node.scrollTo({ top: node.scrollTop, behavior: 'instant' });
+    };
+  }, [releaseAlignment]);
+  const controller = useDurationWheel(props, align, {
+    read: () => alignment.current?.offset ?? element.current?.scrollTop ?? 0, animate,
+  });
   useEffect(() => releaseAlignment, [releaseAlignment]);
   useLayoutEffect(() => { if (autoFocus) element.current?.focus({ preventScroll: true }); }, [autoFocus]);
   useEffect(() => {
@@ -68,7 +83,11 @@ export function DurationWheel(props: DurationWheelProps) {
       if (activePointer.current === null && !hasTouch) return;
       hasTouch = false; activePointer.current = null; controller.release();
     };
-    const end = () => controller.end(node.scrollTop);
+    const end = () => {
+      const current = animation.current;
+      if (current) { if (Math.abs(node.scrollTop - current.target) < 1) current.finished(); }
+      else controller.end(node.scrollTop);
+    };
     node.addEventListener('wheel', wheel, { passive: false });
     node.addEventListener('touchstart', touchStart, { passive: true });
     node.addEventListener('touchend', touchEnd, { passive: true });
@@ -96,7 +115,7 @@ export function DurationWheel(props: DurationWheelProps) {
         borderTop: `1px solid ${c.border}`, borderBottom: `1px solid ${c.border}`, boxSizing: 'border-box', pointerEvents: 'none' }} />
       <div ref={element} role="spinbutton" tabIndex={0} aria-label={props.accessibilityLabel ?? label} aria-description={hint}
         aria-valuemin={0} aria-valuemax={maximum} aria-valuenow={value} aria-valuetext={String(value).padStart(2, '0')} aria-disabled={!!disabled}
-        onScroll={(event) => controller.scroll(event.currentTarget.scrollTop)}
+        onScroll={(event) => controller.scroll(alignment.current?.offset ?? event.currentTarget.scrollTop)}
         onPointerDown={(event) => {
           if (disabled) return;
           releaseAlignment();

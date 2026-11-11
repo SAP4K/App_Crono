@@ -9,8 +9,9 @@ type Props = {
   value: DurationParts; onChange: (changes: Partial<DurationParts>) => void;
   disabled?: boolean; onInteractionChange?: (busy: boolean) => void;
   stepNumber?: number; autoFocus?: boolean;
+  presentationRequest?: number; presentationActive?: boolean;
 };
-export function DurationPicker({ value, onChange, disabled, onInteractionChange, stepNumber, autoFocus }: Props) {
+export function DurationPicker({ value, onChange, disabled, onInteractionChange, stepNumber, autoFocus, presentationRequest, presentationActive }: Props) {
   const { messages: m } = useI18n();
   const { fontScale } = useWindowDimensions();
   const moving = useRef(new Set<DurationUnit>());
@@ -18,6 +19,7 @@ export function DurationPicker({ value, onChange, disabled, onInteractionChange,
   return <View style={styles.wheels}>
     {DURATION_UNITS.map((unit, index) => <DurationWheel key={unit} value={value[unit]} maximum={DURATION_LIMITS[unit]}
       label={m.timeUnits[index]} hint={m.durationWheelHint} rowHeight={rowHeight} disabled={disabled}
+      presentationRequest={presentationRequest} presentationActive={presentationActive}
       autoFocus={autoFocus && index === 0} accessibilityLabel={stepNumber ? m.stepField(m.timeUnits[index], stepNumber) : m.timeUnits[index]}
       onChange={(next) => onChange({ [unit]: next })} onInteractionChange={(busy) => {
         const previous = moving.current.size > 0;
