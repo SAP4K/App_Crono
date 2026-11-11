@@ -6,7 +6,7 @@ import { useMotionPreference } from '../context/MotionContext';
 import { createWheelPresentation, type WheelPresentationDriver } from './wheelPresentation';
 
 export function useDurationWheel(props: DurationWheelProps, align: (offset: number, cancelMotion?: boolean) => void,
-  driver?: Pick<WheelPresentationDriver, 'read' | 'animate'>) {
+  driver?: Pick<WheelPresentationDriver, 'read' | 'animate'> & { stopManual?: () => void; settleManual?: () => void }) {
   const policy = useMotionPreference();
   const latest = useRef({ props, align, driver });
   const previous = useRef(props);
@@ -29,25 +29,30 @@ export function useDurationWheel(props: DurationWheelProps, align: (offset: numb
     });
     presentation.current = visual;
     instance.current = controller; controller.synchronize();
-    return () => { visual.dispose(); presentation.current = null; controller.dispose(); instance.current = null; };
+    return () => { latest.current.driver?.stopManual?.(); visual.dispose(); presentation.current = null; controller.dispose(); instance.current = null; };
   }, []);
   useLayoutEffect(() => {
     const before = previous.current; previous.current = props;
     const eligible = policy.active && props.presentationActive !== false && !props.disabled;
     const request = props.presentationRequest !== undefined && props.presentationRequest !== before.presentationRequest;
     if (request) {
+      latest.current.driver?.stopManual?.();
       instance.current?.synchronize(false);
       presentation.current?.move(props.value * props.rowHeight, eligible && !policy.reduceMotion && !!driver);
     } else if (props.value !== before.value || props.rowHeight !== before.rowHeight || props.disabled !== before.disabled) {
+      latest.current.driver?.stopManual?.();
       presentation.current?.settle(); instance.current?.synchronize();
-    } else if (!eligible || policy.reduceMotion) presentation.current?.settle();
+    } else if (!eligible) {
+      latest.current.driver?.stopManual?.(); presentation.current?.settle(); instance.current?.synchronize();
+    } else if (policy.reduceMotion) { latest.current.driver?.settleManual?.(); presentation.current?.settle(); }
   }, [props, policy, driver]);
   useEffect(() => subscribeAppActivity(() => {
-    if (!isAppActive()) { presentation.current?.settle(); instance.current?.synchronize(); }
+    if (!isAppActive()) { latest.current.driver?.stopManual?.(); presentation.current?.settle(); instance.current?.synchronize(); }
   }), []);
   return useMemo(() => ({
-    synchronize: () => { if (!presentation.current?.isMoving()) instance.current?.synchronize(); },
+    synchronize: () => { if (!presentation.current?.isMoving()) { latest.current.driver?.stopManual?.(); instance.current?.synchronize(); } },
     beginDrag: () => {
+      latest.current.driver?.stopManual?.();
       const offset = presentation.current?.interrupt(); takeover.current = offset; instance.current?.beginDrag();
       if (offset !== undefined) instance.current?.scroll(offset);
     },
@@ -67,7 +72,7 @@ export function useDurationWheel(props: DurationWheelProps, align: (offset: numb
     },
     choose: (value: number) => {
       // Explicit choices replace the accepted value; stop compositor motion before alignment.
-      presentation.current?.settle(); takeover.current = undefined; instance.current?.choose(value);
+      latest.current.driver?.stopManual?.(); presentation.current?.settle(); takeover.current = undefined; instance.current?.choose(value);
     },
   }), []);
 }

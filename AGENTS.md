@@ -66,6 +66,7 @@ tests/
   durationPicker.test.ts Bounded parts, conversion and snapping geometry
   durationWheel.test.ts Settling, cancellation, disabled state and changed row geometry
   wheelPresentation.test.ts Visual preset targets, takeover, lifecycle and stale callbacks
+  wheelDeceleration.test.ts Progressive easing, delta units, reversal and finite cancellation/deadlines
   timerCompletion.test.ts Completion/audio coordination tests
   theme.test.ts         Preference resolution and palette contrast checks
   themeAppearance.test.ts Appearance lifecycle, cached snapshots and native background ordering
@@ -114,6 +115,7 @@ scripts/                Reproducible notification sound generator
 | `src/components/DurationPicker.tsx`, `DurationWheel.tsx`, `.web.tsx` | Shared themed picker, native adjustable columns and web spinbuttons |
 | `src/hooks/durationWheel.ts`, `useDurationWheel.ts` | Manual settling/cancellation and explicit preset-presentation lifecycle bridge |
 | `src/hooks/wheelPresentation.ts` | Finite visual wheel targets, takeover/settlement and stale callbacks; no selection/busy ownership |
+| `src/hooks/wheelDeceleration.ts` | Bounded browser wheel easing and unit normalization; visual offsets only, manual controller retains selection/busy |
 | `src/core/planning.ts` | Schedule bounds, CRUD, snapshot restoration, and cumulative deadlines |
 | `src/core/planningTools.ts` | Pure templates, independent copies and bounded repeated steps |
 | `src/core/backup.ts` | Strict portable projection/parser and additive fresh-ID merge |

@@ -56,11 +56,10 @@ export default function TimerScreen() {
     {editable && <>
     <Text style={styles.presetTitle}>{m.timerPresets}</Text>
     <View style={styles.presets}>{[1, 5, 10, 25].map((minutes) => <MotionPressable key={minutes} accessibilityRole="button"
-      accessibilityLabel={m.presetMinutes(minutes)} disabled={wheelBusy} onPress={() => {
-        if (moving.current) return;
+      accessibilityLabel={m.presetMinutes(minutes)} onPress={() => {
         feedback(); changeDuration(durationParts(minutes * 60000));
         setPresentationRequest((revision) => revision + 1);
-      }} style={[styles.preset, timer.durationMs === minutes * 60000 && styles.selectedPreset, wheelBusy && styles.disabled]}>
+      }} style={[styles.preset, timer.durationMs === minutes * 60000 && styles.selectedPreset]}>
       <Text style={styles.resetText}>{minutes} {m.minutesShort}</Text>
     </MotionPressable>)}</View>
     <DurationPicker value={parts} onChange={changeDuration} presentationRequest={presentationRequest} presentationActive={focused} onInteractionChange={(busy) => {

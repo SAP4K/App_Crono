@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useThemeStyles } from '../context/ThemeContext';
 import { useDurationWheel } from '../hooks/useDurationWheel';
 import { fonts, type Palette } from '../theme';
@@ -33,7 +33,7 @@ export function DurationWheel(props: DurationWheelProps) {
       <ScrollView ref={scroll} style={{ height: rowHeight * 3 }} contentContainerStyle={{ paddingVertical: rowHeight }}
         accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants"
         scrollEnabled={!disabled} nestedScrollEnabled bounces={false} overScrollMode="never" showsVerticalScrollIndicator={false}
-        snapToInterval={rowHeight} snapToAlignment="start" decelerationRate="normal" scrollEventThrottle={16}
+        snapToInterval={rowHeight} snapToAlignment="start" decelerationRate={Platform.OS === 'android' ? 0.99 : 'normal'} scrollEventThrottle={16}
         onContentSizeChange={() => controller.synchronize()}
         onTouchStart={() => controller.beginDrag()} onTouchEnd={() => controller.release()}
         onTouchCancel={() => controller.release()}

@@ -22,7 +22,7 @@ async function openTimer(page: Page) {
   return page.getByRole('button', { name: 'Pornește temporizatorul', exact: true });
 }
 async function wheelBy(page: Page, wheel: Locator, delta: number) {
-  await wheel.hover(); await page.mouse.wheel(0, delta);
+  await wheel.hover(); await page.mouse.wheel(0, delta * await page.evaluate(() => devicePixelRatio));
 }
 async function observeBusy(action: Locator) {
   const record = await action.evaluateHandle((node) => {
