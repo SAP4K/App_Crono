@@ -169,7 +169,7 @@ scripts/                Reproducible notification sound generator
 
 | File | Purpose |
 |---|---|
-| `README.md` | Setup, Timer presets, directional navigation, themes, notifications and checks |
+| `README.md` | Setup, gentler wheels, presets, navigation, themes, notifications and checks |
 | `docs/background-notifications.md` | Android minute playback, setup, limits and verification |
 | `docs/backups.md` | Portable export/import, selected theme compatibility, limits and recovery |
 | `AGENTS.md` | Repository map and authoritative Expo workflow requirements |

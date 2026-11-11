@@ -27,7 +27,7 @@ When developing on Windows, you can preview the interface on a physical iPhone u
 - Individual lap durations and cumulative times, with the fastest laps highlighted and average lap times displayed.
 - Save the latest 50 sessions with up to 1,000 laps each, view details, share results, and delete with confirmation.
 - Run an independent countdown with quick presets, a large active view, localized end time and a bounded **+1 minute** control; run an action sequence alongside both clocks.
-- Select timer and action durations with wheels that glide and slow to a centered value; create schedules from templates, duplicate them and repeat a draft sequence.
+- Select timer and action durations with wheels that glide gently and slow to a centered value; create schedules from templates, duplicate them and repeat a draft sequence.
 - Use grouped Settings, compact cross-tab activity controls and [portable backup/import](docs/backups.md).
 - Choose from four bundled sounds with 5, 15, 30, or 60 seconds of playback, preview, and Stop controls; rebuilt Android apps also support the selected duration in the background.
 - Schedule native timer/action/final notifications for Home and locked screens, with saved enablement and OS permission controls.
@@ -67,7 +67,7 @@ Switching between Stopwatch, Timer, Planning and History slides the content hori
 
 Sheets slide up with a fading backdrop and slide down when closed. Settings groups, backup review and Planning's duration, scheduling, repeat and discard views fade in with a small upward movement. Reduce motion makes these changes immediate; returning from the background does not replay an entrance. Accepted actions, clocks and sounds keep their existing behavior. The [original screen and sheet transition plan](.ai-factory/plans/feature-screen-sheet-transitions.md) records the earlier implementation.
 
-Open **Timer** and scroll **Ore / Minute / Secunde** (hours/minutes/seconds) until the desired values reach the highlighted center row, then press **Pornește**. A quick flick continues gliding after release and snaps to a centered value; move slowly for precise selection. Mouse-wheel and trackpad input also slows progressively before stopping exactly on a row. New input takes over immediately. Reduce motion leaves browser scrolling in control instead of adding this interpolation.
+Open **Timer** and scroll **Ore / Minute / Secunde** (hours/minutes/seconds) until the desired values reach the highlighted center row, then press **Pornește**. A quick flick continues gliding after release and snaps to a centered value; move slowly for precise selection. Mouse-wheel and trackpad input uses a longer, gentler slowdown before stopping exactly on a row. Android and iOS use gentler native deceleration settings; browser touch retains its normal scrolling. New input takes over immediately. Reduce motion leaves browser scrolling in control instead of adding this interpolation.
 
 Duration selection opens no numeric keyboard. Hours stop at 00–23; minutes and seconds stop at 00–59, without wrapping or carrying into another column. Start waits for every manually moving column to settle; `00:00:00` is invalid. On web, focus a column and use ArrowUp/ArrowDown or Home/End, or click a neighboring value.
 
@@ -186,6 +186,8 @@ ai-factory update
 Source: [lee-to/ai-factory](https://github.com/lee-to/ai-factory).
 
 ## Verification Status
+
+The [slower wheel inertia refinement](.ai-factory/plans/feature-slower-wheel-inertia.md) passed lint/typecheck, **292 Node tests**, **143 targeted browser cases in one run (4.8 minutes)** and fresh Android/iOS/web exports. Real-frame checks cover both pickers, with preset, lifecycle, failure-recovery and legacy-data regressions. The full browser suite was not repeated; physical native gesture/accessibility acceptance remains deferred.
 
 Progressive duration-wheel deceleration passed lint/typecheck, **289 Node tests**, **470 browser cases in one full run (21.8 minutes)** and Android/iOS/web exports before the alignment-cleanup fix. After that fix, **289 Node tests**, **106 related browser cases**, lint/typecheck and fresh exports passed; the full browser suite was not repeated. These results precede integration with the latest directional-slide changes. The [deceleration plan](.ai-factory/plans/feature-progressive-wheel-deceleration.md) records each tested source separately. Physical Android/iOS feel and accessibility acceptance remain deferred.
 
