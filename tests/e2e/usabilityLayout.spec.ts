@@ -24,6 +24,8 @@ async function expectFit(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   const overflow = await page.evaluate(() => [...document.querySelectorAll<HTMLElement>('button, [role="tab"], [role="switch"], [role="radio"]')]
     .filter((node) => {
+      // Inactive and covered scenes retain layout but expose no controls.
+      if (node.closest('[inert], [aria-hidden="true"]')) return false;
       const box = node.getBoundingClientRect();
       return box.width > 0 && box.height > 0 && box.bottom > 0 && box.top < innerHeight
         && (box.x < -1 || box.right > innerWidth + 1);

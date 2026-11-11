@@ -373,6 +373,11 @@ for (const target of ['ru', 'es', 'fr', 'de'] as const) {
 }
 
 async function expectControlsFit(page: Page) {
+  // Check resting layout after navigation; traveling scenes are deliberately clipped.
+  await expect.poll(() => page.locator('[data-testid^="scene-"][aria-hidden="false"]').evaluate((scene) => {
+    const viewport = document.querySelector('[data-testid="app-viewport"]')!.getBoundingClientRect();
+    return scene.getBoundingClientRect().left - viewport.left;
+  })).toBeCloseTo(0, 3);
   const controls = page.getByRole('button').or(page.getByRole('radio')).or(page.getByRole('tab'));
   for (const control of await controls.all()) {
     if (!await control.isVisible()) continue;

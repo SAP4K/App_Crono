@@ -124,7 +124,7 @@ scripts/                Reproducible notification sound generator
 | `src/context/ThemeContext.tsx` | Saved theme, navigation palette, native appearance |
 | `src/context/MotionContext.tsx`, `src/hooks/motionPreference.ts` | Shared live reduced-motion/activity policy and covered-surface scopes |
 | `src/components/MotionPressable.tsx`, `src/hooks/pressMotion.ts`, `usePressMotion.ts` | Ref-safe button feedback; finite cancellable visual transitions |
-| `src/components/NavigationScene.tsx`, `.web.tsx` | Focused input/accessibility gates around navigator fades |
+| `src/components/NavigationScene.tsx`, `.web.tsx` | Focused input/accessibility gates around navigator slides |
 | `src/hooks/transitionMotion.ts`, `useSheetMotion.ts`, `src/components/PanelTransition.tsx` | Finite visual controllers, sheet presence and incoming panels |
 | `src/hooks/useSheetPresentation.ts` | Bounded token-guarded display payloads through visual exits |
 | `src/core/themePreference.ts`, `src/hooks/themeAppearance.ts`, `useSystemTheme.ts` | Saved System/Light/Dark, resolved palettes and live/foreground appearance |
@@ -167,7 +167,7 @@ scripts/                Reproducible notification sound generator
 
 | File | Purpose |
 |---|---|
-| `README.md` | Setup, animated Timer presets, templates, themes, languages, motion, notifications and checks |
+| `README.md` | Setup, Timer presets, directional navigation, themes, notifications and checks |
 | `docs/background-notifications.md` | Android minute playback, setup, limits and verification |
 | `docs/backups.md` | Portable export/import, selected theme compatibility, limits and recovery |
 | `AGENTS.md` | Repository map and authoritative Expo workflow requirements |
@@ -175,6 +175,7 @@ scripts/                Reproducible notification sound generator
 | `.ai-factory/ARCHITECTURE.md` | Layered architecture, dependencies, and data flow |
 | `.ai-factory/rules/base.md` | Naming, state, persistence, UI, and testing conventions |
 | `.ai-factory/plans/feature-screen-sheet-transitions.md` | Transition checks, source identity and deferred native acceptance |
+| `.ai-factory/plans/feature-directional-screen-transitions.md` | Horizontal route slides, lifecycle and compatibility checks |
 | `.ai-factory/config.yaml` | Languages, artifact paths, Git defaults, and workflow preferences |
 
 ## Project Workflow

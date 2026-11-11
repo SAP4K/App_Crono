@@ -1,10 +1,10 @@
 import { MotionPressable } from '../components/MotionPressable';
 import { useNotificationNavigation } from '../hooks/useNotificationNavigation';
 import { useI18n } from '../hooks/useI18n';
-import { ComponentProps, useEffect, useState } from 'react';
+import { ComponentProps, useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Platform, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
-import { Tabs } from 'expo-router/js-tabs';
+import { Tabs, type BottomTabNavigationOptions } from 'expo-router/js-tabs';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
@@ -96,9 +96,17 @@ function AppShell() {
   const { reduceMotion, active } = useMotionPreference();
   const [settings, setSettings] = useState(false);
   const [tabBarHeight, setTabBarHeight] = useState(100);
+  const [sceneWidth, setSceneWidth] = useState(0);
+  const animateRoutes = !reduceMotion && active && sceneWidth > 0;
+  const sceneStyleInterpolator = useCallback<NonNullable<BottomTabNavigationOptions['sceneStyleInterpolator']>>(({ current }) => ({
+    sceneStyle: { transform: [{ translateX: current.progress.interpolate({
+      inputRange: [-1, 0, 1], outputRange: [-sceneWidth, 0, sceneWidth], extrapolate: 'clamp',
+    }) }] },
+  }), [sceneWidth]);
   const compact = useWindowDimensions().height < 740;
   if (!ready) return <View style={styles.loading}><ActivityIndicator color={c.green} accessibilityLabel={m.loadingSession} /></View>;
-  return <View nativeID="crono-app" style={styles.desktop}><View style={styles.app}>
+  return <View nativeID="crono-app" style={styles.desktop}><View testID="app-viewport" style={styles.app}
+    onLayout={(event) => setSceneWidth(event.nativeEvent.layout.width)}>
     <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) }, compact && { paddingBottom: 16 }]}>
       <View style={styles.logoGroup}><View style={styles.logo}><Icon name="clock" size={22} color={c.onAccent} /></View><Text style={styles.wordmark}>CRONO<Text style={{ color: c.green }}>.</Text></Text></View>
       <MotionPressable accessibilityLabel={m.settings} accessibilityRole="button" onPress={() => { feedback(); setSettings(true); }} style={[styles.settings]}><Icon name="settings" size={19} /></MotionPressable>
@@ -106,8 +114,8 @@ function AppShell() {
     {storageError && <MotionPressable onPress={dismissStorageError} accessibilityRole="button" accessibilityLabel={m.dismissStorage} style={styles.warning}><Text style={styles.warningText}>{m.storageWarning}</Text><Icon name="close" size={15} color={c.danger} /></MotionPressable>}
     <TimingNotices />
     <Tabs initialRouteName="index" backBehavior="initialRoute" screenLayout={sceneLayout} tabBar={(props) => <TabBar {...props} onHeight={setTabBarHeight} />} screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: c.background },
-      animation: !reduceMotion && active ? 'fade' : 'none',
-      transitionSpec: { animation: 'timing', config: { duration: !reduceMotion && active ? motionTokens.routeMs : 0 } } }}>
+      animation: animateRoutes ? 'shift' : 'none', sceneStyleInterpolator,
+      transitionSpec: { animation: 'timing', config: { duration: animateRoutes ? motionTokens.routeMs : 0 } } }}>
       <Tabs.Screen name="index" options={{ title: m.stopwatchTab }} />
       <Tabs.Screen name="timer" options={{ title: m.timerTab }} />
       <Tabs.Screen name="planning" options={{ title: m.planningTab }} />
