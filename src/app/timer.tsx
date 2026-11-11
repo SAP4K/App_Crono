@@ -1,3 +1,4 @@
+import { useIsFocused } from 'expo-router';
 import { MotionPressable } from '../components/MotionPressable';
 import { useI18n } from '../hooks/useI18n';
 import { useLayoutEffect, useRef, useState } from 'react';
@@ -22,6 +23,8 @@ export default function TimerScreen() {
   const [parts, setParts] = useState(() => durationParts(timer.durationMs));
   const selected = useRef(parts); const moving = useRef(false);
   const [wheelBusy, setWheelBusy] = useState(false);
+  const [presentationRequest, setPresentationRequest] = useState(0);
+  const focused = useIsFocused();
   const [confirmReset, setConfirmReset] = useState(false);
   useLayoutEffect(() => {
     // Editing owns its draft, including a transient zero and rapid key choices.
@@ -56,10 +59,11 @@ export default function TimerScreen() {
       accessibilityLabel={m.presetMinutes(minutes)} disabled={wheelBusy} onPress={() => {
         if (moving.current) return;
         feedback(); changeDuration(durationParts(minutes * 60000));
+        setPresentationRequest((revision) => revision + 1);
       }} style={[styles.preset, timer.durationMs === minutes * 60000 && styles.selectedPreset, wheelBusy && styles.disabled]}>
       <Text style={styles.resetText}>{minutes} {m.minutesShort}</Text>
     </MotionPressable>)}</View>
-    <DurationPicker value={parts} onChange={changeDuration} onInteractionChange={(busy) => {
+    <DurationPicker value={parts} onChange={changeDuration} presentationRequest={presentationRequest} presentationActive={focused} onInteractionChange={(busy) => {
       moving.current = busy; setWheelBusy(busy);
     }} />
     </>}

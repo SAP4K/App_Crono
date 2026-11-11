@@ -66,7 +66,8 @@ src/
 │   ├── backupFiles.ts / .web.ts # Native system picker/share and browser upload/download
 │   ├── useForegroundNow.ts   # Presentation ticks only while active
 │   ├── sheetIsolation.ts / .web.ts # Native Modal / reference-counted web isolation
-│   ├── durationWheel.ts      # Injected bounded settling/generation controller
+│   ├── durationWheel.ts      # Injected bounded manual settling/generation controller
+│   ├── wheelPresentation.ts  # Finite preset scrolling; no selection or busy ownership
 │   ├── useDurationWheel.ts   # Committed props, alignment and lifecycle cleanup
 │   ├── timerCompletion.ts    # Framework-free injected completion coordinator
 │   ├── useTimerCompletion.ts # Global readiness/lifecycle adapter
@@ -124,6 +125,7 @@ tests/
 ├── timer.test.ts             # Countdown boundaries/transitions
 ├── durationPicker.test.ts    # Parts, valid bounds and snapping geometry
 ├── durationWheel.test.ts     # Motion, stale callbacks, disposal and geometry changes
+├── wheelPresentation.test.ts # Visual target replacement, takeover, lifecycle and failures
 ├── transitionMotion.test.ts  # Readiness, cancellation, reopening, policy and failure fallback
 ├── timerCompletion.test.ts   # Coordination, cancellation, and audio races
 ├── theme.test.ts             # Text/surface contrast
@@ -226,9 +228,9 @@ The current storage unit is the complete `AppData` object at `@crono/app-v1`. Ch
 
 ### Display and Device Behavior
 
-`DurationPicker` composes three numeric columns using pure `durationPicker` helpers. Native columns use finite ScrollViews and adjustable accessibility actions; the web adapter owns CSS snapping, spinbutton semantics, keyboard/row selection and window-level release cleanup. The injected `durationWheel` controller distinguishes user motion from silent alignment, invalidates stale settling callbacks and releases interaction state on cancellation/disable/unmount. `useDurationWheel` binds committed current props and cancels unfinished motion when the app becomes inactive. Font-scale geometry realigns silently; explicit alignment is nonanimated.
+`DurationPicker` composes three numeric columns using pure `durationPicker` helpers. Native columns use finite ScrollViews and adjustable accessibility actions; the web adapter owns CSS snapping, spinbutton semantics, keyboard/row selection and window-level release cleanup. The injected `durationWheel` controller distinguishes user motion from silent alignment, invalidates stale settling callbacks and releases interaction state on cancellation/disable/unmount. `useDurationWheel` binds committed current props and cancels unfinished motion when the app becomes inactive. Font-scale geometry realigns silently; ordinary controlled-value alignment is nonanimated. Timer alone publishes an explicit local preset revision and route eligibility. The separate injected `wheelPresentation` owner scrolls native/web adapters toward the already accepted value, with one finite fallback and generation-fenced cleanup. It cannot select data or report manual busy state. Lifecycle settlement uses compositor cancellation on web; manual takeover retains the displayed offset, ignoring a cancelled nearest-snap end until displacement or manual fallback. Temporary cancellation offsets remain presentation only.
 
-The Timer route holds numeric parts and fresh selection/motion refs. Only a settled, effective, valid change configures the existing timer coordinator; Start uses the latest parts and waits until all columns settle. Running/paused wheels are disabled. Zero stays an invalid local selection; focus and same-value alignment do not mutate a completed timer or cancel its audio.
+The Timer route holds numeric parts and fresh selection/motion refs. Settled manual choices and accepted quick presets configure the existing timer coordinator only for effective, valid changes; Start uses the latest parts and waits for genuine manual motion. Preset selection updates all parts immediately while changed columns glide, so Start and later presets remain available. Reduced motion, backgrounding, blur, disablement and geometry changes settle obsolete presentation without replay; Starting unmounts its wheels. No revision or motion state is persisted. Running/paused views hide the wheels. Zero stays an invalid local selection; focus and same-value alignment do not mutate a completed timer or cancel its audio.
 
 The schedule editor owns one selected action ID and temporary numeric parts inside its existing Sheet. Apply functionally changes that action's draft; Cancel/Back/close abandons temporary parts. Save remains the only template-persistence boundary. One FlatList owns the whole draft: its stable header element contains the name, Scheduling, Repeat and count/total; its footer contains Add, errors and Save. Actions remain virtualized with stable IDs, without a surrounding vertical ScrollView. `EditorBody` preserves that list's layout while duration/calendar/repeat/discard content covers it: native hides interaction/accessibility, while web also uses inertness and hidden visibility to exclude covered controls from tab order. Each active panel has one bounded body ScrollView, with numeric duration columns as independent input scrollers. A captured whole-list offset and pending source target restore the opening position/focus; a virtualized action target remains pending until its button registers. Shared timing notices remain accessible through Sheet. No stacked duration Modal, timing runner or storage owner is added. The title/Close placement remains unchanged pending the explicit choice in the active scrolling plan.
 

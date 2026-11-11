@@ -50,10 +50,10 @@ export function createDurationWheel(a: {
   }
   return {
     activate: () => { disposed = false; },
-    synchronize: () => {
+    synchronize: (align = true) => {
       const wasMoving = phase !== 'idle';
       stop(); const config = a.configuration(); offset = config.value * config.rowHeight;
-      if (!disposed) a.align(offset, wasMoving);
+      if (!disposed && align) a.align(offset, wasMoving);
     },
     beginDrag: () => { begin('dragging'); },
     beginWheel: (waitForEnd = false) => { if (begin(waitForEnd ? 'momentum' : 'wheel')) idle(); },

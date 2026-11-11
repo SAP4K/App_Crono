@@ -65,6 +65,7 @@ tests/
   timer.test.ts         Countdown boundary/transition tests
   durationPicker.test.ts Bounded parts, conversion and snapping geometry
   durationWheel.test.ts Settling, cancellation, disabled state and changed row geometry
+  wheelPresentation.test.ts Visual preset targets, takeover, lifecycle and stale callbacks
   timerCompletion.test.ts Completion/audio coordination tests
   theme.test.ts         Preference resolution and palette contrast checks
   themeAppearance.test.ts Appearance lifecycle, cached snapshots and native background ordering
@@ -111,7 +112,8 @@ scripts/                Reproducible notification sound generator
 | `src/core/timer.ts` | Pure countdown transitions, validation, and formatting |
 | `src/core/durationPicker.ts` | Numeric duration parts, finite bounds, conversion and snap index |
 | `src/components/DurationPicker.tsx`, `DurationWheel.tsx`, `.web.tsx` | Shared themed picker, native adjustable columns and web spinbuttons |
-| `src/hooks/durationWheel.ts`, `useDurationWheel.ts` | Injected settling/cancellation controller and committed-prop lifecycle bridge |
+| `src/hooks/durationWheel.ts`, `useDurationWheel.ts` | Manual settling/cancellation and explicit preset-presentation lifecycle bridge |
+| `src/hooks/wheelPresentation.ts` | Finite visual wheel targets, takeover/settlement and stale callbacks; no selection/busy ownership |
 | `src/core/planning.ts` | Schedule bounds, CRUD, snapshot restoration, and cumulative deadlines |
 | `src/core/planningTools.ts` | Pure templates, independent copies and bounded repeated steps |
 | `src/core/backup.ts` | Strict portable projection/parser and additive fresh-ID merge |
@@ -165,7 +167,7 @@ scripts/                Reproducible notification sound generator
 
 | File | Purpose |
 |---|---|
-| `README.md` | Setup, templates, themes, languages, motion, notifications and checks |
+| `README.md` | Setup, animated Timer presets, templates, themes, languages, motion, notifications and checks |
 | `docs/background-notifications.md` | Android minute playback, setup, limits and verification |
 | `docs/backups.md` | Portable export/import, selected theme compatibility, limits and recovery |
 | `AGENTS.md` | Repository map and authoritative Expo workflow requirements |

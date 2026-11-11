@@ -8,9 +8,18 @@ import type { DurationWheelProps } from './DurationWheel.types';
 export function DurationWheel(props: DurationWheelProps) {
   const { value, maximum, rowHeight, label, hint, disabled, autoFocus } = props;
   const scroll = useRef<ScrollView>(null), focus = useRef<View>(null);
+  const position = useRef(0), animation = useRef<{ target: number; finished: () => void } | null>(null);
   const styles = useThemeStyles(createStyles);
-  const align = useCallback((offset: number) => scroll.current?.scrollTo({ y: offset, animated: false }), []);
-  const controller = useDurationWheel(props, align);
+  const align = useCallback((offset: number) => { position.current = offset; scroll.current?.scrollTo({ y: offset, animated: false }); }, []);
+  const animate = useCallback((target: number, finished: () => void) => {
+    const request = { target, finished }; animation.current = request;
+    scroll.current?.scrollTo({ y: target, animated: true });
+    return () => {
+      if (animation.current !== request) return;
+      animation.current = null; scroll.current?.scrollTo({ y: position.current, animated: false });
+    };
+  }, []);
+  const controller = useDurationWheel(props, align, { read: () => position.current, animate });
   useEffect(() => { if (autoFocus) focus.current?.focus(); }, [autoFocus]);
   return <View style={styles.column}>
     <View ref={focus} accessible accessibilityRole="adjustable" accessibilityLabel={props.accessibilityLabel ?? label} accessibilityHint={hint}
@@ -31,8 +40,12 @@ export function DurationWheel(props: DurationWheelProps) {
         onScrollBeginDrag={() => controller.beginDrag()}
         onScrollEndDrag={({ nativeEvent }) => controller.release({ position: nativeEvent.contentOffset.y })}
         onMomentumScrollBegin={() => controller.beginMomentum()}
-        onMomentumScrollEnd={({ nativeEvent }) => controller.end(nativeEvent.contentOffset.y)}
-        onScroll={({ nativeEvent }) => controller.scroll(nativeEvent.contentOffset.y)}>
+        onMomentumScrollEnd={({ nativeEvent }) => {
+          const offset = nativeEvent.contentOffset.y, current = animation.current;
+          if (current) { if (Math.abs(offset - current.target) < 1) current.finished(); }
+          else controller.end(offset);
+        }}
+        onScroll={({ nativeEvent }) => { position.current = nativeEvent.contentOffset.y; controller.scroll(position.current); }}>
         {Array.from({ length: maximum + 1 }, (_, index) => <Pressable key={index} accessible={false} disabled={disabled}
           onPress={() => controller.choose(index)} style={[styles.item, { height: rowHeight }]}>
           <Text style={[styles.number, { color: index === value ? styles.selected.color : styles.number.color }]}>{String(index).padStart(2, '0')}</Text>

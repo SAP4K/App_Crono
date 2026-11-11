@@ -160,3 +160,13 @@ test('font or layout geometry realignment is silent and invalidates motion using
   for (const callback of [...callbacks.values()]) callback();
   assert.deepEqual(calls.values, [6]); assert.equal(calls.offsets.at(-1), 480);
 });
+
+test('presentation synchronization invalidates manual work without first jumping to its accepted target', () => {
+  const { controller, config, calls, callbacks } = fixture(); controller.beginWheel(true); controller.scroll(440);
+  const stale = [...callbacks.values()][0]; config.value = 25; controller.synchronize(false);
+  stale(); controller.beginMomentum(); controller.end(440);
+  assert.deepEqual(calls.values, []); assert.deepEqual(calls.offsets, []);
+  assert.deepEqual(calls.busy, [true, false]); assert.equal(callbacks.size, 0);
+  controller.beginDrag(); controller.scroll(968); controller.release({ position: 968 }); controller.end(968);
+  assert.deepEqual(calls.values, [22]);
+});
