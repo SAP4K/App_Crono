@@ -33,7 +33,7 @@ export function DurationWheel(props: DurationWheelProps) {
       <ScrollView ref={scroll} style={{ height: rowHeight * 3 }} contentContainerStyle={{ paddingVertical: rowHeight }}
         accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants"
         scrollEnabled={!disabled} nestedScrollEnabled bounces={false} overScrollMode="never" showsVerticalScrollIndicator={false}
-        snapToInterval={rowHeight} snapToAlignment="start" decelerationRate={Platform.OS === 'android' ? 0.995 : 0.999} scrollEventThrottle={16}
+        snapToInterval={rowHeight} snapToAlignment="start" decelerationRate={Platform.OS === 'android' ? 0.9955 : 0.9991} scrollEventThrottle={16}
         onContentSizeChange={() => controller.synchronize()}
         onTouchStart={() => controller.beginDrag()} onTouchEnd={() => controller.release()}
         onTouchCancel={() => controller.release()}

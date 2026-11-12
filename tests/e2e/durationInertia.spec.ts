@@ -130,7 +130,7 @@ for (const screen of ['timer', 'planning'] as const) test(`${screen} browser whe
     const early = moving.slice(0, 2).reduce((sum, item) => sum + item.speed, 0) / 2;
     const late = moving.slice(-2).reduce((sum, item) => sum + item.speed, 0) / 2;
     expect(late).toBeLessThan(early * 0.65);
-    expect(moving.at(-1)!.point.at - moving[0].point.at).toBeGreaterThanOrEqual(300);
+    expect(moving.at(-1)!.point.at - moving[0].point.at).toBeGreaterThanOrEqual(460);
     expect(samples.filter((sample) => sample.offset > 20 * rowHeight + 1 && sample.offset < 26 * rowHeight - 1).every((sample) => sample.busy && sample.value === 20)).toBe(true);
     expect(await parentOffsets(wheel)).toEqual(outer);
     const after = await stored(page); expect(after.stopwatch).toEqual(before.stopwatch); expect(after.sessions).toEqual(before.sessions);
