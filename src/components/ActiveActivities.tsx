@@ -7,7 +7,7 @@ import { scheduleRemaining } from '../core/planning';
 import { formatRemaining, remainingTime } from '../core/timer';
 import { useForegroundNow } from '../hooks/useForegroundNow';
 import { useI18n } from '../hooks/useI18n';
-import { fonts as f, textSizes, type Palette } from '../theme';
+import { fonts as f, textSizes, radii, type Palette } from '../theme';
 
 export function ActiveActivities({ currentTab }: { currentTab: string }) {
   const { data, getSnapshot, timerControls, planning, notifications, feedback } = useCrono();
@@ -56,12 +56,12 @@ export function ActiveActivities({ currentTab }: { currentTab: string }) {
   </View>;
 }
 const createStyles = (c: Palette) => StyleSheet.create({
-  container: { paddingHorizontal: 12, paddingTop: 8, gap: 6, backgroundColor: c.background, borderTopWidth: 1, borderColor: c.border },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 12, backgroundColor: c.surface, paddingHorizontal: 10 },
+  container: { paddingHorizontal: 12, paddingTop: 8, gap: 6, backgroundColor: c.background, borderTopWidth: 1, borderColor: c.separator },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: radii.control, backgroundColor: c.surface, paddingHorizontal: 10 },
   open: { flex: 1, minWidth: 0, minHeight: 52, paddingVertical: 7, justifyContent: 'center' },
   name: { fontFamily: f.semibold, color: c.ink, fontSize: textSizes.caption },
   time: { fontFamily: f.regular, color: c.muted, fontSize: textSizes.small, marginTop: 3 },
   detail: { flexDirection: 'row', gap: 8 }, status: { flex: 1, minWidth: 0 },
-  action: { minHeight: 44, minWidth: 64, maxWidth: '40%', justifyContent: 'center', padding: 8, backgroundColor: c.secondary, borderRadius: 10 },
+  action: { minHeight: 44, minWidth: 64, maxWidth: '60%', justifyContent: 'center', padding: 8, backgroundColor: c.secondary, borderRadius: radii.control },
   label: { fontFamily: f.semibold, fontSize: textSizes.body, color: c.ink, textAlign: 'center', flexShrink: 1 },
 });

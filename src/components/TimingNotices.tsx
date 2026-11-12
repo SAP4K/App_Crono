@@ -3,7 +3,7 @@ import { useI18n } from '../hooks/useI18n';
 import { StyleSheet, Text, View } from 'react-native';
 import { useCrono } from '../context/CronoContext';
 import { useThemeStyles } from '../context/ThemeContext';
-import { fonts as f, Palette } from '../theme';
+import { fonts as f, radii, Palette } from '../theme';
 import { TimerCompletionNotice } from './TimerCompletionNotice';
 import { PlanningNotice } from './PlanningNotice';
 import { SystemNotificationNotice } from './SystemNotificationNotice';
@@ -25,8 +25,8 @@ export function TimingNotices() {
 }
 
 const createStyles = (c: Palette) => StyleSheet.create({
-  playback: { marginHorizontal: 26, marginBottom: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  label: { fontFamily: f.medium, color: c.muted, fontSize: 11, flexShrink: 1 },
-  stop: { minHeight: 44, paddingHorizontal: 12, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: c.secondary },
-  stopText: { fontFamily: f.semibold, color: c.ink, fontSize: 11 },
+  playback: { marginHorizontal: 24, marginBottom: 10, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  label: { fontFamily: f.medium, color: c.muted, fontSize: 12, flexShrink: 1 },
+  stop: { minHeight: 44, paddingHorizontal: 12, borderRadius: radii.control, alignItems: 'center', justifyContent: 'center', backgroundColor: c.secondary },
+  stopText: { fontFamily: f.semibold, color: c.ink, fontSize: 12 },
 });

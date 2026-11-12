@@ -1,7 +1,7 @@
 import { useI18n } from '../hooks/useI18n';
 import { StyleSheet, Text, View } from 'react-native';
 import { formatTime, Lap, lapStats } from '../core/stopwatch';
-import { textSizes, fonts as f, Palette } from '../theme';
+import { textSizes, radii, fonts as f, Palette } from '../theme';
 import { useTheme, useThemeStyles } from '../context/ThemeContext';
 import { Icon } from './Icon';
 
@@ -51,19 +51,19 @@ const createStyles = (c: Palette) => StyleSheet.create({
   count: { backgroundColor: c.badge, minWidth: 24, height: 23, borderRadius: 8, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
   countText: { fontFamily: f.semibold, fontSize: textSizes.small, color: c.badgeText },
   bestHint: { fontFamily: f.regular, fontSize: textSizes.small, color: c.muted },
-  empty: { alignItems: 'center', backgroundColor: c.empty, borderRadius: 20, paddingVertical: 26, borderWidth: 1, borderColor: c.border, borderStyle: 'dashed' },
+  empty: { alignItems: 'center', backgroundColor: c.empty, borderRadius: radii.control, paddingVertical: 26, borderWidth: 1, borderColor: c.separator, borderStyle: 'solid' },
   emptyIcon: { marginBottom: 10 },
   emptyTitle: { fontFamily: f.medium, fontSize: textSizes.body, color: c.ink, marginBottom: 6 },
   emptyText: { fontFamily: f.regular, fontSize: textSizes.small, color: c.muted, textAlign: 'center', lineHeight: 21, paddingHorizontal: 15 },
-  summary: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.summary, borderRadius: 15, paddingVertical: 15, marginBottom: 20 },
+  summary: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.summary, borderRadius: radii.control, paddingVertical: 15, marginBottom: 20 },
   stat: { flex: 1, paddingHorizontal: 15, gap: 7 },
   statLabel: { fontFamily: f.semibold, color: c.muted, fontSize: textSizes.small, letterSpacing: 1.1 },
   statValue: { fontFamily: f.semibold, color: c.ink, fontSize: 17, fontVariant: ['tabular-nums'] },
-  separator: { width: 1, height: 29, backgroundColor: c.border },
+  separator: { width: 1, height: 29, backgroundColor: c.separator },
   columns: { flexDirection: 'row', paddingHorizontal: 14, marginBottom: 6 },
   columnNumber: { width: 59, fontFamily: f.semibold, fontSize: textSizes.small, letterSpacing: 1.2, color: c.muted },
   columnTime: { flex: 1, textAlign: 'right', fontFamily: f.semibold, fontSize: textSizes.small, letterSpacing: 1.2, color: c.muted },
-  row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 17, borderRadius: 11, borderBottomWidth: 1, borderBottomColor: c.border },
+  row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 17, borderRadius: radii.control, borderBottomWidth: 1, borderBottomColor: c.separator },
   bestRow: { backgroundColor: c.limeSoft, borderBottomColor: 'transparent' },
   numberGroup: { width: 59, flexDirection: 'row', alignItems: 'center', gap: 7 },
   number: { fontFamily: f.medium, color: c.muted, fontSize: textSizes.caption },

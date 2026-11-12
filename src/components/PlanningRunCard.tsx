@@ -7,7 +7,7 @@ import { useThemeStyles } from '../context/ThemeContext';
 import { scheduleRemaining } from '../core/planning';
 import { formatRemaining } from '../core/timer';
 import { isAppActive, subscribeAppActivity } from '../hooks/appActivity';
-import { textSizes, fonts as f, Palette } from '../theme';
+import { textSizes, radii, fonts as f, Palette } from '../theme';
 import { ConfirmSheet } from './Sheet';
 
 export function PlanningRunCard() {
@@ -60,12 +60,12 @@ export function PlanningRunCard() {
 }
 
 const createStyles = (c: Palette) => StyleSheet.create({
-  card: { padding: 16, marginBottom: 14, borderRadius: 17, backgroundColor: c.limeSoft, borderWidth: 1, borderColor: c.border },
+  card: { padding: 16, marginBottom: 14, borderRadius: radii.card, backgroundColor: c.limeSoft, borderWidth: 1, borderColor: c.separator },
   status: { fontFamily: f.medium, fontSize: textSizes.small, color: c.green }, name: { fontFamily: f.bold, color: c.ink, fontSize: textSizes.input, marginTop: 5 },
   step: { fontFamily: f.medium, fontSize: textSizes.body, color: c.ink, marginTop: 7 }, time: { fontFamily: f.semibold, color: c.ink, fontSize: 30, marginVertical: 9, fontVariant: ['tabular-nums'] },
   next: { fontFamily: f.regular, fontSize: textSizes.small, color: c.muted, marginTop: 9 },
-  track: { height: 5, backgroundColor: c.border, borderRadius: 4, overflow: 'hidden' }, fill: { height: '100%', backgroundColor: c.green },
+  track: { height: 5, backgroundColor: c.separator, borderRadius: 4, overflow: 'hidden' }, fill: { height: '100%', backgroundColor: c.green },
   actions: { flexDirection: 'row', gap: 10, marginTop: 14 },
-  primary: { flex: 1, minHeight: 46, borderRadius: 12, justifyContent: 'center', alignItems: 'center', backgroundColor: c.action }, primaryText: { fontFamily: f.semibold, fontSize: textSizes.caption, color: c.actionText },
-  secondary: { flex: 1, minHeight: 46, borderRadius: 12, justifyContent: 'center', alignItems: 'center', backgroundColor: c.secondary }, secondaryText: { fontFamily: f.medium, fontSize: textSizes.caption, color: c.ink }, disabled: { opacity: 0.4 },
+  primary: { flex: 1, minHeight: 46, borderRadius: radii.control, justifyContent: 'center', alignItems: 'center', backgroundColor: c.action }, primaryText: { fontFamily: f.semibold, fontSize: textSizes.caption, color: c.actionText },
+  secondary: { flex: 1, minHeight: 46, borderRadius: radii.control, justifyContent: 'center', alignItems: 'center', backgroundColor: c.secondary }, secondaryText: { fontFamily: f.medium, fontSize: textSizes.caption, color: c.ink }, disabled: { opacity: 0.4 },
 });

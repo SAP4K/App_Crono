@@ -1,13 +1,67 @@
 import { readFileSync } from 'node:fs';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { initialData } from '../../src/core/stopwatch';
 import { startSchedule } from '../../src/core/planning';
 import { initialTimer } from '../../src/core/timer';
 import { getMessages } from '../../src/i18n';
-import { selectTheme, selectWheel, settingsGroup, scheduleOptions, audioEvents, audioSpy, duration, expectNoPageErrors, expectTheme, observePageErrors, playCount, seed, settings, stored } from './helpers';
+import { palettes } from '../../src/theme';
+import { cssColor, selectTheme, selectWheel, settingsGroup, scheduleOptions, audioEvents, audioSpy, duration, expectNoPageErrors, expectTheme, observePageErrors, playCount, seed, settings, stored } from './helpers';
 
 test.beforeEach(({ page }) => observePageErrors(page));
 test.afterEach(({ page }) => expectNoPageErrors(page));
+
+async function expectOutlinedContrast(control: Locator) {
+  await expect(control).toBeEnabled();
+  await control.scrollIntoViewIfNeeded();
+  await expect(control).toHaveCSS('opacity', '1');
+  const colors = await control.evaluate((node) => {
+    const style = getComputedStyle(node);
+    let parent = node.parentElement;
+    while (parent && getComputedStyle(parent).backgroundColor === 'rgba(0, 0, 0, 0)') parent = parent.parentElement;
+    return { border: style.borderTopColor, width: Number.parseFloat(style.borderTopWidth),
+      inside: style.backgroundColor, outside: getComputedStyle(parent ?? document.body).backgroundColor };
+  });
+  expect(colors.width).toBeGreaterThan(0);
+  const luminance = (rgb: string) => rgb.match(/[\d.]+/g)!.slice(0, 3).map((part) => {
+    const value = Number(part) / 255;
+    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  }).reduce((sum, value, index) => sum + value * [0.2126, 0.7152, 0.0722][index], 0);
+  for (const surface of [colors.inside, colors.outside]) {
+    const values = [luminance(colors.border), luminance(surface)].sort((a, b) => b - a);
+    expect((values[0] + 0.05) / (values[1] + 0.05),
+      `[FIX:studio-outline] ${colors.border} against ${surface}`).toBeGreaterThanOrEqual(3);
+  }
+}
+
+for (const theme of ['light', 'dark'] as const) test(`${theme} outlined controls meet rendered contrast and preserve stored data`, async ({ page }) => {
+  const m = getMessages('ro'), data = initialData();
+  data.preferences.theme = theme; data.timer = initialTimer(300000);
+  await page.emulateMedia({ reducedMotion: 'reduce' }); await seed(page, data); await page.goto('/timer');
+  for (const minutes of [1, 5, 10, 25]) await expectOutlinedContrast(page.getByRole('button', { name: m.presetMinutes(minutes), exact: true }));
+  await page.getByRole('tab', { name: m.planningTab, exact: true }).click();
+  for (const name of [m.calendarAll, m.calendarChooseDay]) await expectOutlinedContrast(page.getByRole('button', { name, exact: true }));
+  await page.getByRole('button', { name: m.calendarChooseDay, exact: true }).click();
+  const date = page.getByRole('dialog', { name: m.calendarChooseDay, exact: true });
+  for (const name of [m.calendarToday, m.cancel]) await expectOutlinedContrast(date.getByRole('button', { name, exact: true }));
+  await date.getByRole('button', { name: m.cancel, exact: true }).click();
+  await page.getByRole('button', { name: m.planningTemplates, exact: true }).click();
+  for (const copy of Object.values(m.planningTemplateNames)) await expectOutlinedContrast(page.getByRole('button', { name: copy.name, exact: true }));
+  await page.getByRole('button', { name: m.planningTemplates, exact: true }).click();
+  await page.getByRole('button', { name: m.newSchedule, exact: true }).click();
+  const editor = page.getByRole('dialog', { name: m.newSchedule, exact: true });
+  for (const name of [`${m.calendarSchedule} · ${m.calendarManual}`, m.repeatSequence, m.addStep]) await expectOutlinedContrast(editor.getByRole('button', { name, exact: true }));
+  await editor.getByRole('button', { name: m.editStepDuration(1), exact: true }).click();
+  const duration = page.getByRole('dialog', { name: m.durationPickerTitle(1), exact: true });
+  await expectOutlinedContrast(duration.getByRole('button', { name: m.cancel, exact: true }));
+  await duration.getByRole('button', { name: m.cancel, exact: true }).click();
+  await editor.getByRole('textbox', { name: m.scheduleName, exact: true }).fill('Contrast check');
+  await editor.getByRole('button', { name: m.close, exact: true }).click();
+  const discard = page.getByRole('dialog', { name: m.discardTitle, exact: true });
+  await expectOutlinedContrast(discard.getByRole('button', { name: m.discardChanges, exact: true }));
+  await discard.getByRole('button', { name: m.discardChanges, exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  expect(await stored(page)).toEqual(data);
+});
 
 type ThemeMediaProbe = { blocked: boolean; received: number; suppressed: number; delivered: number; writtenThemes: string[] };
 async function observeMissedThemeEvents(page: Page) {
@@ -93,7 +147,7 @@ for (const [preference, initial, next] of [
   });
   const dark = (preference === 'system' ? next : preference) === 'dark';
   await expectTheme(page, dark);
-  await expect(panel.getByTestId('sheet-surface')).toHaveCSS('background-color', dark ? 'rgb(15, 23, 42)' : 'rgb(255, 255, 255)');
+  await expect(panel.getByTestId('sheet-surface')).toHaveCSS('background-color', dark ? cssColor(palettes.dark.background) : cssColor(palettes.light.background));
   await expect(minutes).toBeFocused(); await expect(minutes).toHaveAttribute('aria-valuenow', '2');
   expect((await readProbe()).delivered).toBe(delivered); expect((await readProbe()).writtenThemes).toEqual([preference]);
   expect(await stored(page)).toEqual(before);
@@ -121,7 +175,7 @@ for (const colorScheme of ['light', 'dark'] as const) test(`fresh System follows
   });
   await page.emulateMedia({ colorScheme: colorScheme === 'dark' ? 'light' : 'dark' });
   await expectTheme(page, colorScheme !== 'dark');
-  await expect(dialog.getByTestId('sheet-surface')).toHaveCSS('background-color', colorScheme === 'dark' ? 'rgb(255, 255, 255)' : 'rgb(15, 23, 42)');
+  await expect(dialog.getByTestId('sheet-surface')).toHaveCSS('background-color', colorScheme === 'dark' ? cssColor(palettes.light.background) : cssColor(palettes.dark.background));
   await selectTheme(dialog, 'system');
   expect(await page.evaluate(() => localStorage.getItem('@crono/app-v1'))).toBe(before);
   expect(await page.evaluate(() => (window as unknown as { themeWrites: number }).themeWrites)).toBe(0);
@@ -178,12 +232,12 @@ test('manual theme choices survive rapid selections and ignore OS appearance', a
   const data = initialData(); data.preferences.theme = 'light';
   await seed(page, data); await page.emulateMedia({ colorScheme: 'dark' });
   await page.goto('/'); await expectTheme(page, false);
-  await expect(page.getByRole('button', { name: 'Pornește', exact: true })).toHaveCSS('background-color', 'rgb(37, 99, 235)');
+  await expect(page.getByRole('button', { name: 'Pornește', exact: true })).toHaveCSS('background-color', cssColor(palettes.light.action));
   const dialog = await settings(page, 'appearance');
-  await expect(dialog.getByTestId('sheet-surface')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+  await expect(dialog.getByTestId('sheet-surface')).toHaveCSS('background-color', cssColor(palettes.light.background));
   for (let index = 0; index < 5; index++) await selectTheme(dialog, index % 2 === 0 ? 'dark' : 'light');
   await expectTheme(page, true);
-  await expect(dialog.getByTestId('sheet-surface')).toHaveCSS('background-color', 'rgb(15, 23, 42)');
+  await expect(dialog.getByTestId('sheet-surface')).toHaveCSS('background-color', cssColor(palettes.dark.background));
   await expect.poll(async () => (await stored(page)).preferences.theme).toBe('dark');
   await page.reload(); await expectTheme(page, true);
   await page.emulateMedia({ colorScheme: 'light' }); await expectTheme(page, true);
@@ -222,7 +276,7 @@ test('legacy running stopwatch, laps and history survive theme changes and reloa
   await expect(page.getByRole('dialog', { name: 'Un nou început?' })).toBeVisible();
 });
 
-test('literal legacy-v1 clocks, history and false preferences survive the blue theme refresh', async ({ page }) => {
+test('literal legacy-v1 clocks, history and false preferences survive the Studio theme refresh', async ({ page }) => {
   const legacy = JSON.parse(readFileSync(new URL('../fixtures/app-v1-before-planning.json', import.meta.url), 'utf8'));
   await seed(page, legacy); await page.goto('/'); await expectTheme(page, true);
   const dialog = await settings(page, 'sounds');
@@ -232,7 +286,7 @@ test('literal legacy-v1 clocks, history and false preferences survive the blue t
   await settingsGroup(page, 'appearance');
   await selectTheme(dialog, 'light');
   await expectTheme(page, false);
-  await expect(dialog.getByTestId('sheet-surface')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+  await expect(dialog.getByTestId('sheet-surface')).toHaveCSS('background-color', cssColor(palettes.light.background));
   await dialog.getByRole('button', { name: 'Închide', exact: true }).click();
   await expect(dialog).not.toBeVisible();
   await page.getByRole('tab', { name: 'Timer', exact: true }).click();
@@ -310,7 +364,7 @@ for (const dark of [false, true]) for (const width of [320, 390, 430, 1024]) {
     await page.getByRole('button', { name: 'Resetează cronometrul', exact: true }).click();
     await page.clock.runFor(300);
     const reset = page.getByRole('dialog', { name: 'Un nou început?', exact: true });
-    await expect(reset.getByTestId('sheet-surface')).toHaveCSS('background-color', dark ? 'rgb(15, 23, 42)' : 'rgb(255, 255, 255)');
+    await expect(reset.getByTestId('sheet-surface')).toHaveCSS('background-color', dark ? cssColor(palettes.dark.background) : cssColor(palettes.light.background));
     await reset.getByRole('button', { name: 'Renunță', exact: true }).click();
     await page.clock.runFor(300);
     // Browser CSS dismissal outlives the fake JS clock; its focus trap must be gone.
@@ -319,15 +373,15 @@ for (const dark of [false, true]) for (const width of [320, 390, 430, 1024]) {
     for (const name of ['Timer', 'Planificare', 'Istoric', 'Cronometru']) {
       await page.getByRole('tab', { name, exact: true }).click();
       await expect(page.getByRole('tab', { name, exact: true })).toHaveAttribute('aria-selected', 'true');
-      await expect(page.getByRole('tab', { name, exact: true })).toHaveCSS('background-color', dark ? 'rgb(30, 58, 138)' : 'rgb(219, 234, 254)');
+      await expect(page.getByRole('tab', { name, exact: true })).toHaveCSS('border-top-color', cssColor(palettes[dark ? 'dark' : 'light'].green));
       if (name === 'Timer') {
         const wheel = page.getByRole('spinbutton', { name: 'Minute', exact: true });
         await wheel.focus(); await expect(wheel).toBeFocused();
         const selected = wheel.locator('button').nth(Number(await wheel.getAttribute('aria-valuenow')));
-        await expect(selected).toHaveCSS('color', dark ? 'rgb(248, 250, 252)' : 'rgb(15, 23, 42)');
+        await expect(selected).toHaveCSS('color', cssColor(palettes[dark ? 'dark' : 'light'].ink));
         await expect(page.getByRole('button', { name: 'Resetează temporizatorul', exact: true })).toBeDisabled();
       }
-      await page.screenshot({ path: `previews/blue-${dark ? 'dark' : 'light'}-${name}-${width}.png`, fullPage: true, animations: 'disabled' });
+      await page.screenshot({ path: `previews/studio-${dark ? 'dark' : 'light'}-${name}-${width}.png`, fullPage: true, animations: 'disabled' });
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     }
     await page.getByRole('tab', { name: 'Planificare', exact: true }).click();
@@ -338,14 +392,14 @@ for (const dark of [false, true]) for (const width of [320, 390, 430, 1024]) {
     await page.clock.runFor(300);
     await editor.getByRole('textbox', { name: 'Nume orar', exact: true }).focus();
     await expect(editor.getByRole('textbox', { name: 'Nume orar', exact: true })).toBeFocused();
-    await expect(editor.getByTestId('sheet-surface')).toHaveCSS('background-color', dark ? 'rgb(15, 23, 42)' : 'rgb(255, 255, 255)');
+    await expect(editor.getByTestId('sheet-surface')).toHaveCSS('background-color', dark ? cssColor(palettes.dark.background) : cssColor(palettes.light.background));
     await expect(editor.getByRole('textbox', { name: 'Nume orar', exact: true })).toHaveValue(longName);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     if (width === 320) await page.screenshot({ path: `previews/planning-editor-${dark ? 'dark' : 'light'}-320.png`, fullPage: true, animations: 'disabled' });
     await editor.getByRole('textbox', { name: 'Nume orar', exact: true }).fill(longName + '!');
     await editor.getByRole('button', { name: 'Închide', exact: true }).click();
     const discard = page.getByRole('dialog', { name: 'Renunți la modificări?', exact: true });
-    await expect(discard.getByTestId('sheet-surface')).toHaveCSS('background-color', dark ? 'rgb(15, 23, 42)' : 'rgb(255, 255, 255)');
+    await expect(discard.getByTestId('sheet-surface')).toHaveCSS('background-color', dark ? cssColor(palettes.dark.background) : cssColor(palettes.light.background));
     await discard.getByRole('button', { name: 'Continuă editarea', exact: true }).click();
     await expect(editor.getByRole('textbox', { name: 'Nume orar', exact: true })).toHaveValue(longName + '!');
     await editor.getByRole('button', { name: 'Închide', exact: true }).click();
@@ -358,12 +412,12 @@ for (const dark of [false, true]) for (const width of [320, 390, 430, 1024]) {
     const details = page.getByRole('dialog', { name: 'Sesiunea ta.' });
     await page.clock.runFor(300);
     await expect(details).toBeVisible();
-    await expect(details.getByTestId('sheet-surface')).toHaveCSS('background-color', dark ? 'rgb(15, 23, 42)' : 'rgb(255, 255, 255)');
+    await expect(details.getByTestId('sheet-surface')).toHaveCSS('background-color', dark ? cssColor(palettes.dark.background) : cssColor(palettes.light.background));
     await details.getByRole('button', { name: 'Șterge sesiunea', exact: true }).click();
     await page.clock.runFor(300);
     const deletion = page.getByRole('dialog', { name: 'Ștergi sesiunea?' });
-    await expect(deletion.getByRole('button', { name: 'Șterge sesiunea', exact: true })).toHaveCSS('background-color', dark ? 'rgb(69, 10, 10)' : 'rgb(254, 242, 242)');
-    await expect(deletion.getByTestId('sheet-surface')).toHaveCSS('background-color', dark ? 'rgb(15, 23, 42)' : 'rgb(255, 255, 255)');
+    await expect(deletion.getByRole('button', { name: 'Șterge sesiunea', exact: true })).toHaveCSS('background-color', dark ? cssColor(palettes.dark.dangerSoft) : cssColor(palettes.light.dangerSoft));
+    await expect(deletion.getByTestId('sheet-surface')).toHaveCSS('background-color', dark ? cssColor(palettes.dark.background) : cssColor(palettes.light.background));
     await page.getByRole('button', { name: 'Renunță', exact: true }).click();
     await page.clock.runFor(300);
     await expect(page.getByRole('dialog', { name: 'Ștergi sesiunea?' })).not.toBeVisible();
@@ -373,7 +427,7 @@ for (const dark of [false, true]) for (const width of [320, 390, 430, 1024]) {
     for (const name of ['Sunet Clasic', 'Durata sunetului 60 secunde']) {
       const selected = preferences.getByRole('radio', { name, exact: true });
       await expect(selected).toBeChecked();
-      await expect(selected).toHaveCSS('background-color', dark ? 'rgb(30, 58, 138)' : 'rgb(219, 234, 254)');
+      await expect(selected).toHaveCSS('background-color', dark ? cssColor(palettes.dark.selected) : cssColor(palettes.light.selected));
     }
     await page.screenshot({ path: `previews/theme-${dark ? 'dark' : 'light'}-${width}.png`, fullPage: true, animations: 'disabled' });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -398,7 +452,7 @@ for (const dark of [false, true]) for (const width of [320, 390, 430, 1024]) {
     await expect(page.getByRole('button', { name: 'Editează orarul Concentrare', exact: true })).toBeDisabled();
     await scheduleOptions(page, 'Concentrare');
     await expect(page.getByRole('button', { name: 'Editează orarul Concentrare', exact: true })).toHaveCSS('opacity', '0.45');
-    if (width === 320) await page.screenshot({ path: `previews/blue-run-${dark ? 'dark' : 'light'}.png`, fullPage: true, animations: 'disabled' });
+    if (width === 320) await page.screenshot({ path: `previews/studio-run-${dark ? 'dark' : 'light'}.png`, fullPage: true, animations: 'disabled' });
     for (const [button, title] of [
       ['Resetează orarul', 'Resetezi orarul?'],
       ['Pornește orarul Relaxare', 'Înlocuiești orarul activ?'],
@@ -409,7 +463,7 @@ for (const dark of [false, true]) for (const width of [320, 390, 430, 1024]) {
       await trigger.scrollIntoViewIfNeeded(); await trigger.click();
       const dialog = page.getByRole('dialog', { name: title, exact: true });
       await expect(dialog).toBeVisible(); await page.clock.runFor(300);
-      await expect(dialog.getByTestId('sheet-surface')).toHaveCSS('background-color', dark ? 'rgb(15, 23, 42)' : 'rgb(255, 255, 255)');
+      await expect(dialog.getByTestId('sheet-surface')).toHaveCSS('background-color', dark ? cssColor(palettes.dark.background) : cssColor(palettes.light.background));
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await dialog.getByRole('button', { name: 'Renunță', exact: true }).click(); await page.clock.runFor(300);
       await expect(dialog).not.toBeVisible();
@@ -421,7 +475,7 @@ for (const dark of [false, true]) for (const width of [320, 390, 430, 1024]) {
     await expect(start).toBeEnabled(); await start.click();
     await page.getByRole('button', { name: 'Resetează temporizatorul', exact: true }).click(); await page.clock.runFor(300);
     const reset = page.getByRole('dialog', { name: 'Resetezi temporizatorul?', exact: true });
-    await expect(reset.getByTestId('sheet-surface')).toHaveCSS('background-color', dark ? 'rgb(15, 23, 42)' : 'rgb(255, 255, 255)');
+    await expect(reset.getByTestId('sheet-surface')).toHaveCSS('background-color', dark ? cssColor(palettes.dark.background) : cssColor(palettes.light.background));
     await reset.getByRole('button', { name: 'Renunță', exact: true }).click(); await page.clock.runFor(300);
     const dialog = await settings(page, 'appearance'); await page.clock.runFor(10000);
     await expect(dialog.getByLabel('Temporizator finalizat', { exact: true })).toBeVisible();
@@ -430,7 +484,7 @@ for (const dark of [false, true]) for (const width of [320, 390, 430, 1024]) {
     await page.clock.runFor(run.deadlineAt! - await page.evaluate(() => Date.now()));
     await expect(dialog.getByLabel('Etapă finalizată', { exact: true })).toBeVisible();
     await expect(dialog.getByRole('button', { name: 'Oprește sunetul', exact: true })).toBeVisible();
-    if (width === 320) await page.screenshot({ path: `previews/blue-notices-${dark ? 'dark' : 'light'}.png`, fullPage: true, animations: 'disabled' });
+    if (width === 320) await page.screenshot({ path: `previews/studio-notices-${dark ? 'dark' : 'light'}.png`, fullPage: true, animations: 'disabled' });
     await dialog.getByRole('button', { name: 'Oprește sunetul', exact: true }).click();
     await page.clock.runFor(1000);
     await expect(dialog.getByLabel('Orar finalizat', { exact: true })).toBeVisible();
@@ -439,6 +493,6 @@ for (const dark of [false, true]) for (const width of [320, 390, 430, 1024]) {
     await page.getByRole('tab', { name: 'Planificare', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Repornește orarul', exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    if (width === 320) await page.screenshot({ path: `previews/blue-completed-${dark ? 'dark' : 'light'}.png`, fullPage: true, animations: 'disabled' });
+    if (width === 320) await page.screenshot({ path: `previews/studio-completed-${dark ? 'dark' : 'light'}.png`, fullPage: true, animations: 'disabled' });
   });
 }

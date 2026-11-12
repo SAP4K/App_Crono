@@ -2,7 +2,7 @@ import { useI18n } from '../hooks/useI18n';
 import { StyleSheet, Text, View } from 'react-native';
 import { useCrono } from '../context/CronoContext';
 import { useThemeStyles } from '../context/ThemeContext';
-import { fonts as f, Palette } from '../theme';
+import { fonts as f, radii, Palette } from '../theme';
 
 export function TimerCompletionNotice() {
   const { messages: m } = useI18n();
@@ -16,6 +16,6 @@ export function TimerCompletionNotice() {
 }
 
 const createStyles = (c: Palette) => StyleSheet.create({
-  notice: { marginHorizontal: 26, marginBottom: 12, padding: 14, borderRadius: 14, backgroundColor: c.limeSoft },
-  text: { fontFamily: f.semibold, color: c.green, fontSize: 13, lineHeight: 19 },
+  notice: { marginHorizontal: 24, marginBottom: 12, padding: 14, borderRadius: radii.control, backgroundColor: c.limeSoft },
+  text: { fontFamily: f.semibold, color: c.green, fontSize: 14, lineHeight: 22 },
 });

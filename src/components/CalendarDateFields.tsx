@@ -2,7 +2,7 @@ import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { useTheme, useThemeStyles } from '../context/ThemeContext';
 import type { CalendarDateParts } from '../core/planningCalendar';
 import { useI18n } from '../hooks/useI18n';
-import { fonts as f, type Palette } from '../theme';
+import { fonts as f, radii, type Palette } from '../theme';
 
 export function CalendarDateFields({ value, onChange }: {
   value: CalendarDateParts;
@@ -31,6 +31,6 @@ const createStyles = (c: Palette) => StyleSheet.create({
   fields: { flexDirection: 'row', gap: 8 },
   field: { flex: 1, minWidth: 0, gap: 6 },
   label: { fontFamily: f.medium, fontSize: 13, color: c.ink },
-  input: { minHeight: 48, paddingHorizontal: 10, borderWidth: 1, borderColor: c.border, borderRadius: 12,
+  input: { minHeight: 48, paddingHorizontal: 10, borderWidth: 1, borderColor: c.border, borderRadius: radii.control,
     fontFamily: f.medium, fontSize: 16, color: c.ink, backgroundColor: c.surface },
 });

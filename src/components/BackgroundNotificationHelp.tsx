@@ -4,7 +4,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useCrono } from '../context/CronoContext';
 import { useI18n } from '../hooks/useI18n';
 import { useThemeStyles } from '../context/ThemeContext';
-import { fonts as f, Palette } from '../theme';
+import { fonts as f, radii, Palette } from '../theme';
 
 export function BackgroundNotificationHelp() {
   const { notifications, feedback } = useCrono();
@@ -35,5 +35,5 @@ const createStyles = (c: Palette) => StyleSheet.create({
   container: { gap: 12 },
   text: { fontFamily: f.regular, color: c.muted, fontSize: 13, lineHeight: 19 },
   label: { fontFamily: f.medium, color: c.ink, fontSize: 13, lineHeight: 19, textAlign: 'center' },
-  button: { minHeight: 44, padding: 12, justifyContent: 'center', alignItems: 'center', borderRadius: 12, borderWidth: 1, borderColor: c.border },
+  button: { minHeight: 44, padding: 12, justifyContent: 'center', alignItems: 'center', borderRadius: radii.control, borderWidth: 1, borderColor: c.border },
 });

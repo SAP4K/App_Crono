@@ -3,6 +3,9 @@ import { initialData, type AppData } from '../../src/core/stopwatch';
 import { getMessages } from '../../src/i18n';
 import type { Messages } from '../../src/i18n/types';
 import type { ThemePreference } from '../../src/core/themePreference';
+import { palettes } from '../../src/theme';
+
+export const cssColor = (hex: string) => `rgb(${[1, 3, 5].map((offset) => Number.parseInt(hex.slice(offset, offset + 2), 16)).join(', ')})`;
 
 const pageErrors = new WeakMap<Page, string[]>();
 export function observePageErrors(page: Page) {
@@ -91,7 +94,7 @@ export async function settings(page: Page, group?: keyof Messages['settingsGroup
 }
 
 export async function expectTheme(page: Page, dark: boolean) {
-  await expect(page.locator('body')).toHaveCSS('background-color', dark ? 'rgb(2, 6, 23)' : 'rgb(226, 232, 240)');
+  await expect(page.locator('body')).toHaveCSS('background-color', cssColor(palettes[dark ? 'dark' : 'light'].desktop));
   await expect(page.locator('html')).toHaveCSS('color-scheme', dark ? 'dark' : 'light');
 }
 

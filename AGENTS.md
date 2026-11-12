@@ -57,7 +57,8 @@ src/
   core/         Pure timing/schedule operations, notification projection, registries, validation
   i18n/         Typed catalogs, plural/date formatting, and localized sharing
   audio/        Bundled playback sources and native notification sound names
-  theme.ts      Semantic light/dark palettes and font-family constants
+  theme.ts      Pure Studio palettes, visual and motion constants
+  typography.ts Platform system-serif heading adapter
 tests/
   language.test.ts      Language defaults, validation, and legacy preservation
   i18n.test.ts          Catalog parity, plurals, locale dates, and shared results
@@ -123,6 +124,7 @@ scripts/                Reproducible notification sound generator
 | `src/core/sounds.ts`, `src/audio/sources.ts` | Pure sound preferences and separate asset map |
 | `src/hooks/useStopwatch.ts` | Hydration outcome, accepted-update subscriptions, functional updates, ordered writes |
 | `src/context/CronoContext.tsx` | Shared state, timer/planning runners, one audio owner, haptics, wake lock |
+| `src/theme.ts`, `src/typography.ts` | Pure Studio tokens and separate platform heading-family adapter |
 | `src/context/ThemeContext.tsx` | Saved theme, navigation palette, native appearance |
 | `src/context/MotionContext.tsx`, `src/hooks/motionPreference.ts` | Shared live reduced-motion/activity policy and covered-surface scopes |
 | `src/components/MotionPressable.tsx`, `src/hooks/pressMotion.ts`, `usePressMotion.ts` | Ref-safe button feedback; finite cancellable visual transitions |
@@ -169,7 +171,7 @@ scripts/                Reproducible notification sound generator
 
 | File | Purpose |
 |---|---|
-| `README.md` | Setup, gentler wheels, presets, navigation, themes, notifications and checks |
+| `README.md` | Setup, Studio appearance, wheels, themes, notifications and checks |
 | `docs/background-notifications.md` | Android minute playback, setup, limits and verification |
 | `docs/backups.md` | Portable export/import, selected theme compatibility, limits and recovery |
 | `AGENTS.md` | Repository map and authoritative Expo workflow requirements |
@@ -178,6 +180,7 @@ scripts/                Reproducible notification sound generator
 | `.ai-factory/rules/base.md` | Naming, state, persistence, UI, and testing conventions |
 | `.ai-factory/plans/feature-screen-sheet-transitions.md` | Transition checks, source identity and deferred native acceptance |
 | `.ai-factory/plans/feature-directional-screen-transitions.md` | Horizontal route slides, lifecycle and compatibility checks |
+| `.ai-factory/plans/feature-studio-redesign.md` | Studio scope, visual references, source-bound checks and native deferrals |
 | `.ai-factory/config.yaml` | Languages, artifact paths, Git defaults, and workflow preferences |
 
 ## Project Workflow

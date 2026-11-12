@@ -8,7 +8,8 @@ import { StopwatchFace } from '../components/StopwatchFace';
 import { LapList } from '../components/LapList';
 import { Icon } from '../components/Icon';
 import { ConfirmSheet } from '../components/Sheet';
-import { textSizes, fonts as f, Palette } from '../theme';
+import { textSizes, radii, fonts as f, Palette } from '../theme';
+import { headingFamily } from '../typography';
 import { useTheme, useThemeStyles } from '../context/ThemeContext';
 
 export default function StopwatchScreen() {
@@ -57,22 +58,22 @@ export default function StopwatchScreen() {
 
 const createStyles = (c: Palette) => StyleSheet.create({
   screen: { flex: 1 },
-  content: { paddingHorizontal: 26, paddingBottom: 26 },
+  content: { paddingHorizontal: 24, paddingBottom: 24 },
   eyebrow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 3, marginBottom: 11 },
   dash: { width: 17, height: 2, backgroundColor: c.green, borderRadius: 1 },
-  eyebrowText: { fontFamily: f.semibold, fontSize: textSizes.small, color: c.green, letterSpacing: 1.7 },
-  title: { fontFamily: f.bold, color: c.ink, fontSize: 32, letterSpacing: -1.5, marginBottom: 7 },
+  eyebrowText: { fontFamily: f.medium, fontSize: textSizes.small, color: c.muted, letterSpacing: 1.2, flexShrink: 1 },
+  title: { fontFamily: headingFamily, fontWeight: '400', color: c.ink, fontSize: 30, lineHeight: 39, letterSpacing: -0.3, marginBottom: 8 },
   subtitle: { fontFamily: f.regular, color: c.muted, fontSize: textSizes.caption, marginBottom: 22 },
   actions: { flexDirection: 'row', gap: 12 },
-  primary: { flex: 1.32, flexDirection: 'row', gap: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: c.action, minHeight: 61, paddingVertical: 19, borderRadius: 19 },
+  primary: { flex: 1.5, flexDirection: 'row', gap: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: c.action, minHeight: 56, paddingVertical: 16, borderRadius: radii.control },
   primaryText: { fontFamily: f.semibold, color: c.actionText, fontSize: textSizes.body },
-  secondary: { flex: 1, flexDirection: 'row', gap: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: c.secondary, minHeight: 61, paddingVertical: 19, borderRadius: 19 },
+  secondary: { flex: 1, flexDirection: 'row', gap: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: c.secondary, minHeight: 56, paddingVertical: 16, borderRadius: radii.control },
   secondaryText: { fontFamily: f.semibold, color: c.ink, fontSize: textSizes.caption },
   disabled: { backgroundColor: c.disabled },
   hint: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingTop: 3 },
   hintDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: c.subtle },
   hintText: { fontFamily: f.regular, color: c.muted, fontSize: textSizes.small },
-  save: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 7, backgroundColor: c.limeSoft, borderRadius: 13 },
+  save: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 8, backgroundColor: c.limeSoft, borderRadius: radii.control },
   saveText: { fontFamily: f.semibold, color: c.green, fontSize: textSizes.small },
   footer: { fontFamily: f.medium, fontSize: textSizes.small, color: c.muted, letterSpacing: 1.7, textAlign: 'center', marginTop: 29 },
 });

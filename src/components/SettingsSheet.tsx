@@ -3,7 +3,7 @@ import { useI18n } from '../hooks/useI18n';
 import { useLayoutEffect, useRef, useState } from 'react';
 import { Keyboard, Platform, StyleSheet, Text, View } from 'react-native';
 import { useCrono } from '../context/CronoContext';
-import { textSizes, fonts as f, Palette } from '../theme';
+import { textSizes, radii, fonts as f, Palette } from '../theme';
 import { useTheme, useThemeStyles } from '../context/ThemeContext';
 import { Icon } from './Icon';
 import { Sheet } from './Sheet';
@@ -179,28 +179,28 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
 
 const createStyles = (c: Palette) => StyleSheet.create({
   groups: { paddingBottom: 14 },
-  group: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 16, borderBottomWidth: 1, borderColor: c.border },
+  group: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 16, borderBottomWidth: 1, borderColor: c.separator },
   subtitle: { fontFamily: f.regular, color: c.muted, fontSize: textSizes.body, marginBottom: 27 },
-  soundOptions: { gap: 12, paddingVertical: 18, borderBottomWidth: 1, borderColor: c.border },
+  soundOptions: { gap: 12, paddingVertical: 18, borderBottomWidth: 1, borderColor: c.separator },
   choices: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   notificationRow: { flexDirection: 'row', gap: 12, alignItems: 'center' },
   notificationSwitch: { minHeight: 44, justifyContent: 'center' },
-  choice: { borderWidth: 1, borderColor: c.border, borderRadius: 12, paddingHorizontal: 13, minHeight: 44, justifyContent: 'center', alignItems: 'center' },
+  choice: { borderWidth: 1, borderColor: c.border, borderRadius: radii.control, paddingHorizontal: 13, minHeight: 44, justifyContent: 'center', alignItems: 'center' },
   chosen: { backgroundColor: c.selected, borderColor: c.green },
   choiceText: { fontFamily: f.medium, color: c.ink, fontSize: textSizes.caption },
-  preview: { flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', minHeight: 46, borderRadius: 12, backgroundColor: c.secondary },
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 21, borderBottomWidth: 1, borderColor: c.border, gap: 12 },
-  icon: { backgroundColor: c.iconSurface, width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-  copy: { flex: 1, gap: 6 },
+  preview: { flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', minHeight: 46, borderRadius: radii.control, backgroundColor: c.secondary },
+  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 18, borderBottomWidth: 1, borderColor: c.separator, gap: 12 },
+  icon: { backgroundColor: c.iconSurface, width: 42, height: 42, borderRadius: radii.control, alignItems: 'center', justifyContent: 'center' },
+  copy: { flex: 1, minWidth: 0, gap: 6 },
   label: { fontFamily: f.semibold, color: c.ink, fontSize: textSizes.body },
   description: { fontFamily: f.regular, color: c.muted, fontSize: textSizes.caption, lineHeight: 21 },
   webNote: { fontFamily: f.regular, color: c.muted, fontSize: textSizes.caption, lineHeight: 21, marginTop: 14 },
   about: { alignItems: 'center', paddingVertical: 32 },
-  aboutMark: { backgroundColor: c.lime, width: 57, height: 57, borderRadius: 19, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
+  aboutMark: { backgroundColor: c.lime, width: 57, height: 57, borderRadius: radii.control, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
   brand: { fontFamily: f.heavy, color: c.ink, fontSize: 20, letterSpacing: -0.5 },
   version: { fontFamily: f.medium, color: c.muted, fontSize: textSizes.small },
   tagline: { fontFamily: f.regular, color: c.muted, fontSize: textSizes.small, marginTop: 9, textAlign: 'center' },
-  divider: { width: 25, height: 1, backgroundColor: c.border, marginVertical: 22 },
+  divider: { width: 25, height: 1, backgroundColor: c.separator, marginVertical: 22 },
   privacy: { fontFamily: f.regular, color: c.muted, fontSize: textSizes.caption, lineHeight: 21, textAlign: 'center' },
   limit: { fontFamily: f.regular, color: c.muted, fontSize: textSizes.small, marginTop: 14 },
 });

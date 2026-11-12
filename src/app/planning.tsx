@@ -16,7 +16,9 @@ import { CalendarDateFields } from '../components/CalendarDateFields';
 import { createTimingId } from '../hooks/createTimingId';
 import { PlanningRunCard } from '../components/PlanningRunCard';
 import { ScheduleCard } from '../components/ScheduleCard';
-import { textSizes, fonts as f, Palette } from '../theme';
+import { textSizes, radii, fonts as f, Palette } from '../theme';
+import { headingFamily } from '../typography';
+import { Icon } from '../components/Icon';
 import { useSheetPresentation } from '../hooks/useSheetPresentation';
 
 export default function PlanningScreen() {
@@ -75,9 +77,9 @@ export default function PlanningScreen() {
   return <View style={styles.screen}>
     <FlatList style={styles.list} data={visibleSchedules} keyExtractor={(item) => item.id} contentContainerStyle={styles.content}
       ListHeaderComponent={<>
+        <View style={styles.heading}>
         <Text accessibilityRole="header" style={styles.title}>{m.planningTab}</Text>
-        <Text style={styles.subtitle}>{m.planningSubtitle}</Text>
-        <MotionPressable accessibilityRole="button" disabled={scheduleLimit} onPress={() => {
+        <MotionPressable accessibilityRole="button" accessibilityLabel={m.newSchedule} disabled={scheduleLimit} onPress={() => {
           feedback();
           editorSheet.open({ isNew: true, schedule: {
             id: createTimingId(),
@@ -85,7 +87,9 @@ export default function PlanningScreen() {
             steps: [{ id: createTimingId(), name: m.stepNumber(1), durationMs: 300000 }],
             calendar: selectedDate === null ? undefined : { kind: 'once', date: selectedDate },
           } });
-        }} style={[styles.primary, scheduleLimit && styles.disabled]}><Text style={styles.primaryText}>{m.newSchedule}</Text></MotionPressable>
+        }} style={[styles.newAction, scheduleLimit && styles.disabled]}><Icon name="plus" size={21} color={styles.primaryText.color} /></MotionPressable>
+        </View>
+        <Text style={styles.subtitle}>{m.planningSubtitle}</Text>
         <MotionPressable accessibilityRole="button" accessibilityState={{ expanded: templatesOpen }} aria-expanded={templatesOpen} disabled={scheduleLimit}
           onPress={() => { feedback(); setTemplatesOpen((open) => !open); }}
           style={[styles.filterButton, styles.templateToggle, scheduleLimit && styles.disabled]}>
@@ -169,19 +173,21 @@ export default function PlanningScreen() {
 
 const createStyles = (c: Palette) => StyleSheet.create({
   screen: { flex: 1 },
-  content: { flexGrow: 1, paddingHorizontal: 26, paddingTop: 8, paddingBottom: 24 },
-  title: { fontFamily: f.bold, color: c.ink, fontSize: textSizes.heading, letterSpacing: -0.7 },
+  content: { flexGrow: 1, paddingHorizontal: 24, paddingTop: 8, paddingBottom: 24 },
+  heading: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  title: { flex: 1, minWidth: 0, fontFamily: headingFamily, fontWeight: '400', color: c.ink, fontSize: 30, lineHeight: 39, letterSpacing: -0.3 },
+  newAction: { width: 44, height: 44, flexShrink: 0, borderRadius: radii.control, backgroundColor: c.action, alignItems: 'center', justifyContent: 'center' },
   subtitle: { fontFamily: f.regular, color: c.muted, fontSize: textSizes.caption, lineHeight: 21, marginTop: 8 },
-  primary: { backgroundColor: c.action, borderRadius: 14, minHeight: 48, alignItems: 'center', justifyContent: 'center', marginTop: 18 },
+  primary: { backgroundColor: c.action, borderRadius: radii.control, minHeight: 52, padding: 12, alignItems: 'center', justifyContent: 'center', marginTop: 18 },
   primaryText: { color: c.actionText, fontFamily: f.semibold, fontSize: textSizes.body },
   limit: { color: c.muted, fontFamily: f.regular, fontSize: textSizes.small, lineHeight: 21, marginVertical: 10 },
   filters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
-  templateToggle: { marginTop: 10 }, templateChoices: { marginTop: 8, gap: 8 },
+  templateToggle: { alignSelf: 'flex-start', marginTop: 8, paddingHorizontal: 0, borderWidth: 0, backgroundColor: c.background }, templateChoices: { marginTop: 8, gap: 8 },
   templateChoice: { alignItems: 'stretch', padding: 12 },
   templateSummary: { fontFamily: f.regular, color: c.muted, fontSize: textSizes.caption, lineHeight: 21, marginTop: 4 },
   templatePreview: { fontFamily: f.regular, color: c.ink, fontSize: textSizes.caption, lineHeight: 21, marginTop: 4 },
-  filterButton: { minHeight: 44, minWidth: 44, flexShrink: 1, borderWidth: 1, borderColor: c.border, borderRadius: 10,
-    backgroundColor: c.secondary, paddingHorizontal: 12, paddingVertical: 6, alignItems: 'center', justifyContent: 'center' },
+  filterButton: { minHeight: 44, minWidth: 44, flexShrink: 1, borderWidth: 1, borderColor: c.border, borderRadius: radii.control,
+    backgroundColor: c.background, paddingHorizontal: 12, paddingVertical: 8, alignItems: 'center', justifyContent: 'center' },
   filterSelected: { backgroundColor: c.limeSoft, borderColor: c.green },
   dateControls: { gap: 12, paddingBottom: 14 },
   datePrimary: { marginTop: 0 },

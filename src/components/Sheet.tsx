@@ -2,7 +2,8 @@ import { useI18n } from '../hooks/useI18n';
 import { PropsWithChildren, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, type Ref } from 'react';
 import { Animated, Pressable, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { fonts as f, textSizes, Palette } from '../theme';
+import { fonts as f, textSizes, radii, Palette } from '../theme';
+import { headingFamily } from '../typography';
 import { useThemeStyles } from '../context/ThemeContext';
 import { Icon } from './Icon';
 import { isolateSheetBackground } from '../hooks/sheetIsolation';
@@ -117,17 +118,17 @@ export function ConfirmSheet({ visible, title, description, confirmLabel, onClos
 const createStyles = (c: Palette) => StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end', alignItems: 'center', paddingTop: 60 },
   backdrop: { backgroundColor: c.overlay },
-  sheet: { width: '100%', maxWidth: 480, maxHeight: '100%', backgroundColor: c.background, borderTopLeftRadius: 28, borderTopRightRadius: 28, overflow: 'hidden' },
+  sheet: { width: '100%', maxWidth: 480, maxHeight: '100%', backgroundColor: c.background, borderTopLeftRadius: radii.sheet, borderTopRightRadius: radii.sheet, overflow: 'hidden' },
   tallSheet: { height: '94%' },
   staticContent: { flex: 1, minHeight: 0 },
   handle: { alignSelf: 'center', width: 34, height: 4, backgroundColor: c.handle, borderRadius: 3, marginTop: 11, marginBottom: 10 },
-  heading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 26, paddingBottom: 10, gap: 10 },
-  title: { fontFamily: f.bold, fontSize: textSizes.heading, color: c.ink, flex: 1, flexShrink: 1, minWidth: 0, letterSpacing: -0.7 },
-  close: { width: 44, height: 44, flexShrink: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: c.iconSurface, borderRadius: 22 },
-  content: { paddingHorizontal: 26, paddingBottom: 6 },
-  description: { fontFamily: f.regular, color: c.muted, fontSize: 14, lineHeight: 23, marginBottom: 25 },
-  confirm: { backgroundColor: c.dangerSoft, alignItems: 'center', justifyContent: 'center', padding: 18, borderRadius: 16 },
-  confirmText: { fontFamily: f.semibold, color: c.danger, fontSize: 14 },
-  cancel: { alignItems: 'center', padding: 18 },
-  cancelText: { fontFamily: f.medium, color: c.muted, fontSize: 14 },
+  heading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingBottom: 16, gap: 10 },
+  title: { fontFamily: headingFamily, fontWeight: '400', fontSize: textSizes.heading, lineHeight: 36, color: c.ink, flex: 1, flexShrink: 1, minWidth: 0, letterSpacing: -0.3 },
+  close: { width: 44, height: 44, flexShrink: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: c.secondary, borderRadius: 22 },
+  content: { paddingHorizontal: 24, paddingBottom: 6 },
+  description: { fontFamily: f.regular, color: c.muted, fontSize: textSizes.body, lineHeight: 24, marginBottom: 24 },
+  confirm: { backgroundColor: c.dangerSoft, alignItems: 'center', justifyContent: 'center', minHeight: 54, padding: 16, borderRadius: radii.control },
+  confirmText: { fontFamily: f.semibold, color: c.danger, fontSize: textSizes.body },
+  cancel: { alignItems: 'center', minHeight: 44, justifyContent: 'center', padding: 14 },
+  cancelText: { fontFamily: f.medium, color: c.muted, fontSize: textSizes.body },
 });

@@ -4,7 +4,8 @@ import { initialTimer } from '../../src/core/timer';
 import { pauseSchedule, startSchedule } from '../../src/core/planning';
 import { getMessages } from '../../src/i18n';
 import { deadlineLabel } from '../../src/i18n/formatters';
-import { selectTheme, audioEvents, audioSpy, expectNoPageErrors, observePageErrors, playCount, seed, selectWheel, stored } from './helpers';
+import { palettes } from '../../src/theme';
+import { cssColor, selectTheme, audioEvents, audioSpy, expectNoPageErrors, observePageErrors, playCount, seed, selectWheel, stored } from './helpers';
 
 const m = getMessages('ro');
 test.use({ timezoneId: 'UTC' });
@@ -24,13 +25,13 @@ test('System appearance preserves three active clocks and unsaved name and durat
   await name.fill('Unsaved · Учёба'); await editor.getByRole('textbox', { name: m.stepName(1), exact: true }).fill('Draft action');
   await name.focus(); const before = await stored(page);
   await page.emulateMedia({ colorScheme: 'dark' });
-  await expect(editor.getByTestId('sheet-surface')).toHaveCSS('background-color', 'rgb(15, 23, 42)');
+  await expect(editor.getByTestId('sheet-surface')).toHaveCSS('background-color', cssColor(palettes.dark.background));
   await expect(name).toBeFocused(); await expect(name).toHaveValue('Unsaved · Учёба'); expect(await stored(page)).toEqual(before);
   await editor.getByRole('button', { name: m.editStepDuration(1), exact: true }).click(); await page.clock.runFor(300);
   const panel = page.getByRole('dialog', { name: m.durationPickerTitle(1), exact: true });
   const minutes = panel.getByRole('spinbutton', { name: m.stepField(m.timeUnits[1], 1), exact: true });
   await selectWheel(minutes, 2); await minutes.focus(); await page.emulateMedia({ colorScheme: 'light' });
-  await expect(panel.getByTestId('sheet-surface')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+  await expect(panel.getByTestId('sheet-surface')).toHaveCSS('background-color', cssColor(palettes.light.background));
   await expect(minutes).toBeFocused(); await expect(minutes).toHaveAttribute('aria-valuenow', '2'); expect(await stored(page)).toEqual(before);
   await panel.getByRole('button', { name: m.applyDuration, exact: true }).click(); await page.clock.runFor(300);
   await expect(name).toHaveValue('Unsaved · Учёба'); expect(await stored(page)).toEqual(before);

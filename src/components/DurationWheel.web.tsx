@@ -162,9 +162,7 @@ export function DurationWheel(props: DurationWheelProps) {
     };
   }, [controller, disabled, releaseAlignment, align, stopManual]);
   return <View style={styles.column}>
-    <div style={{ position: 'relative', border: `1px solid ${c.border}`, borderRadius: 15, overflow: 'hidden', background: c.surface, opacity: disabled ? 0.5 : 1 }}>
-      <div aria-hidden style={{ position: 'absolute', top: rowHeight, height: rowHeight, left: 0, right: 0, background: c.selected,
-        borderTop: `1px solid ${c.border}`, borderBottom: `1px solid ${c.border}`, boxSizing: 'border-box', pointerEvents: 'none' }} />
+    <div style={{ position: 'relative', overflow: 'hidden', opacity: disabled ? 0.5 : 1 }}>
       <div ref={element} role="spinbutton" tabIndex={0} aria-label={props.accessibilityLabel ?? label} aria-description={hint}
         aria-valuemin={0} aria-valuemax={maximum} aria-valuenow={value} aria-valuetext={String(value).padStart(2, '0')} aria-disabled={!!disabled}
         onScroll={(event) => controller.scroll(alignment.current?.offset ?? event.currentTarget.scrollTop)}
@@ -186,7 +184,7 @@ export function DurationWheel(props: DurationWheelProps) {
           onClick={() => { element.current?.focus({ preventScroll: true }); controller.choose(index); }}
           style={{ display: 'flex', width: '100%', height: rowHeight, padding: 0, border: 0, margin: 0, background: 'transparent',
             alignItems: 'center', justifyContent: 'center', scrollSnapAlign: 'center', scrollSnapStop: 'normal',
-            fontFamily: fonts.semibold, fontSize: Math.min(24 * rowHeight / 44, rowHeight - 12), lineHeight: 1.2,
+            fontFamily: fonts.semibold, fontSize: Math.min(28 * rowHeight / 44, rowHeight - 12), lineHeight: 1.2,
             fontVariantNumeric: 'tabular-nums', color: index === value ? c.ink : c.muted, cursor: disabled ? 'default' : 'pointer' }}>
           {String(index).padStart(2, '0')}
         </button>)}</div>
@@ -197,5 +195,5 @@ export function DurationWheel(props: DurationWheelProps) {
 }
 const createStyles = (c: Palette) => StyleSheet.create({
   column: { flex: 1, minWidth: 0, gap: 8 },
-  label: { fontFamily: fonts.medium, fontSize: 11, color: c.muted, textAlign: 'center' },
+  label: { fontFamily: fonts.medium, fontSize: 12, color: c.muted, textAlign: 'center' },
 });

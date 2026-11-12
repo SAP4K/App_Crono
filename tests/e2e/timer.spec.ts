@@ -48,7 +48,10 @@ test('bounds duration wheels and preserves fractional remaining time across paus
   await expect(page.getByRole('button', { name: 'Continuă temporizatorul', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Resetează temporizatorul', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Resetează temporizatorul', exact: true }).click();
-  await expect(page.getByLabel('Timp rămas 00:00:03')).toBeVisible();
+  await expect(page.getByRole('spinbutton', { name: 'Ore', exact: true })).toHaveAttribute('aria-valuenow', '0');
+  await expect(page.getByRole('spinbutton', { name: 'Minute', exact: true })).toHaveAttribute('aria-valuenow', '0');
+  await expect(page.getByRole('spinbutton', { name: 'Secunde', exact: true })).toHaveAttribute('aria-valuenow', '3');
+  expect((await stored(page)).timer).toEqual(initialTimer(3000));
   expect(await playCount(page)).toBe(0); expect(errors).toEqual([]);
 });
 
