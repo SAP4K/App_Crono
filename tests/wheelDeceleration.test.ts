@@ -31,27 +31,27 @@ for (const direction of [-1, 1]) test(`slowing in direction ${direction} is prog
   let previous = f.read(); const distances: number[] = [];
   for (let index = 0; index < 6; index++) { f.advance(75); distances.push(Math.abs(f.read() - previous)); previous = f.read(); }
   assert.ok(distances[0] > distances[2] && distances[2] > distances[4]);
-  assert.deepEqual(f.ends, []); f.advance(36);
+  assert.deepEqual(f.ends, []); f.advance(117);
   assert.equal(f.read(), (20 + direction * 6) * 44); assert.deepEqual(f.ends, [f.read()]);
   assert.equal(f.driver.isMoving(), false); assert.equal(f.frames.size, 0); assert.deepEqual(f.warnings, []);
 });
 
-for (const direction of [-1, 1]) test(`six-row travel in direction ${direction} moves gently and settles at 486 ms`, () => {
+for (const direction of [-1, 1]) test(`six-row travel in direction ${direction} moves gently and settles at 567 ms`, () => {
   const f = fixture(), initial = f.read(); f.driver.push(direction * 264);
   f.advance(50);
   const distance = Math.abs(f.read() - initial);
-  assert.ok(distance > 70 && distance < 80, 'first 50 ms must move less than the former 104 px');
-  f.advance(274);
-  assert.equal(f.driver.isMoving(), true, 'the old 324 ms endpoint must still be moving');
+  assert.ok(distance > 60 && distance < 70, 'first 50 ms must move less than the former 73 px');
+  f.advance(436);
+  assert.equal(f.driver.isMoving(), true, 'the old 486 ms endpoint must still be moving');
   assert.deepEqual(f.ends, []);
-  f.advance(161); assert.equal(f.driver.isMoving(), true);
+  f.advance(80); assert.equal(f.driver.isMoving(), true);
   f.advance(1); assert.equal(f.read(), (20 + direction * 6) * 44);
   assert.deepEqual(f.ends, [f.read()]); assert.equal(f.driver.isMoving(), false);
   f.advance(1000); assert.deepEqual(f.ends, [f.read()]);
 });
 
 test('short and capped travel have bounded longer coasts in either direction', () => {
-  for (const [rows, duration] of [[-14, 720], [-1, 306], [1, 306], [14, 720]]) {
+  for (const [rows, duration] of [[-14, 840], [-1, 357], [1, 357], [14, 840]]) {
     const f = fixture(); f.driver.push(rows * 44);
     f.advance(duration - 1); assert.equal(f.driver.isMoving(), true); assert.deepEqual(f.ends, []);
     f.advance(1); assert.equal(f.read(), (20 + rows) * 44); assert.deepEqual(f.ends, [f.read()]);
@@ -104,7 +104,7 @@ test('stop, dispose and live immediate settlement fence old callbacks', () => {
 
 test('a missing animation frame still settles once and cannot revive after the deadline', () => {
   const f = fixture(); f.driver.push(14 * 44); const lateFrame = [...f.frames.values()][0];
-  f.frames.clear(); f.advance(759); assert.deepEqual(f.ends, []); assert.equal(f.driver.isMoving(), true);
+  f.frames.clear(); f.advance(879); assert.deepEqual(f.ends, []); assert.equal(f.driver.isMoving(), true);
   f.advance(1); assert.deepEqual(f.ends, [34 * 44]); assert.equal(f.driver.isMoving(), false);
   lateFrame(); f.advance(1000); assert.deepEqual(f.ends, [34 * 44]); assert.equal(f.timers.size, 0);
 });

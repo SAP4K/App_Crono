@@ -58,7 +58,7 @@ export function createWheelDeceleration(a: {
       const raw = Math.max(0, Math.min(maximum * rowHeight, base + delta));
       stop();
       const target = wheelIndex(raw, rowHeight, maximum) * rowHeight;
-      const current = { from: position, raw, target, at, duration: Math.min(720, 270 + Math.abs(target - position) / rowHeight * 36) };
+      const current = { from: position, raw, target, at, duration: Math.min(840, 315 + Math.abs(target - position) / rowHeight * 42) };
       request = current;
       if (!animate) complete(current);
       else {
