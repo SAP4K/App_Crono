@@ -187,7 +187,9 @@ Source: [lee-to/ai-factory](https://github.com/lee-to/ai-factory).
 
 ## Verification Status
 
-The [latest wheel tuning](.ai-factory/plans/feature-fine-tune-wheel-inertia.md) passed lint/typecheck, **292 Node tests**, **143 targeted browser cases in one run (4.8 minutes; no skips/retries)** and fresh Android/iOS/web exports. The browser glide is about 17% longer than the preceding refinement; takeover, presets, manual action gates and legacy data remain covered. Physical native feel/accessibility acceptance remains deferred.
+The [latest gentler wheel glide](.ai-factory/plans/feature-gentler-wheel-inertia.md) passed lint/typecheck, **292 Node tests**, **143 targeted browser cases in one run (4.8 minutes; no skips/retries)** and fresh Android/iOS/web exports. Browser glides take about 7% longer than the preceding refinement. Real-frame checks cover natural Start/Apply availability as well as progressive slowing, exact centering, takeover, presets and legacy-data preservation. Physical native feel/accessibility acceptance remains deferred.
+
+The [preceding wheel tuning](.ai-factory/plans/feature-fine-tune-wheel-inertia.md) passed lint/typecheck, **292 Node tests**, **143 targeted browser cases in one run (4.8 minutes; no skips/retries)** and fresh Android/iOS/web exports. The browser glide is about 17% longer than the preceding refinement; takeover, presets, manual action gates and legacy data remain covered. Physical native feel/accessibility acceptance remains deferred.
 
 The [slower wheel inertia refinement](.ai-factory/plans/feature-slower-wheel-inertia.md) passed lint/typecheck, **292 Node tests**, **143 targeted browser cases in one run (4.8 minutes)** and fresh Android/iOS/web exports. Real-frame checks cover both pickers, with preset, lifecycle, failure-recovery and legacy-data regressions. The full browser suite was not repeated; physical native gesture/accessibility acceptance remains deferred.
 

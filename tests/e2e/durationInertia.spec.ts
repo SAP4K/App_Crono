@@ -121,8 +121,10 @@ for (const screen of ['timer', 'planning'] as const) test(`${screen} browser whe
   try {
     await wheel.hover(); await wheelPixels(page, rowHeight * 6);
     await expect(wheel).toHaveAttribute('aria-valuenow', '26'); await expect(action).toBeEnabled(); await centered(wheel);
+    await expect.poll(() => recording.evaluate((record) => record.samples.some((sample) => sample.value === 26 && !sample.busy))).toBe(true);
     const samples = await recording.evaluate((record) => record.samples);
     await info.attach('wheel-speed-profile', { body: JSON.stringify(samples), contentType: 'application/json' });
+    expect(samples.find((sample) => sample.value === 26 && !sample.busy)!.at).toBeGreaterThanOrEqual(600);
     const moving = samples.slice(1).map((point, index) => ({
       speed: (point.offset - samples[index].offset) / (point.at - samples[index].at), point,
     })).filter(({ speed }) => speed > 0.01);
