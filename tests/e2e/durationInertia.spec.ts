@@ -2,10 +2,16 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 import { initialData } from '../../src/core/stopwatch';
 import { initialTimer } from '../../src/core/timer';
 import { getMessages } from '../../src/i18n';
+import { readFileSync } from 'node:fs';
 import { scheduleOptions, expectNoPageErrors, observePageErrors, seed, selectWheel, stored } from './helpers';
 
 const m = getMessages('ro');
 type Sample = { offset: number; value: number; busy: boolean; at: number };
+
+async function wheelPixels(page: Page, pixels: number) {
+  // Chrome's emulated DPR scales WheelEvent deltas; preserve the intended CSS input.
+  await page.mouse.wheel(0, pixels * await page.evaluate(() => devicePixelRatio));
+}
 
 const warnings = new WeakMap<Page, string[]>();
 test.beforeEach(({ page }) => {
@@ -56,9 +62,9 @@ test('unsupported scrollend and a wheel at its endpoint recover without changing
   });
   const { wheel, action } = await openPicker(page, 'timer');
   expect(await wheel.evaluate((node) => 'onscrollend' in node)).toBe(false);
-  await wheel.hover(); await page.mouse.wheel(0, 88);
+  await wheel.hover(); await wheelPixels(page, 88);
   await expect(wheel).toHaveAttribute('aria-valuenow', '22'); await expect(action).toBeEnabled(); await centered(wheel);
-  await wheel.press('End'); await page.mouse.wheel(0, 1000);
+  await wheel.press('End'); await wheelPixels(page, 1000);
   await expect(action).toBeEnabled(); await centered(wheel);
   await expect(wheel).toHaveAttribute('aria-valuenow', '59');
   expect((await stored(page)).timer.durationMs).toBe(59000);
@@ -79,6 +85,215 @@ async function parentOffsets(wheel: Locator) {
     return offsets;
   });
 }
+
+async function recordWheel(wheel: Locator, action: Locator) {
+  const button = (await action.elementHandle())!;
+  return wheel.evaluateHandle((node, target) => {
+    const samples: Sample[] = [];
+    const events: { kind: string; offset: number }[] = [];
+    let frame = 0, inputAt = 0;
+    const offset = () => {
+      const row = node.querySelector('button')!.getBoundingClientRect();
+      return node.getBoundingClientRect().top + row.height - row.top;
+    };
+    const input = (event: Event) => { if (event.type === 'wheel') inputAt = performance.now(); events.push({ kind: event.type, offset: offset() }); };
+    const sample = () => {
+      if (inputAt) samples.push({ offset: offset(), at: performance.now() - inputAt,
+        value: Number(node.getAttribute('aria-valuenow')),
+        busy: target.getAttribute('aria-disabled') === 'true' || target.hasAttribute('disabled') });
+      frame = requestAnimationFrame(sample);
+    };
+    node.addEventListener('wheel', input, { passive: true }); node.addEventListener('keydown', input, true); frame = requestAnimationFrame(sample);
+    document.addEventListener('click', input, true); document.addEventListener('visibilitychange', input, true);
+    return { samples, events, stop: () => {
+      cancelAnimationFrame(frame); node.removeEventListener('wheel', input); node.removeEventListener('keydown', input, true);
+      document.removeEventListener('click', input, true); document.removeEventListener('visibilitychange', input, true);
+    } };
+  }, button);
+}
+
+for (const screen of ['timer', 'planning'] as const) test(`${screen} browser wheel slows progressively into the exact row`, async ({ page }, info) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  const { wheel, action } = await openPicker(page, screen);
+  const before = await stored(page), outer = await parentOffsets(wheel);
+  const rowHeight = await wheel.locator('button').first().evaluate((row) => row.getBoundingClientRect().height);
+  const recording = await recordWheel(wheel, action);
+  try {
+    await wheel.hover(); await wheelPixels(page, rowHeight * 6);
+    await expect(wheel).toHaveAttribute('aria-valuenow', '26'); await expect(action).toBeEnabled(); await centered(wheel);
+    const samples = await recording.evaluate((record) => record.samples);
+    await info.attach('wheel-speed-profile', { body: JSON.stringify(samples), contentType: 'application/json' });
+    const moving = samples.slice(1).map((point, index) => ({
+      speed: (point.offset - samples[index].offset) / (point.at - samples[index].at), point,
+    })).filter(({ speed }) => speed > 0.01);
+    expect(moving.length).toBeGreaterThanOrEqual(4);
+    const early = moving.slice(0, 2).reduce((sum, item) => sum + item.speed, 0) / 2;
+    const late = moving.slice(-2).reduce((sum, item) => sum + item.speed, 0) / 2;
+    expect(late).toBeLessThan(early * 0.65);
+    expect(moving.at(-1)!.point.at - moving[0].point.at).toBeGreaterThanOrEqual(160);
+    expect(samples.filter((sample) => sample.offset > 20 * rowHeight + 1 && sample.offset < 26 * rowHeight - 1).every((sample) => sample.busy && sample.value === 20)).toBe(true);
+    expect(await parentOffsets(wheel)).toEqual(outer);
+    const after = await stored(page); expect(after.stopwatch).toEqual(before.stopwatch); expect(after.sessions).toEqual(before.sessions);
+    expect(after.planning).toEqual(before.planning);
+    if (screen === 'timer') expect(after.timer.durationMs).toBe(26000); else expect(after.timer).toEqual(before.timer);
+  } finally { await recording.evaluate((record) => record.stop()); await recording.dispose(); }
+});
+
+async function movingWheel(wheel: Locator) {
+  const node = (await wheel.elementHandle())!;
+  await wheel.page().waitForFunction((element) => {
+    const height = element.querySelector('button')!.getBoundingClientRect().height;
+    return element.scrollTop > 21 * height && element.scrollTop < 33 * height;
+  }, node, { polling: 'raf' });
+}
+
+for (const screen of ['timer', 'planning'] as const) for (const failure of ['initial', 'nested', 'cancel'] as const) {
+  test(`${screen} restores wheel scrolling after ${failure} frame failure`, async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    const { wheel, action } = await openPicker(page, screen);
+    await page.waitForTimeout(300); // Finish the panel entrance before injecting a wheel-only failure.
+    const before = await stored(page);
+    await wheel.evaluate((node, kind) => {
+      const frame = window.requestAnimationFrame, cancel = window.cancelAnimationFrame;
+      const fail = () => { throw new Error('injected-wheel-frame-failure'); };
+      if (kind === 'initial') window.requestAnimationFrame = () => { window.requestAnimationFrame = frame; return fail(); };
+      else if (kind === 'nested') window.requestAnimationFrame = (callback) => {
+        window.requestAnimationFrame = frame;
+        return frame((time) => {
+          window.requestAnimationFrame = () => { window.requestAnimationFrame = frame; return fail(); };
+          callback(time);
+        });
+      };
+      else window.cancelAnimationFrame = () => { window.cancelAnimationFrame = cancel; fail(); };
+      const row = node.querySelector('button')!.getBoundingClientRect().height;
+      node.dispatchEvent(new WheelEvent('wheel', { deltaY: row * 2, cancelable: true, bubbles: true }));
+    }, failure);
+    await page.waitForTimeout(1200); // The failed setup must not leave clipping after recovery deadlines.
+    expect(await wheel.evaluate((node) => getComputedStyle(node).overflowY)).toBe('auto');
+    expect(await wheel.locator('div').first().evaluate((node) => (node as HTMLElement).style.transform)).toBe('');
+    expect(await wheel.evaluate((node) => (node as HTMLElement).style.scrollSnapType)).toBe('y mandatory');
+    await expect(wheel).toHaveAttribute('aria-valuenow', '22'); await centered(wheel); await expect(action).toBeEnabled();
+    const row = await wheel.locator('button').first().evaluate((node) => node.getBoundingClientRect().height);
+    await wheel.hover(); await wheelPixels(page, row);
+    await expect(wheel).toHaveAttribute('aria-valuenow', '23'); await centered(wheel); await expect(action).toBeEnabled();
+    const after = await stored(page);
+    expect(after.stopwatch).toEqual(before.stopwatch); expect(after.sessions).toEqual(before.sessions);
+    expect(after.planning).toEqual(before.planning); expect(after.preferences).toEqual(before.preferences);
+    if (screen === 'timer') expect(after.timer.durationMs).toBe(23000); else expect(after.timer).toEqual(before.timer);
+    const messages = warnings.get(page)!;
+    expect(messages).toHaveLength(1); expect(messages[0]).toMatch(/^\[FIX:wheel-alignment\]/);
+    messages.length = 0;
+  });
+}
+
+for (const choice of ['reverse', 'keyboard', 'preset', 'background', 'route'] as const) test(`${choice} takes over an actually unfinished browser wheel approach`, async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  const { wheel, action } = await openPicker(page, 'timer');
+  const row = await wheel.locator('button').first().evaluate((node) => node.getBoundingClientRect().height);
+  const before = await stored(page), recording = await recordWheel(wheel, action);
+  try {
+    await wheel.hover(); await wheelPixels(page, 14 * row); await movingWheel(wheel);
+    if (choice === 'reverse') {
+      await wheelPixels(page, -3 * row);
+      const boundary = await recording.evaluate((record) => record.events.filter((event) => event.kind === 'wheel')[1].offset);
+      expect(boundary).toBeGreaterThan(20 * row); expect(boundary).toBeLessThan(34 * row);
+      await expect(action).toBeEnabled(); await centered(wheel);
+      expect(Number(await wheel.getAttribute('aria-valuenow')) * row).toBeLessThan(boundary);
+    } else if (choice === 'keyboard') {
+      await wheel.press('Home');
+      const boundary = await recording.evaluate((record) => record.events.find((event) => event.kind === 'keydown')!.offset);
+      expect(boundary).toBeGreaterThan(20 * row); expect(boundary).toBeLessThan(34 * row);
+      await expect(wheel).toHaveAttribute('aria-valuenow', '0'); await centered(wheel); await expect(action).toBeDisabled();
+      expect((await stored(page)).timer).toEqual(before.timer);
+    } else {
+      if (choice === 'preset') {
+        await page.getByRole('button', { name: m.presetMinutes(10), exact: true }).click();
+        await expect(action).toBeEnabled(); await expect.poll(async () => (await stored(page)).timer.durationMs).toBe(600000);
+      } else if (choice === 'background') {
+        await page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' }); document.dispatchEvent(new Event('visibilitychange')); });
+        await page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' }); document.dispatchEvent(new Event('visibilitychange')); });
+        await expect(wheel).toHaveAttribute('aria-valuenow', '20'); await centered(wheel); expect((await stored(page)).timer).toEqual(before.timer);
+      } else {
+        await page.getByRole('tab', { name: m.planningTab, exact: true }).click();
+        await page.getByRole('tab', { name: m.timerTab, exact: true }).click();
+        await expect(wheel).toHaveAttribute('aria-valuenow', '20'); await centered(wheel); expect((await stored(page)).timer).toEqual(before.timer);
+      }
+      const kind = choice === 'background' ? 'visibilitychange' : 'click';
+      const boundary = await recording.evaluate((record, type) => record.events.find((event) => event.kind === type)!.offset, kind);
+      expect(boundary).toBeGreaterThan(20 * row); expect(boundary).toBeLessThan(34 * row);
+    }
+    const accepted = await stored(page); await page.waitForTimeout(1100); expect(await stored(page)).toEqual(accepted);
+  } finally { await recording.evaluate((record) => record.stop()); await recording.dispose(); }
+});
+
+test('a real reduced-motion event interrupts unfinished browser wheel interpolation', async ({ page }) => {
+  await page.addInitScript(() => {
+    const match = window.matchMedia.bind(window);
+    window.matchMedia = (query) => {
+      const media = match(query);
+      if (query.includes('prefers-reduced-motion')) media.addEventListener('change', () => {
+        const node = document.querySelector<HTMLElement>('[role="spinbutton"][aria-label="Secunde"]');
+        if (media.matches && node) Object.assign(window, { wheelPolicyBoundary: node.scrollTop });
+      });
+      return media;
+    };
+  });
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  const { wheel, action } = await openPicker(page, 'timer');
+  const row = await wheel.locator('button').first().evaluate((node) => node.getBoundingClientRect().height);
+  await wheel.hover(); await wheelPixels(page, 14 * row); await movingWheel(wheel);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const boundary = await page.evaluate(() => (window as unknown as { wheelPolicyBoundary: number }).wheelPolicyBoundary);
+  expect(boundary).toBeGreaterThan(20 * row); expect(boundary).toBeLessThan(34 * row);
+  await expect(wheel).toHaveAttribute('aria-valuenow', '34'); await centered(wheel); await expect(action).toBeEnabled();
+  const before = await stored(page); await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.waitForTimeout(1100); expect(await stored(page)).toEqual(before); await centered(wheel);
+});
+
+for (const mode of [0, 1, 2]) test(`browser wheel unit ${mode} uses the column geometry and accepts once`, async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  const { wheel, action } = await openPicker(page, 'timer');
+  const writes = await page.evaluate(() => (window as unknown as { inertiaWrites: number }).inertiaWrites);
+  const prevented = await wheel.evaluate((node, unit) => {
+    const row = node.querySelector('button')!.getBoundingClientRect().height;
+    const event = new WheelEvent('wheel', { deltaMode: unit, deltaY: unit === 0 ? row * 2 : unit === 1 ? 2 : 1, cancelable: true, bubbles: true });
+    node.dispatchEvent(event); return event.defaultPrevented;
+  }, mode);
+  expect(prevented).toBe(true);
+  await expect(wheel).toHaveAttribute('aria-valuenow', mode === 2 ? '23' : '22'); await centered(wheel); await expect(action).toBeEnabled();
+  expect(await page.evaluate(() => (window as unknown as { inertiaWrites: number }).inertiaWrites) - writes).toBe(1);
+});
+
+test('noncancelable and zoom wheel events stay with the browser instead of a competing writer', async ({ page }) => {
+  const { wheel, action } = await openPicker(page, 'timer'); const before = await stored(page);
+  for (const kind of ['noncancelable', 'zoom']) {
+    const prevented = await wheel.evaluate((node, type) => {
+      const event = new WheelEvent('wheel', { deltaY: 300, cancelable: type !== 'noncancelable', ctrlKey: type === 'zoom', bubbles: true });
+      node.dispatchEvent(event); return event.defaultPrevented;
+    }, kind);
+    expect(prevented).toBe(false);
+    await expect(action).toBeEnabled(); await page.waitForTimeout(550); await centered(wheel);
+    await expect(wheel).toHaveAttribute('aria-valuenow', '20'); expect(await stored(page)).toEqual(before);
+  }
+});
+
+test('literal legacy records survive a progressively slowed duration edit and reload', async ({ page }) => {
+  const legacy = JSON.parse(readFileSync(new URL('../fixtures/app-v1-before-planning.json', import.meta.url), 'utf8'));
+  await page.emulateMedia({ reducedMotion: 'no-preference' }); await seed(page, legacy); await page.goto('/timer');
+  await expect(page.getByRole('button', { name: m.restartTimer, exact: true })).toBeEnabled();
+  await page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' }); document.dispatchEvent(new Event('visibilitychange')); });
+  await expect.poll(async () => (await stored(page)).planning).toEqual({ schedules: [], run: null });
+  await page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' }); document.dispatchEvent(new Event('visibilitychange')); });
+  const before = await stored(page), wheel = page.getByRole('spinbutton', { name: m.timeUnits[2], exact: true });
+  const row = await wheel.locator('button').first().evaluate((node) => node.getBoundingClientRect().height);
+  await wheel.hover(); await wheelPixels(page, row * 2);
+  await expect(wheel).toHaveAttribute('aria-valuenow', '3'); await centered(wheel);
+  await expect.poll(async () => (await stored(page)).timer.durationMs).toBe(3000);
+  const after = await stored(page);
+  expect(after.sessions).toEqual(before.sessions); expect(after.stopwatch).toEqual(before.stopwatch); expect(after.preferences).toEqual(before.preferences);
+  expect(after.planning).toEqual(before.planning); expect(after.timer.status).toBe('idle');
+  await page.reload(); await expect(wheel).toHaveAttribute('aria-valuenow', '3'); await centered(wheel); expect(await stored(page)).toEqual(after);
+});
 
 async function flick(page: Page, wheel: Locator, action: Locator, pace: number, duringCoast?: () => Promise<void>, direction = 1) {
   const box = (await wheel.boundingBox())!;

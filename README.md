@@ -27,7 +27,7 @@ When developing on Windows, you can preview the interface on a physical iPhone u
 - Individual lap durations and cumulative times, with the fastest laps highlighted and average lap times displayed.
 - Save the latest 50 sessions with up to 1,000 laps each, view details, share results, and delete with confirmation.
 - Run an independent countdown with quick presets, a large active view, localized end time and a bounded **+1 minute** control; run an action sequence alongside both clocks.
-- Select timer and action durations with inertial wheels; create schedules from templates, duplicate them and repeat a draft sequence.
+- Select timer and action durations with wheels that glide and slow to a centered value; create schedules from templates, duplicate them and repeat a draft sequence.
 - Use grouped Settings, compact cross-tab activity controls and [portable backup/import](docs/backups.md).
 - Choose from four bundled sounds with 5, 15, 30, or 60 seconds of playback, preview, and Stop controls; rebuilt Android apps also support the selected duration in the background.
 - Schedule native timer/action/final notifications for Home and locked screens, with saved enablement and OS permission controls.
@@ -67,11 +67,13 @@ Switching between Stopwatch, Timer, Planning and History slides the content hori
 
 Sheets slide up with a fading backdrop and slide down when closed. Settings groups, backup review and Planning's duration, scheduling, repeat and discard views fade in with a small upward movement. Reduce motion makes these changes immediate; returning from the background does not replay an entrance. Accepted actions, clocks and sounds keep their existing behavior. The [original screen and sheet transition plan](.ai-factory/plans/feature-screen-sheet-transitions.md) records the earlier implementation.
 
-Open **Timer** and scroll **Ore / Minute / Secunde** (hours/minutes/seconds) until the desired values reach the highlighted center row, then press **Pornește**. A quick flick continues gliding after release and snaps to a centered value; move slowly for precise selection. Duration selection opens no numeric keyboard. Hours stop at 00–23; minutes and seconds stop at 00–59, without wrapping or carrying into another column. Start waits for every manually moving column to settle; `00:00:00` is invalid. On web, focus a column and use ArrowUp/ArrowDown or Home/End, or click a neighboring value.
+Open **Timer** and scroll **Ore / Minute / Secunde** (hours/minutes/seconds) until the desired values reach the highlighted center row, then press **Pornește**. A quick flick continues gliding after release and snaps to a centered value; move slowly for precise selection. Mouse-wheel and trackpad input also slows progressively before stopping exactly on a row. New input takes over immediately. Reduce motion leaves browser scrolling in control instead of adding this interpolation.
+
+Duration selection opens no numeric keyboard. Hours stop at 00–23; minutes and seconds stop at 00–59, without wrapping or carrying into another column. Start waits for every manually moving column to settle; `00:00:00` is invalid. On web, focus a column and use ArrowUp/ArrowDown or Home/End, or click a neighboring value.
 
 The default is five minutes; valid durations remain `00:00:01`–`23:59:59`. Setup uses a compact dial and wheels while idle/completed. Running/paused views show a larger countdown and hide the wheels.
 
-Quick presets accept **1, 5, 10 or 25 minutes** immediately without starting; changed columns visibly scroll to that value. Start remains available during this visual movement, and another preset replaces the target immediately. Touch, wheel or keyboard input takes over the column; Reduce motion aligns it directly. Leaving Timer or backgrounding settles the target without replay on return. This adds no saved animation setting and leaves Planning’s manual duration selection unchanged.
+Quick presets accept **1, 5, 10 or 25 minutes** immediately without starting; changed columns visibly scroll to that value. Start remains available during this visual movement, and another preset replaces the target immediately. A preset also replaces unfinished manual scrolling. Touch, wheel or keyboard input takes over the column; Reduce motion aligns it directly. Leaving Timer or backgrounding settles the target without replay on return. This adds no saved animation setting and leaves Planning’s manual duration selection unchanged.
 
 Pause/resume keeps the exact remaining time; reset requires confirmation while running or paused. **+1 min** adds exactly one minute while running or paused, up to the total duration limit. It keeps the same run, shifts a running deadline by one minute and extends the exact frozen budget while paused. Reset/Restart subsequently use the adjusted duration.
 
@@ -120,7 +122,7 @@ Inside the schedule editor, the name, Scheduling, Repeat sequence, action rows, 
 
 The duration, calendar, repeat and discard panels scroll their own complete content when it exceeds the available height. Duration wheels remain separate inputs: scrolling a column changes its value, while scrolling the panel moves its content. Closing a panel returns focus to its source control and restores the opening scroll position when the layout is unchanged; changes remain local until Save schedule.
 
-**Aplică durata** changes only the action draft; **Salvează orarul** saves the whole schedule. The same flick and slow-drag gestures work here. Apply waits for every moving column to settle and rejects zero duration. **Renunță**, the close button, or Back returns to the editor without applying the temporary selection, including during a glide. The action list retains its position and returns focus to that action. Schedule/action names still use the text keyboard, and completion notices and **Oprește sunetul** remain available inside the duration panel.
+**Aplică durata** changes only the action draft; **Salvează orarul** saves the whole schedule. The same flick, slow-drag and progressively slowing browser-wheel gestures work here. Apply waits for every moving column to settle and rejects zero duration. **Renunță**, the close button, or Back returns to the editor without applying the temporary selection, including during a glide. The action list retains its position and returns focus to that action. Schedule/action names still use the text keyboard, and completion notices and **Oprește sunetul** remain available inside the duration panel.
 
 Before saving, open **Programare** and choose **Săptămânal** for one or more weekdays or **Dată fixă** for a single calendar date. Use **Manual** for a schedule you want to find in the full list. Tap **Aplică programarea** to apply the rule to the draft, then **Salvează orarul** to save it.
 
@@ -184,6 +186,8 @@ ai-factory update
 Source: [lee-to/ai-factory](https://github.com/lee-to/ai-factory).
 
 ## Verification Status
+
+Progressive duration-wheel deceleration passed lint/typecheck, **289 Node tests**, **470 browser cases in one full run (21.8 minutes)** and Android/iOS/web exports before the alignment-cleanup fix. After that fix, **289 Node tests**, **106 related browser cases**, lint/typecheck and fresh exports passed; the full browser suite was not repeated. These results precede integration with the latest directional-slide changes. The [deceleration plan](.ai-factory/plans/feature-progressive-wheel-deceleration.md) records each tested source separately. Physical Android/iOS feel and accessibility acceptance remain deferred.
 
 The original screen and sheet transition implementation passed lint/typecheck, **268 Node tests**, **all 405 browser scenarios in one full run (19.0 minutes)** on an exported web preview, and Android/iOS/web exports. The [earlier transition plan](.ai-factory/plans/feature-screen-sheet-transitions.md) distinguishes development-preview pilots, corrected failures, final source fingerprints and native deferrals. The [directional screen transition plan](.ai-factory/plans/feature-directional-screen-transitions.md) tracks the replacement of route fades with horizontal slides and its separate verification. Frozen-clock functional tests explicitly use Reduce motion; movement tests sample real browser animation frames. Physical native smoothness, keyboard avoidance, Android Back, safe areas and TalkBack/VoiceOver remain deferred.
 

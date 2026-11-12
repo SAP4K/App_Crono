@@ -4,20 +4,36 @@ import { useTheme, useThemeStyles } from '../context/ThemeContext';
 import { useDurationWheel } from '../hooks/useDurationWheel';
 import { fonts, type Palette } from '../theme';
 import type { DurationWheelProps } from './DurationWheel.types';
+import { useMotionPreference } from '../context/MotionContext';
+import { createWheelDeceleration, wheelDelta } from '../hooks/wheelDeceleration';
 
 export function DurationWheel(props: DurationWheelProps) {
   const { value, maximum, rowHeight, label, hint, disabled, autoFocus } = props;
   const element = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
   const activePointer = useRef<number | null>(null);
-  const alignment = useRef<{ frame: number; offset: number; restore: () => void } | null>(null);
+  const alignment = useRef<{ frame?: number; offset: number; restore: () => void } | null>(null);
+  const alignmentWarned = useRef(false);
   const animation = useRef<{ target: number; finished: () => void } | null>(null);
+  const manual = useRef<ReturnType<typeof createWheelDeceleration> | null>(null);
+  const restoreSnap = useRef<(() => void) | null>(null);
+  const policy = useMotionPreference();
+  const input = useRef({ props, policy });
+  useLayoutEffect(() => { input.current = { props, policy }; });
   const { colors: c } = useTheme(); const styles = useThemeStyles(createStyles);
+  const warnAlignment = useCallback(() => {
+    if (alignmentWarned.current) return;
+    alignmentWarned.current = true;
+    console.warn('[FIX:wheel-alignment] Animation frame failed; using immediate alignment.');
+  }, []);
   const releaseAlignment = useCallback(() => {
     const pending = alignment.current;
     if (!pending) return;
-    alignment.current = null; cancelAnimationFrame(pending.frame); pending.restore();
-  }, []);
+    alignment.current = null;
+    try { if (pending.frame !== undefined) cancelAnimationFrame(pending.frame); }
+    catch { warnAlignment(); }
+    finally { pending.restore(); }
+  }, [warnAlignment]);
   const align = useCallback((offset: number, cancelMotion = false) => {
     const node = element.current, rows = content.current;
     if (!node || !rows) return;
@@ -30,13 +46,17 @@ export function DurationWheel(props: DurationWheelProps) {
     // container for one rendered frame, preserving the chosen row without animation.
     node.style.overflow = 'clip'; rows.style.transform = `translateY(-${offset}px)`;
     node.getBoundingClientRect();
-    const pending = { frame: 0, offset, restore: () => {
+    const pending = { frame: undefined as number | undefined, offset, restore: () => {
       node.style.overflowX = 'hidden'; node.style.overflowY = node.getAttribute('aria-disabled') === 'true' ? 'hidden' : 'auto';
       rows.style.transform = ''; node.scrollTop = pending.offset;
     } };
     alignment.current = pending;
-    pending.frame = requestAnimationFrame(() => { pending.frame = requestAnimationFrame(releaseAlignment); });
-  }, [releaseAlignment]);
+    const schedule = (next: () => void) => {
+      try { pending.frame = requestAnimationFrame(() => { if (alignment.current === pending) next(); }); }
+      catch { warnAlignment(); releaseAlignment(); }
+    };
+    schedule(() => schedule(releaseAlignment));
+  }, [releaseAlignment, warnAlignment]);
   const animate = useCallback((target: number, finished: () => void) => {
     releaseAlignment();
     const node = element.current;
@@ -49,9 +69,27 @@ export function DurationWheel(props: DurationWheelProps) {
       if (node === element.current && node.isConnected) node.scrollTo({ top: node.scrollTop, behavior: 'instant' });
     };
   }, [releaseAlignment]);
+  const stopManual = useCallback(() => {
+    manual.current?.stop(); const restore = restoreSnap.current; restoreSnap.current = null; restore?.();
+  }, []);
   const controller = useDurationWheel(props, align, {
     read: () => alignment.current?.offset ?? element.current?.scrollTop ?? 0, animate,
+    stopManual, settleManual: () => manual.current?.settle(),
   });
+  useLayoutEffect(() => {
+    const driver = createWheelDeceleration({ geometry: () => input.current.props,
+      read: () => alignment.current?.offset ?? element.current?.scrollTop ?? 0,
+      write: (offset) => { align(offset); controller.scroll(offset); },
+      finish: (offset) => {
+        const restore = restoreSnap.current; restoreSnap.current = null; restore?.(); controller.end(offset);
+      },
+      now: () => performance.now(), frame: (callback) => requestAnimationFrame(callback), cancel: (handle) => cancelAnimationFrame(handle),
+      delay: (callback, milliseconds) => { const timer = setTimeout(callback, milliseconds); return () => clearTimeout(timer); },
+      warn: (code) => console.warn(`[motion] ${code}`),
+    });
+    manual.current = driver;
+    return () => { stopManual(); driver.dispose(); manual.current = null; };
+  }, [align, controller, stopManual]);
   useEffect(() => releaseAlignment, [releaseAlignment]);
   useLayoutEffect(() => { if (autoFocus) element.current?.focus({ preventScroll: true }); }, [autoFocus]);
   useEffect(() => {
@@ -60,9 +98,22 @@ export function DurationWheel(props: DurationWheelProps) {
     const supportsEnd = 'onscrollend' in node;
     let hasTouch = false;
     const wheel = (event: WheelEvent) => {
+      if (event.ctrlKey || event.metaKey || event.shiftKey || Math.abs(event.deltaX) > Math.abs(event.deltaY) || !event.deltaY) return;
       if (disabled) { event.preventDefault(); return; }
-      releaseAlignment();
-      controller.beginWheel(supportsEnd);
+      const { props: current, policy: motion } = input.current;
+      if (!event.cancelable || motion.reduceMotion || !motion.active || current.presentationActive === false || !manual.current) {
+        stopManual(); releaseAlignment(); controller.beginWheel(supportsEnd); return;
+      }
+      event.preventDefault();
+      if (!event.defaultPrevented) { stopManual(); releaseAlignment(); controller.beginWheel(supportsEnd); return; }
+      const delta = wheelDelta(event.deltaY, event.deltaMode, current.rowHeight, node.clientHeight);
+      if (!delta) return;
+      if (!manual.current.isMoving()) {
+        releaseAlignment(); controller.beginWheel(true); align(node.scrollTop, true);
+        const snap = node.style.scrollSnapType; node.style.scrollSnapType = 'none';
+        restoreSnap.current = () => { node.style.scrollSnapType = snap; };
+      } else controller.beginWheel(true);
+      if (!manual.current.push(delta, !motion.reduceMotion)) { stopManual(); controller.synchronize(); }
     };
     const release = (event: PointerEvent) => {
       if (activePointer.current !== event.pointerId) return;
@@ -84,6 +135,7 @@ export function DurationWheel(props: DurationWheelProps) {
       hasTouch = false; activePointer.current = null; controller.release();
     };
     const end = () => {
+      if (manual.current?.isMoving()) return;
       const current = animation.current;
       if (current) { if (Math.abs(node.scrollTop - current.target) < 1) current.finished(); }
       else controller.end(node.scrollTop);
@@ -108,7 +160,7 @@ export function DurationWheel(props: DurationWheelProps) {
       window.removeEventListener('pointercancel', release, true);
       window.removeEventListener('blur', blur);
     };
-  }, [controller, disabled, releaseAlignment]);
+  }, [controller, disabled, releaseAlignment, align, stopManual]);
   return <View style={styles.column}>
     <div style={{ position: 'relative', border: `1px solid ${c.border}`, borderRadius: 15, overflow: 'hidden', background: c.surface, opacity: disabled ? 0.5 : 1 }}>
       <div aria-hidden style={{ position: 'absolute', top: rowHeight, height: rowHeight, left: 0, right: 0, background: c.selected,
