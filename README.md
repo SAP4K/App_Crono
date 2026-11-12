@@ -31,7 +31,7 @@ When developing on Windows, you can preview the interface on a physical iPhone u
 - Use grouped Settings, compact cross-tab activity controls and [portable backup/import](docs/backups.md).
 - Choose from four bundled sounds with 5, 15, 30, or 60 seconds of playback, preview, and Stop controls; rebuilt Android apps also support the selected duration in the background.
 - Schedule native timer/action/final notifications for Home and locked screens, with saved enablement and OS permission controls.
-- Choose white/blue light or navy/blue dark mode and save that preference across launches.
+- Use Studio light/dark palettes with a saved System / Light / Dark appearance choice.
 - Restore the active stopwatch, countdown, schedule, laps, and settings after closing and reopening the app.
 - Haptic feedback and screen wake lock on mobile, each with its own setting.
 - Short button animations across screens, sheets and Settings, respecting the system's Reduce motion setting.
@@ -57,9 +57,13 @@ Romanian is the default, including older data and unsupported saved choices; dev
 
 Labels, dates, plural phrases, accessible names, notices, and shared results use that choice. Existing schedule/action names and history remain unchanged; new default action names use the selected language. Switching language preserves clocks and real completion alerts. Leaving the Sound panel cancels its preview. The examples below use the default Romanian labels. To extend support, follow [Adding a language](AGENTS.md#adding-a-language).
 
-Light mode uses white backgrounds and blue accents; dark mode uses navy backgrounds and lighter blue accents across the four tabs, controls, and sheets. Open **Setări → Aspect** (Settings → Appearance) and choose **Sistem / Mod luminos / Mod întunecat** (System / Light mode / Dark mode). System is the default for new installs and follows the phone/browser appearance, including changes while the app is open and on return. A saved Light or Dark choice takes priority until you select System again.
+Studio light mode uses cream surfaces and terracotta accents; dark mode uses charcoal surfaces and peach accents across all four tabs, controls, and sheets. Open **Setări → Aspect** (Settings → Appearance) and choose **Sistem / Mod luminos / Mod întunecat** (System / Light mode / Dark mode). System is the default for new installs and follows the phone/browser appearance, including changes while the app is open and on return. A saved Light or Dark choice takes priority until you select System again.
 
 Existing valid Light/Dark preferences are preserved. Missing or invalid saved themes use System; unavailable system detection falls back to the Light palette. Changing the appearance preserves active clocks, schedules, unsaved editor drafts and real completion audio. The first interactive screen uses the restored choice and current appearance; the native launch image appears before saved settings can load. Launcher icons, favicon, and splash artwork retain their existing branding.
+
+Studio uses serif screen and sheet titles, Inter body text and time digits, rectangular active readouts, and one shared frame around the duration wheels. Timer setup shows the selector directly; the large time readout appears while running or paused. The current presets, wheel inertia, actions and saved data remain unchanged.
+
+Titles use Georgia on iOS/web and the system serif on Android; font metrics and glyphs can differ, with physical-device acceptance still pending.
 
 Buttons fade and shrink slightly on press, then return smoothly on release or cancellation. An accepted action runs without waiting for the animation. The phone/browser's **Reduce motion** setting removes scaling and timed transitions while retaining immediate pressed feedback; changes apply live and on return to the app. Web switches also animate their thumb and track briefly; native switches retain platform behavior. This visual feedback adds no sounds, vibrations or saved settings, and duration-wheel gestures stay independent. See the [interaction animation plan](.ai-factory/plans/feature-interaction-animations.md) for verification and pending device checks.
 
@@ -187,7 +191,11 @@ Source: [lee-to/ai-factory](https://github.com/lee-to/ai-factory).
 
 ## Verification Status
 
-The [latest gentler wheel glide](.ai-factory/plans/feature-gentler-wheel-inertia.md) passed lint/typecheck, **292 Node tests**, **143 targeted browser cases in one run (4.8 minutes; no skips/retries)** and fresh Android/iOS/web exports. Browser glides take about 7% longer than the preceding refinement. Real-frame checks cover natural Start/Apply availability as well as progressive slowing, exact centering, takeover, presets and legacy-data preservation. Physical native feel/accessibility acceptance remains deferred.
+The [Studio outline contrast fix](.ai-factory/patches/2026-11-12-15.31.md) passed lint/typecheck, **54 related browser scenarios in one run (2.2 minutes; no skips/retries)** and fresh Android/iOS/web exports. Two registered regressions first failed on the original export, then passed after correcting three shared outline styles; they measure 21 enabled controls per theme against both adjacent backgrounds. The reported outlines now measure **3.57:1 in Light** and **3.99:1 in Dark**, above the required 3:1. The full browser and Node suites were not repeated for this style-only fix; physical native acceptance remains deferred.
+
+Before that outline fix, the [Studio redesign](.ai-factory/plans/feature-studio-redesign.md) passed lint/typecheck, **294 Node tests**, **522 browser scenarios in one complete run (20.7 minutes; no skips/retries)** and fresh Android/iOS/web exports. Both palettes and all six languages cover compact/enlarged layouts; the plan binds those earlier tested inputs. Physical native font, accessibility and gesture acceptance remains deferred.
+
+The [preceding gentler wheel glide](.ai-factory/plans/feature-gentler-wheel-inertia.md) passed lint/typecheck, **292 Node tests**, **143 targeted browser cases in one run (4.8 minutes; no skips/retries)** and fresh Android/iOS/web exports. Browser glides take about 7% longer than the preceding refinement. Real-frame checks cover natural Start/Apply availability as well as progressive slowing, exact centering, takeover, presets and legacy-data preservation. Physical native feel/accessibility acceptance remains deferred.
 
 The [preceding wheel tuning](.ai-factory/plans/feature-fine-tune-wheel-inertia.md) passed lint/typecheck, **292 Node tests**, **143 targeted browser cases in one run (4.8 minutes; no skips/retries)** and fresh Android/iOS/web exports. The browser glide is about 17% longer than the preceding refinement; takeover, presets, manual action gates and legacy data remain covered. Physical native feel/accessibility acceptance remains deferred.
 

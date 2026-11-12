@@ -2,7 +2,7 @@ import { useI18n } from '../hooks/useI18n';
 import { StyleSheet, Text, View } from 'react-native';
 import { useCrono } from '../context/CronoContext';
 import { useThemeStyles } from '../context/ThemeContext';
-import { fonts as f, Palette } from '../theme';
+import { fonts as f, radii, Palette } from '../theme';
 
 export function PlanningNotice() {
   const { messages: m } = useI18n();
@@ -23,6 +23,6 @@ export function PlanningNotice() {
 }
 
 const createStyles = (c: Palette) => StyleSheet.create({
-  notice: { marginHorizontal: 26, marginBottom: 10, padding: 12, borderRadius: 13, backgroundColor: c.limeSoft },
-  text: { fontFamily: f.semibold, color: c.green, fontSize: 12, lineHeight: 18 },
+  notice: { marginHorizontal: 24, marginBottom: 10, padding: 12, borderRadius: radii.control, backgroundColor: c.limeSoft },
+  text: { fontFamily: f.semibold, color: c.green, fontSize: 13, lineHeight: 21 },
 });

@@ -37,6 +37,15 @@ function luminance(hex: string) {
 }
 
 for (const [mode, c] of Object.entries(palettes)) {
+  test(`${mode} interactive boundaries and focus remain visible on their surfaces`, () => {
+    for (const [foreground, background] of [
+      [c.border, c.background], [c.border, c.surface],
+      [c.green, c.background], [c.green, c.surface], [c.green, c.selected],
+    ]) {
+      const values = [luminance(foreground), luminance(background)].sort((a, b) => b - a);
+      assert.ok((values[0] + 0.05) / (values[1] + 0.05) >= 3, `${foreground} on ${background}`);
+    }
+  });
   test(`${mode} text roles meet 4.5:1 contrast on their actual surfaces`, () => {
     const pairs = [
       [c.ink, c.background], [c.ink, c.surface], [c.muted, c.background], [c.muted, c.surface],

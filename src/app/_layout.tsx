@@ -18,7 +18,7 @@ import { Icon, IconName } from '../components/Icon';
 import { ActiveActivities } from '../components/ActiveActivities';
 import { SettingsSheet } from '../components/SettingsSheet';
 import { TimingNotices } from '../components/TimingNotices';
-import { textSizes, motionTokens, fonts as f, Palette } from '../theme';
+import { textSizes, motionTokens, radii, fonts as f, Palette } from '../theme';
 import { ThemeProvider, useTheme, useThemeStyles } from '../context/ThemeContext';
 import { MotionProvider, useMotionPreference } from '../context/MotionContext';
 import { NavigationScene } from '../components/NavigationScene';
@@ -77,7 +77,7 @@ function TabBar({ state, navigation, onHeight }: TabBarProps & { onHeight: (heig
         const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
         if (!selected && !event.defaultPrevented) { feedback(); navigation.navigate(route.name, route.params); }
       }} style={[styles.tab, compact && styles.compactTab, selected && styles.selectedTab]}>
-        <Icon name={item.icon} size={19} color={selected ? c.ink : c.muted} />
+        <Icon name={item.icon} size={19} color={selected ? c.green : c.muted} />
         <Text style={[styles.tabText, selected && styles.selectedTabText]}>{m[item.title]}</Text>
         {history && data.sessions.length > 0 && <View style={styles.badge}><Text style={styles.badgeText}>{data.sessions.length}</Text></View>}
         {running && <View style={styles.runningDot} />}
@@ -108,7 +108,7 @@ function AppShell() {
   return <View nativeID="crono-app" style={styles.desktop}><View testID="app-viewport" style={styles.app}
     onLayout={(event) => setSceneWidth(event.nativeEvent.layout.width)}>
     <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) }, compact && { paddingBottom: 16 }]}>
-      <View style={styles.logoGroup}><View style={styles.logo}><Icon name="clock" size={22} color={c.onAccent} /></View><Text style={styles.wordmark}>CRONO<Text style={{ color: c.green }}>.</Text></Text></View>
+      <View style={styles.logoGroup}><View style={styles.logo}><Icon name="clock" size={20} color={c.green} /></View><Text style={styles.wordmark}>CRONO</Text></View>
       <MotionPressable accessibilityLabel={m.settings} accessibilityRole="button" onPress={() => { feedback(); setSettings(true); }} style={[styles.settings]}><Icon name="settings" size={19} /></MotionPressable>
     </View>
     {storageError && <MotionPressable onPress={dismissStorageError} accessibilityRole="button" accessibilityLabel={m.dismissStorage} style={styles.warning}><Text style={styles.warningText}>{m.storageWarning}</Text><Icon name="close" size={15} color={c.danger} /></MotionPressable>}
@@ -130,23 +130,23 @@ const createStyles = (c: Palette) => StyleSheet.create({
   loading: { flex: 1, backgroundColor: c.background, alignItems: 'center', justifyContent: 'center' },
   desktop: { flex: 1, alignItems: 'center', backgroundColor: c.desktop },
   app: { flex: 1, width: '100%', maxWidth: 480, backgroundColor: c.background },
-  header: { paddingHorizontal: 26, paddingBottom: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  header: { paddingHorizontal: 24, paddingBottom: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   logoGroup: { flexDirection: 'row', alignItems: 'center', gap: 9 },
-  logo: { width: 35, height: 35, borderRadius: 12, backgroundColor: c.lime, alignItems: 'center', justifyContent: 'center' },
-  wordmark: { fontFamily: f.heavy, fontSize: 22, letterSpacing: -0.9, color: c.ink },
-  settings: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.border, borderRadius: 16 },
-  tabBar: { flexDirection: 'row', paddingHorizontal: 16, paddingTop: 10, gap: 8, backgroundColor: c.background, borderTopWidth: 1, borderTopColor: c.border },
+  logo: { width: 30, height: 30, borderRadius: 5, borderWidth: 1, borderColor: c.green, alignItems: 'center', justifyContent: 'center' },
+  wordmark: { fontFamily: f.semibold, fontSize: 16, letterSpacing: 1.5, color: c.ink },
+  settings: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radii.control },
+  tabBar: { flexDirection: 'row', paddingHorizontal: 12, paddingTop: 6, gap: 4, backgroundColor: c.background, borderTopWidth: 1, borderTopColor: c.separator },
   compactTabBar: { paddingHorizontal: 8, gap: 4 },
-  tab: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: 58, borderRadius: 14, paddingHorizontal: 4, paddingVertical: 9 },
+  tab: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: 58, borderTopWidth: 2, borderTopColor: 'transparent', paddingHorizontal: 4, paddingVertical: 9 },
   compactTab: { paddingHorizontal: 0 },
-  selectedTab: { backgroundColor: c.selected },
+  selectedTab: { borderTopColor: c.green },
   tabText: { fontFamily: f.medium, fontSize: textSizes.small, color: c.muted, maxWidth: '100%', flexShrink: 1, textAlign: 'center' },
-  selectedTabText: { color: c.ink, fontFamily: f.semibold },
+  selectedTabText: { color: c.green, fontFamily: f.semibold },
   badge: { position: 'absolute', top: 5, right: 8, backgroundColor: c.badge, paddingHorizontal: 5, minWidth: 18, borderRadius: 5, height: 17, alignItems: 'center', justifyContent: 'center' },
   badgeText: { fontFamily: f.semibold, fontSize: textSizes.small, color: c.green },
   runningDot: { position: 'absolute', top: 9, right: 12, width: 5, height: 5, backgroundColor: c.green, borderRadius: 3 },
-  toast: { position: 'absolute', bottom: 100, left: 26, right: 26, borderRadius: 16, backgroundColor: c.toast, padding: 17, flexDirection: 'row', alignItems: 'center', gap: 10, boxShadow: c.shadow },
+  toast: { position: 'absolute', bottom: 100, left: 24, right: 24, borderRadius: radii.card, backgroundColor: c.toast, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 10, boxShadow: c.shadow },
   toastText: { fontFamily: f.medium, color: c.toastText, fontSize: textSizes.caption, flex: 1, lineHeight: 21 },
-  warning: { marginHorizontal: 26, marginBottom: 12, padding: 12, backgroundColor: c.dangerSoft, borderRadius: 12, flexDirection: 'row', gap: 8, alignItems: 'center' },
+  warning: { marginHorizontal: 24, marginBottom: 12, padding: 12, backgroundColor: c.dangerSoft, borderRadius: radii.control, flexDirection: 'row', gap: 8, alignItems: 'center' },
   warningText: { color: c.danger, fontFamily: f.regular, fontSize: textSizes.small, lineHeight: 21, flex: 1 },
 });

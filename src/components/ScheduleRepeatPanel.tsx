@@ -5,7 +5,7 @@ import { MAX_STEPS, type ScheduleStep } from '../core/planning';
 import { formatRemaining } from '../core/timer';
 import { useI18n } from '../hooks/useI18n';
 import { useThemeStyles } from '../context/ThemeContext';
-import { fonts, type Palette } from '../theme';
+import { fonts, radii, type Palette } from '../theme';
 
 export function ScheduleRepeatPanel({ steps, onApply, onCancel }: {
   steps: ScheduleStep[]; onApply: (cycles: number) => void; onCancel: () => void;
@@ -32,9 +32,9 @@ export function ScheduleRepeatPanel({ steps, onApply, onCancel }: {
 }
 const createStyles = (c: Palette) => StyleSheet.create({
   panel: { gap: 16, paddingVertical: 16 }, choices: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  choice: { minHeight: 46, borderWidth: 1, borderColor: c.border, borderRadius: 12, padding: 12, alignItems: 'center', justifyContent: 'center' },
+  choice: { minHeight: 46, borderWidth: 1, borderColor: c.border, borderRadius: radii.control, padding: 12, alignItems: 'center', justifyContent: 'center' },
   selected: { backgroundColor: c.selected, borderColor: c.green }, text: { fontFamily: fonts.medium, color: c.ink, fontSize: 14 },
   help: { fontFamily: fonts.regular, fontSize: 13, color: c.muted, lineHeight: 21 }, error: { fontFamily: fonts.medium, color: c.danger, fontSize: 13, lineHeight: 21 },
-  primary: { minHeight: 48, borderRadius: 12, backgroundColor: c.action, alignItems: 'center', justifyContent: 'center', padding: 12 },
+  primary: { minHeight: 54, borderRadius: radii.control, backgroundColor: c.action, alignItems: 'center', justifyContent: 'center', padding: 12 },
   primaryText: { fontFamily: fonts.semibold, fontSize: 14, color: c.actionText }, disabled: { opacity: 0.4 },
 });

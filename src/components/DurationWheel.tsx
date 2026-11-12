@@ -29,7 +29,6 @@ export function DurationWheel(props: DurationWheelProps) {
         if (nativeEvent.actionName === 'increment') controller.choose(value + 1);
         if (nativeEvent.actionName === 'decrement') controller.choose(value - 1);
       }} style={[styles.viewport, { height: rowHeight * 3 }, disabled && styles.disabled]}>
-      <View pointerEvents="none" style={[styles.selection, { top: rowHeight, height: rowHeight }]} />
       <ScrollView ref={scroll} style={{ height: rowHeight * 3 }} contentContainerStyle={{ paddingVertical: rowHeight }}
         accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants"
         scrollEnabled={!disabled} nestedScrollEnabled bounces={false} overScrollMode="never" showsVerticalScrollIndicator={false}
@@ -57,10 +56,9 @@ export function DurationWheel(props: DurationWheelProps) {
 }
 const createStyles = (c: Palette) => StyleSheet.create({
   column: { flex: 1, minWidth: 0, gap: 8 },
-  viewport: { borderRadius: 15, borderWidth: 1, borderColor: c.border, overflow: 'hidden', backgroundColor: c.surface },
-  selection: { position: 'absolute', left: 0, right: 0, backgroundColor: c.selected, borderTopWidth: 1, borderBottomWidth: 1, borderColor: c.border },
+  viewport: { overflow: 'hidden' },
   item: { alignItems: 'center', justifyContent: 'center' },
-  number: { fontFamily: fonts.semibold, fontSize: 24, lineHeight: 32, color: c.muted, fontVariant: ['tabular-nums'] },
+  number: { fontFamily: fonts.semibold, fontSize: 28, lineHeight: 36, color: c.muted, fontVariant: ['tabular-nums'] },
   selected: { color: c.ink }, disabled: { opacity: 0.5 },
-  label: { fontFamily: fonts.medium, fontSize: 11, color: c.muted, textAlign: 'center' },
+  label: { fontFamily: fonts.medium, fontSize: 12, color: c.muted, textAlign: 'center' },
 });

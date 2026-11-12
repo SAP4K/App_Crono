@@ -195,16 +195,21 @@ for (const policy of ['reduce', 'background', 'route', 'resize'] as const) test(
   await expect.poll(async () => (await stored(page)).timer.durationMs).toBe(61000);
 });
 
-for (const { id } of LANGUAGES) for (const theme of ['light', 'dark'] as const) for (const enlarged of [false, true]) {
-  test(`${id} ${theme} preset remains centered and usable with ${enlarged ? 'enlarged' : 'compact'} text`, async ({ page }) => {
+for (const { id } of LANGUAGES) for (const theme of ['light', 'dark'] as const) for (const { width, enlarged } of [{ width: 320, enlarged: false }, { width: 390, enlarged: true }, { width: 320, enlarged: true }]) {
+  test(`${id} ${theme} preset remains centered and usable with ${enlarged ? 'enlarged' : 'compact'} text at ${width}px`, async ({ page }) => {
     const messages = getMessages(id), data = initialData(); data.preferences.language = id; data.preferences.theme = theme; data.timer = initialTimer(4117000);
-    await page.setViewportSize({ width: enlarged ? 390 : 320, height: 844 }); await seed(page, data); await page.goto('/timer'); await ready(page);
-    if (enlarged) await page.addStyleTag({ content: '[role="spinbutton"] button { font-size:32px !important; }' });
+    await page.setViewportSize({ width, height: 844 }); await seed(page, data); await page.goto('/timer'); await ready(page);
+    if (enlarged) await page.addStyleTag({ content: '[role="spinbutton"] button { font-size:36px !important; }' });
     await page.getByRole('button', { name: messages.presetMinutes(25), exact: true }).click(); await ready(page);
     await expect(page.getByRole('button', { name: messages.startTimer, exact: true })).toBeEnabled();
     expect((await stored(page)).timer.durationMs).toBe(1500000);
     for (const wheel of await page.getByRole('spinbutton').all()) {
-      const box = (await wheel.boundingBox())!; expect(box.width).toBeGreaterThanOrEqual(44); expect(box.x).toBeGreaterThanOrEqual(0); expect(box.x + box.width).toBeLessThanOrEqual(enlarged ? 390 : 320);
+      const box = (await wheel.boundingBox())!; expect(box.width).toBeGreaterThanOrEqual(44); expect(box.x).toBeGreaterThanOrEqual(0); expect(box.x + box.width).toBeLessThanOrEqual(width);
+      expect(await wheel.evaluate((node) => {
+        const row = node.querySelectorAll('button')[Number(node.getAttribute('aria-valuenow'))];
+        const range = document.createRange(); range.selectNodeContents(row);
+        return range.getBoundingClientRect().height <= row.getBoundingClientRect().height;
+      })).toBe(true);
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });

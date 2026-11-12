@@ -12,7 +12,8 @@ import { DurationPicker } from '../components/DurationPicker';
 import { TimerFace } from '../components/TimerFace';
 import { ConfirmSheet } from '../components/Sheet';
 import { Icon } from '../components/Icon';
-import { textSizes, fonts as f, Palette } from '../theme';
+import { headingFamily } from '../typography';
+import { textSizes, radii, fonts as f, Palette } from '../theme';
 
 export default function TimerScreen() {
   const { messages: m } = useI18n();
@@ -52,8 +53,12 @@ export default function TimerScreen() {
   return <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
     <Text accessibilityRole="header" style={styles.title}>{m.timerTitle}</Text>
     <Text style={styles.subtitle}>{m.timerSubtitle}</Text>
-    <TimerFace timer={timer} compact={editable} />
+    {!editable && <TimerFace timer={timer} />}
+    {editable && <Text style={styles.setupStatus}>{timer.status === 'completed' ? m.timerExpired : m.timerIdle}</Text>}
     {editable && <>
+    <DurationPicker value={parts} onChange={changeDuration} presentationRequest={presentationRequest} presentationActive={focused} onInteractionChange={(busy) => {
+      moving.current = busy; setWheelBusy(busy);
+    }} />
     <Text style={styles.presetTitle}>{m.timerPresets}</Text>
     <View style={styles.presets}>{[1, 5, 10, 25].map((minutes) => <MotionPressable key={minutes} accessibilityRole="button"
       accessibilityLabel={m.presetMinutes(minutes)} onPress={() => {
@@ -62,9 +67,6 @@ export default function TimerScreen() {
       }} style={[styles.preset, timer.durationMs === minutes * 60000 && styles.selectedPreset]}>
       <Text style={styles.resetText}>{minutes} {m.minutesShort}</Text>
     </MotionPressable>)}</View>
-    <DurationPicker value={parts} onChange={changeDuration} presentationRequest={presentationRequest} presentationActive={focused} onInteractionChange={(busy) => {
-      moving.current = busy; setWheelBusy(busy);
-    }} />
     </>}
     <Text style={styles.help}>{duration === null ? m.durationInvalid : m.timerSoundHelp}</Text>
     {!editable && <MotionPressable accessibilityRole="button" accessibilityLabel={m.addMinute}
@@ -73,7 +75,6 @@ export default function TimerScreen() {
       <Text style={styles.resetText}>+1 {m.minutesShort}</Text>
     </MotionPressable>}
     <View style={styles.actions}>
-      <MotionPressable accessibilityRole="button" accessibilityLabel={m.resetTimer} disabled={timer.status === 'idle'} onPress={() => { if (running || paused) { feedback(); setConfirmReset(true); } else reset(); }} style={[styles.reset, timer.status === 'idle' && styles.disabled]}><Icon name="reset" size={20} /><Text style={styles.resetText}>{m.reset}</Text></MotionPressable>
       <MotionPressable accessibilityRole="button" accessibilityLabel={actionLabel} disabled={editable && (duration === null || wheelBusy)} onPress={() => {
         const previous = getSnapshot().timer;
         const milliseconds = durationMilliseconds(selected.current);
@@ -87,6 +88,7 @@ export default function TimerScreen() {
       }} style={[styles.primary, editable && (duration === null || wheelBusy) && styles.disabled]}>
         <Icon name={running ? 'pause' : 'play'} size={19} color={c.actionIcon} /><Text style={styles.primaryText}>{running ? m.pause : paused ? m.resume : timer.status === 'completed' ? m.restart : m.start}</Text>
       </MotionPressable>
+      <MotionPressable accessibilityRole="button" accessibilityLabel={m.resetTimer} disabled={timer.status === 'idle'} onPress={() => { if (running || paused) { feedback(); setConfirmReset(true); } else reset(); }} style={[styles.reset, timer.status === 'idle' && styles.disabled]}><Icon name="reset" size={20} /><Text style={styles.resetText}>{m.reset}</Text></MotionPressable>
     </View>
     <Text style={styles.note}>{m.timerIndependent}</Text>
     <ConfirmSheet visible={confirmReset} title={m.resetTimerTitle} description={m.resetTimerHelp} confirmLabel={m.resetTimer} onClose={() => setConfirmReset(false)} onConfirm={reset} />
@@ -94,19 +96,20 @@ export default function TimerScreen() {
 }
 
 const createStyles = (c: Palette) => StyleSheet.create({
-  content: { paddingHorizontal: 26, paddingTop: 8, paddingBottom: 24, flexGrow: 1 },
-  title: { fontFamily: f.bold, color: c.ink, fontSize: textSizes.heading, letterSpacing: -0.7 },
+  content: { paddingHorizontal: 24, paddingTop: 8, paddingBottom: 24, flexGrow: 1 },
+  title: { fontFamily: headingFamily, fontWeight: '400', color: c.ink, fontSize: 30, lineHeight: 39, letterSpacing: -0.3 },
   subtitle: { fontFamily: f.regular, color: c.muted, fontSize: textSizes.caption, lineHeight: 21, marginTop: 9 },
+  setupStatus: { fontFamily: f.medium, color: c.muted, fontSize: textSizes.caption, lineHeight: 21, marginTop: 16, marginBottom: 20 },
   help: { fontFamily: f.regular, color: c.muted, fontSize: textSizes.small, lineHeight: 21, textAlign: 'center', marginVertical: 18 },
-  presetTitle: { fontFamily: f.semibold, color: c.muted, fontSize: textSizes.caption, marginBottom: 8 },
+  presetTitle: { fontFamily: f.semibold, color: c.muted, fontSize: textSizes.caption, marginTop: 20, marginBottom: 10 },
   presets: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
-  preset: { flex: 1, minWidth: 55, minHeight: 44, paddingHorizontal: 6, paddingVertical: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.border, borderRadius: 12, backgroundColor: c.surface },
+  preset: { flex: 1, minWidth: 55, minHeight: 44, paddingHorizontal: 6, paddingVertical: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.border, borderRadius: radii.control, backgroundColor: c.background },
   selectedPreset: { backgroundColor: c.selected, borderColor: c.green },
-  addMinute: { minHeight: 44, padding: 10, marginBottom: 12, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: c.secondary },
-  actions: { flexDirection: 'row', gap: 12 },
-  primary: { flex: 1, minHeight: 56, borderRadius: 17, backgroundColor: c.action, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  addMinute: { minHeight: 44, padding: 10, marginBottom: 12, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', borderRadius: radii.control, backgroundColor: c.secondary },
+  actions: { gap: 4 },
+  primary: { minHeight: 56, padding: 14, borderRadius: radii.control, backgroundColor: c.action, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   primaryText: { fontFamily: f.semibold, color: c.actionText, fontSize: textSizes.body },
-  reset: { flex: 1, minHeight: 56, borderRadius: 17, backgroundColor: c.secondary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  reset: { minHeight: 44, padding: 12, borderRadius: radii.control, backgroundColor: c.background, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   resetText: { fontFamily: f.semibold, color: c.ink, fontSize: textSizes.body },
   disabled: { opacity: 0.5 },
   note: { fontFamily: f.regular, color: c.muted, fontSize: textSizes.small, lineHeight: 21, textAlign: 'center', marginTop: 22 },

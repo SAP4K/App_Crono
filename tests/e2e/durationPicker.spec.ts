@@ -328,9 +328,9 @@ test('timer and schedule completions remain visible and stoppable inside an unsa
   expect(await playCount(page)).toBe(2);
 });
 
-for (const { id } of LANGUAGES) for (const theme of ['light', 'dark'] as const) {
-  test(`${id} ${theme} wheel labels, resizing and enlarged web text preserve selection and fit mobile layouts`, async ({ page }) => {
-    const width = { ro: 390, en: 430, ru: 320, es: 320, fr: 320, de: 320 }[id]; await page.setViewportSize({ width, height: 844 });
+for (const { id } of LANGUAGES) for (const theme of ['light', 'dark'] as const) for (const width of new Set([320, { ro: 390, en: 430, ru: 320, es: 320, fr: 320, de: 320 }[id]])) {
+  test(`${id} ${theme} ${width}px wheel labels, resizing and enlarged web text preserve selection and fit mobile layouts`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
     const data = initialData(); data.preferences.language = id; data.preferences.theme = theme; data.timer = initialTimer(3663000);
     const name = 'Учёба · Școală'; data.planning.schedules = [{ id: 'layout', name, steps: [{ id: 'step', name: 'Respiră · Отдых', durationMs: 3663000 }] }];
     await seed(page, data); await page.goto('/timer'); const m = getMessages(id);
@@ -359,7 +359,7 @@ for (const { id } of LANGUAGES) for (const theme of ['light', 'dark'] as const) 
     await panel.getByRole('spinbutton', { name: m.stepField(m.timeUnits[0], 1), exact: true }).press('Shift+Tab');
     await expect(panel.getByRole('button', { name: m.close, exact: true })).toBeFocused();
     // User-style enlargement exercises web text fit; native OS font scaling is a separate device check.
-    await page.addStyleTag({ content: '[role="spinbutton"] button { font-size: 32px !important; }' });
+    await page.addStyleTag({ content: '[role="spinbutton"] button { font-size: 36px !important; }' });
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.setViewportSize({ width: width + 40, height: 844 }); await page.setViewportSize({ width, height: 844 });
     for (const [index, value] of [1, 1, 3].entries()) {

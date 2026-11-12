@@ -13,11 +13,26 @@ async function enlargeBodyText(page: Page) {
     for (const node of document.querySelectorAll<HTMLElement>('[class*="css-text"], input[type="text"]')) {
       if (node.dataset.cronoEnlarged || node.closest('[role="spinbutton"]')) continue;
       const style = getComputedStyle(node), size = Number.parseFloat(style.fontSize);
-      if (size > 24) continue;
+      if (size > 24 && node.getAttribute('role') !== 'heading') continue;
       node.dataset.cronoEnlarged = 'true'; node.style.fontSize = `${size * 1.3}px`;
       if (style.lineHeight !== 'normal') node.style.lineHeight = `${Number.parseFloat(style.lineHeight) * 1.3}px`;
     }
   });
+  // Newly visible Inter weights can still be loading after panel mount.
+  // Measure enlarged text and press geometry only after the real font is ready.
+  await page.evaluate(() => document.fonts.ready);
+}
+
+async function expectStudioHeading(page: Page) {
+  const heading = page.getByRole('heading').first();
+  await expect(heading).toHaveCSS('font-family', /Georgia/);
+  await expect(heading).toHaveCSS('font-weight', '400');
+  const metrics = await heading.evaluate((node) => {
+    const style = getComputedStyle(node), box = node.getBoundingClientRect();
+    return { size: Number.parseFloat(style.fontSize), line: Number.parseFloat(style.lineHeight), left: box.left, right: box.right, width: innerWidth };
+  });
+  expect(metrics.line).toBeGreaterThanOrEqual(metrics.size * 1.1);
+  expect(metrics.left).toBeGreaterThanOrEqual(0); expect(metrics.right).toBeLessThanOrEqual(metrics.width);
 }
 
 async function expectFit(page: Page) {
@@ -61,27 +76,34 @@ for (const { id } of LANGUAGES) for (const theme of ['light', 'dark'] as const) 
     ] }];
     const m = getMessages(id); await seed(page, data); await page.goto('/timer');
     await expect(page.getByRole('button', { name: m.presetMinutes(25), exact: true })).toBeVisible();
-    await enlargeBodyText(page); await expectFit(page);
+    await enlargeBodyText(page); await expectStudioHeading(page); await expectFit(page);
     await page.getByRole('button', { name: m.startTimer, exact: true }).scrollIntoViewIfNeeded();
     await expect(page.getByRole('button', { name: m.startTimer, exact: true })).toBeEnabled();
     await page.getByRole('button', { name: m.startTimer, exact: true }).click();
     await expect(page.getByRole('spinbutton')).toHaveCount(0);
-    await enlargeBodyText(page); await expectFit(page);
+    await enlargeBodyText(page); await expectStudioHeading(page); await expectFit(page);
     await page.getByRole('tab', { name: m.planningTab, exact: true }).click();
     await expect(page.getByRole('button', { name: m.startSchedule('Учёба · Școală'), exact: true })).toBeVisible();
-    await enlargeBodyText(page); await expectFit(page);
+    await enlargeBodyText(page); await expectStudioHeading(page); await expectFit(page);
+    await page.getByRole('button', { name: m.pauseTimer, exact: true }).click();
+    await enlargeBodyText(page);
+    const resumeLabel = page.getByRole('button', { name: m.resumeTimer, exact: true }).getByText(m.resume, { exact: true });
+    expect(await resumeLabel.evaluate((node) => {
+      const text = document.createRange(); text.selectNodeContents(node);
+      return text.getClientRects().length;
+    })).toBe(1);
     await page.getByRole('button', { name: m.startSchedule('Учёба · Școală'), exact: true }).click();
     await page.getByRole('tab', { name: m.historyTab, exact: true }).click();
     await expect(page.getByRole('button', { name: m.openActiveTimer, exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: m.openActivePlanning, exact: true })).toBeVisible();
-    await enlargeBodyText(page); await expectFit(page);
+    await enlargeBodyText(page); await expectStudioHeading(page); await expectFit(page);
     await page.getByRole('button', { name: m.settings, exact: true }).click();
     await expect(page.getByRole('dialog', { name: m.settingsTitle, exact: true })).toBeVisible();
-    await enlargeBodyText(page); await expectFit(page);
+    await enlargeBodyText(page); await expectStudioHeading(page); await expectFit(page);
     for (const group of ['appearance', 'language', 'sounds', 'notifications', 'device', 'data', 'about'] as const) {
       await page.getByRole('button', { name: m.settingsGroups[group], exact: true }).click();
       await expect(page.getByRole('dialog', { name: m.settingsGroups[group], exact: true })).toBeVisible();
-      await enlargeBodyText(page); await expectFit(page);
+      await enlargeBodyText(page); await expectStudioHeading(page); await expectFit(page);
       if (group === 'appearance') {
         await expect(page.getByRole('radio', { name: m.systemMode, exact: true })).toBeChecked();
         const before = await stored(page);
@@ -89,7 +111,7 @@ for (const { id } of LANGUAGES) for (const theme of ['light', 'dark'] as const) 
         await pressedFit(page, page.getByRole('radio', { name: m.systemMode, exact: true }));
         expect(await stored(page)).toEqual(before);
         await page.emulateMedia({ colorScheme: theme === 'dark' ? 'light' : 'dark', reducedMotion: 'reduce' });
-        await expectTheme(page, theme !== 'dark'); await enlargeBodyText(page); await expectFit(page);
+        await expectTheme(page, theme !== 'dark'); await enlargeBodyText(page); await expectStudioHeading(page); await expectFit(page);
         for (const choice of await page.getByRole('radio').all()) {
           const box = (await choice.boundingBox())!; expect(box.height).toBeGreaterThanOrEqual(44); expect(box.width).toBeGreaterThanOrEqual(44);
         }
@@ -106,5 +128,7 @@ for (const { id } of LANGUAGES) for (const theme of ['light', 'dark'] as const) 
       if (group === 'appearance') await expect(page.getByRole('button', { name: m.settingsGroups.appearance, exact: true }).getByText(m.systemMode, { exact: true })).toBeVisible();
     }
     await page.getByRole('button', { name: m.close, exact: true }).click();
+    await page.getByRole('tab', { name: m.stopwatchTab, exact: true }).click();
+    await enlargeBodyText(page); await expectStudioHeading(page); await expectFit(page);
   });
 }

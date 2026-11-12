@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useCrono } from '../context/CronoContext';
 import { useI18n } from '../hooks/useI18n';
 import { useThemeStyles } from '../context/ThemeContext';
-import { fonts as f, Palette } from '../theme';
+import { fonts as f, radii, Palette } from '../theme';
 import { notificationStatus } from '../i18n/notificationStatus';
 
 export function SystemNotificationNotice() {
@@ -29,7 +29,7 @@ export function SystemNotificationNotice() {
   </View>;
 }
 const createStyles = (c: Palette) => StyleSheet.create({
-  notice: { marginHorizontal: 26, marginBottom: 12, padding: 12, borderRadius: 13, gap: 8, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border },
-  text: { fontFamily: f.medium, color: c.ink, fontSize: 12, lineHeight: 18 },
+  notice: { marginHorizontal: 24, marginBottom: 12, padding: 12, borderRadius: radii.control, gap: 8, backgroundColor: c.surface, borderWidth: 1, borderColor: c.separator },
+  text: { fontFamily: f.medium, color: c.ink, fontSize: 13, lineHeight: 21 },
   retry: { minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 10, borderWidth: 1, borderColor: c.border, paddingHorizontal: 10 },
 });

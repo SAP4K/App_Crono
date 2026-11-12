@@ -117,7 +117,8 @@ src/
 │   ├── completionAlerts.ts   # Validated completion policy, identity and priority
 │   ├── notices.ts            # Semantic transient toast/completion/audio codes
 │   └── sounds.ts             # Pure sound/duration catalog and validation
-└── theme.ts                 # Shared visual tokens
+├── typography.ts            # Platform system-serif heading adapter
+└── theme.ts                 # Pure Studio palettes and shared visual tokens
 tests/
 ├── language.test.ts          # Defaults and independently restored preference
 ├── i18n.test.ts              # Catalogs, plural boundaries, dates and sharing
@@ -160,7 +161,8 @@ modules/crono-completion-alerts/ # Atomic delivery ledger, alarm, bounded player
 | `src/i18n/` | Framework-free catalogs and Intl presentation helpers; may import pure core types/formatting, never owns state/storage |
 | `src/core/` | Use JavaScript/TypeScript primitives and other pure core functions |
 | `src/audio/` | Map pure sound IDs to static bundled assets; consumed by platform transports |
-| `src/theme.ts` | Export visual constants without depending on application modules |
+| `src/theme.ts` | Export pure palette, radii, Inter/type-size and motion constants without React/native imports or dependencies on application modules |
+| `src/typography.ts` | Select only the platform heading family through React Native Platform |
 | `modules/crono-completion-alerts/` | Android delivery projections/receipts and one native audio owner; never edit app clocks/history |
 
 - Keep platform/storage dependencies outside the pure core.
@@ -259,6 +261,10 @@ iOS/older Android audio uses SDK 57 `createAudioPlayer` with explicit source cle
 `useSystemTheme` binds an injected `themeAppearance` observer to native/web Appearance and foreground events. Native manual selection applies an app override; System clears it with the installed React Native 0.86 `unspecified` value and explicitly rereads the snapshot. Foreground System refresh also clears/rereads the native cache to recover a missed background change. Web observes its existing media-query adapter without calling a native override API. Subscriptions clean up and stale callbacks cannot publish. Theme selection requires loaded hydration and uses the shared functional update API; device-only changes never update AppData.
 
 `ThemeContext` projects the resolved mode into stable semantic palettes/cached styles and navigation/status contrast. A serialized latest-value native background writer prevents older asynchronous updates from winning; web sets document color scheme and body background directly. It has no independent persistence and does not key/remount routes, clock/audio owners or editor drafts. The pre-hydration native launch image and branding remain separate.
+
+The Studio visual system retains semantic palette keys while applying cream/charcoal surfaces and terracotta/peach accents. `theme.ts` stays framework-free. The small `typography.ts` adapter selects Georgia on iOS/web and `serif` on Android for the four route titles and shared Sheet title; all body/numeric text retains bundled Inter.
+
+Readouts, controls and sheets share geometric radii. The duration picker has one frame and a pointer-transparent band aligned to the unchanged three-column row geometry. These changes add no state, persistence, timing, scrolling or motion owner. System-font metrics and native glyph/large-text behavior remain subject to physical acceptance.
 
 `MotionProvider` owns one AccessibilityInfo reduced-motion subscription and one shared app-activity subscription through `motionPreference`. It subscribes before querying, fences stale reads/events, refreshes on foreground return and starts conservatively with reduced motion. `MotionScope` suspends hidden Sheet/covered EditorBody controls without a layout wrapper or remounting drafts. Motion state never enters AppData.
 

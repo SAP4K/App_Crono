@@ -5,7 +5,7 @@ import { useCrono } from '../context/CronoContext';
 import { useThemeStyles } from '../context/ThemeContext';
 import { useBackupTransfer } from '../hooks/useBackupTransfer';
 import { useI18n } from '../hooks/useI18n';
-import { fonts as f, textSizes, type Palette } from '../theme';
+import { fonts as f, textSizes, radii, type Palette } from '../theme';
 import { SettingsSwitch } from './SettingsSwitch';
 import { PanelTransition } from './PanelTransition';
 
@@ -52,10 +52,10 @@ const createStyles = (c: Palette) => StyleSheet.create({
   content: { gap: 16, paddingVertical: 12 },
   body: { fontFamily: f.regular, fontSize: textSizes.body, color: c.ink, lineHeight: 22 },
   heading: { fontFamily: f.bold, fontSize: 18, color: c.ink },
-  primary: { minHeight: 48, borderRadius: 12, padding: 12, backgroundColor: c.action, alignItems: 'center', justifyContent: 'center' },
+  primary: { minHeight: 54, borderRadius: radii.control, padding: 12, backgroundColor: c.action, alignItems: 'center', justifyContent: 'center' },
   primaryText: { fontFamily: f.semibold, fontSize: textSizes.body, color: c.actionText, textAlign: 'center' },
-  secondary: { minHeight: 48, borderRadius: 12, padding: 12, backgroundColor: c.secondary, alignItems: 'center', justifyContent: 'center' },
-  preference: { flexDirection: 'row', alignItems: 'center', gap: 12 }, copy: { flex: 1 },
+  secondary: { minHeight: 54, borderRadius: radii.control, padding: 12, backgroundColor: c.secondary, alignItems: 'center', justifyContent: 'center' },
+  preference: { flexDirection: 'row', alignItems: 'center', gap: 12 }, copy: { flex: 1, minWidth: 0 },
   error: { fontFamily: f.regular, fontSize: textSizes.body, color: c.danger, lineHeight: 22 },
   disabled: { opacity: 0.5 }, pressed: { opacity: 0.65 },
 });

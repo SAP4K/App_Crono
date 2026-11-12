@@ -6,7 +6,7 @@ import { useThemeStyles } from '../context/ThemeContext';
 import { dateKeyFromParts, datePartsFromKey, localDateKey, WEEKDAYS, type ScheduleCalendar, type Weekday } from '../core/planningCalendar';
 import { useI18n } from '../hooks/useI18n';
 import { planningWeekdayLabel } from '../i18n/formatters';
-import { fonts as f, type Palette } from '../theme';
+import { fonts as f, radii, type Palette } from '../theme';
 import { CalendarDateFields } from './CalendarDateFields';
 
 export function ScheduleCalendarPanel({ initialCalendar, onApply, onCancel, autoFocus = true }: {
@@ -85,11 +85,11 @@ const createStyles = (c: Palette) => StyleSheet.create({
   panel: { gap: 12 },
   choices: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   choice: { minWidth: 44, minHeight: 44, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: c.border,
-    borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: c.surface },
+    borderRadius: radii.control, alignItems: 'center', justifyContent: 'center', backgroundColor: c.surface },
   chosen: { backgroundColor: c.limeSoft, borderColor: c.green },
   choiceText: { fontFamily: f.medium, fontSize: 13, color: c.ink, textAlign: 'center' },
   error: { fontFamily: f.medium, fontSize: 12, color: c.danger },
-  action: { minHeight: 48, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, alignItems: 'center', justifyContent: 'center' },
+  action: { minHeight: 48, borderRadius: radii.control, paddingHorizontal: 12, paddingVertical: 8, alignItems: 'center', justifyContent: 'center' },
   primary: { backgroundColor: c.action },
   primaryText: { fontFamily: f.semibold, fontSize: 13, color: c.actionText, textAlign: 'center' },
   secondary: { backgroundColor: c.secondary },

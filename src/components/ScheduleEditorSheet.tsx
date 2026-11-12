@@ -10,7 +10,7 @@ import { scheduleCalendarLabel } from '../i18n/formatters';
 import { formatRemaining, parseDuration } from '../core/timer';
 import { useTheme, useThemeStyles } from '../context/ThemeContext';
 import { createTimingId } from '../hooks/createTimingId';
-import { textSizes, fonts as f, Palette } from '../theme';
+import { textSizes, radii, fonts as f, Palette } from '../theme';
 import { Sheet } from './Sheet';
 import { ScheduleStepRow } from './ScheduleStepRow';
 import { ScheduleCalendarPanel } from './ScheduleCalendarPanel';
@@ -212,20 +212,20 @@ export function ScheduleEditorSheet({ schedule, isNew, visible = true, onClose, 
 }
 
 const createStyles = (c: Palette) => StyleSheet.create({
-  durationPanel: { position: 'absolute', top: 0, bottom: 0, left: 26, right: 26, zIndex: 1, backgroundColor: c.background },
+  durationPanel: { position: 'absolute', top: 0, bottom: 0, left: 24, right: 24, zIndex: 1, backgroundColor: c.background },
   durationContent: { flexGrow: 1, justifyContent: 'center', paddingBottom: 16 },
-  calendarPanel: { position: 'absolute', top: 0, bottom: 0, left: 26, right: 26, zIndex: 1, backgroundColor: c.background },
+  calendarPanel: { position: 'absolute', top: 0, bottom: 0, left: 24, right: 24, zIndex: 1, backgroundColor: c.background },
   calendarContent: { flexGrow: 1, justifyContent: 'center', paddingVertical: 12 },
   calendarButton: { marginTop: 8, marginBottom: 12, alignItems: 'flex-start' },
-  name: { minHeight: 48, borderWidth: 1, borderColor: c.border, borderRadius: 12, paddingHorizontal: 12, fontFamily: f.semibold, color: c.ink, fontSize: textSizes.input, backgroundColor: c.surface },
+  name: { minHeight: 48, borderWidth: 1, borderColor: c.border, borderRadius: radii.control, paddingHorizontal: 12, fontFamily: f.semibold, color: c.ink, fontSize: textSizes.input, backgroundColor: c.background },
   help: { fontFamily: f.regular, fontSize: textSizes.small, lineHeight: 21, color: c.muted, marginVertical: 12 },
   list: { flex: 1 },
   editorFrame: { flex: 1, minHeight: 0 },
-  primary: { minHeight: 48, paddingHorizontal: 14, backgroundColor: c.action, borderRadius: 13, justifyContent: 'center', alignItems: 'center', marginTop: 12 },
+  primary: { minHeight: 54, paddingHorizontal: 14, paddingVertical: 14, backgroundColor: c.action, borderRadius: radii.control, justifyContent: 'center', alignItems: 'center', marginTop: 12 },
   primaryText: { fontFamily: f.semibold, fontSize: textSizes.body, color: c.actionText },
-  secondary: { minHeight: 46, borderRadius: 12, padding: 12, backgroundColor: c.secondary, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
+  secondary: { minHeight: 48, borderWidth: 1, borderColor: c.border, borderRadius: radii.control, padding: 12, backgroundColor: c.background, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
   secondaryText: { fontFamily: f.medium, fontSize: textSizes.caption, color: c.ink },
   disabled: { opacity: 0.4 }, danger: { fontFamily: f.medium, fontSize: textSizes.caption, color: c.danger },
-  discard: { position: 'absolute', top: 0, bottom: 0, left: 26, right: 26, zIndex: 1, backgroundColor: c.background },
+  discard: { position: 'absolute', top: 0, bottom: 0, left: 24, right: 24, zIndex: 1, backgroundColor: c.background },
   discardContent: { gap: 12, paddingBottom: 12 },
 });
