@@ -2,13 +2,13 @@ import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useTheme, useThemeStyles } from '../context/ThemeContext';
 import { useDurationWheel } from '../hooks/useDurationWheel';
-import { fonts, type Palette } from '../theme';
+import { durationPickerMetrics as metrics, fonts, type Palette } from '../theme';
 import type { DurationWheelProps } from './DurationWheel.types';
 import { useMotionPreference } from '../context/MotionContext';
 import { createWheelDeceleration, wheelDelta } from '../hooks/wheelDeceleration';
 
 export function DurationWheel(props: DurationWheelProps) {
-  const { value, maximum, rowHeight, label, hint, disabled, autoFocus } = props;
+  const { value, maximum, rowHeight, label, hint, disabled, autoFocus, fontSize = metrics.digitSize } = props;
   const element = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
   const activePointer = useRef<number | null>(null);
@@ -184,7 +184,8 @@ export function DurationWheel(props: DurationWheelProps) {
           onClick={() => { element.current?.focus({ preventScroll: true }); controller.choose(index); }}
           style={{ display: 'flex', width: '100%', height: rowHeight, padding: 0, border: 0, margin: 0, background: 'transparent',
             alignItems: 'center', justifyContent: 'center', scrollSnapAlign: 'center', scrollSnapStop: 'normal',
-            fontFamily: fonts.semibold, fontSize: Math.min(28 * rowHeight / 44, rowHeight - 12), lineHeight: 1.2,
+            fontFamily: fonts.semibold, fontSize: fontSize * rowHeight / metrics.rowHeight,
+            lineHeight: metrics.digitLineHeight / metrics.digitSize,
             fontVariantNumeric: 'tabular-nums', color: index === value ? c.ink : c.muted, cursor: disabled ? 'default' : 'pointer' }}>
           {String(index).padStart(2, '0')}
         </button>)}</div>
@@ -194,6 +195,6 @@ export function DurationWheel(props: DurationWheelProps) {
   </View>;
 }
 const createStyles = (c: Palette) => StyleSheet.create({
-  column: { flex: 1, minWidth: 0, gap: 8 },
+  column: { flex: 1, minWidth: 0, gap: metrics.labelGap },
   label: { fontFamily: fonts.medium, fontSize: 12, color: c.muted, textAlign: 'center' },
 });

@@ -2,6 +2,9 @@ export const textSizes = { small: 12, caption: 13, body: 15, input: 16, heading:
 
 export const radii = { control: 8, card: 10, sheet: 18 } as const;
 
+export const durationPickerMetrics = { trackMaxWidth: 360, rowHeight: 50, padding: 8, labelGap: 6,
+  digitSize: 40, digitLineHeight: 44, separatorSize: 32, separatorLineHeight: 38 } as const;
+
 export const lightPalette = {
   background: '#F8F4EB', surface: '#EEE8DC', ink: '#332E29',
   muted: '#6E6257', subtle: '#6E6257', border: '#8F7E6B',
