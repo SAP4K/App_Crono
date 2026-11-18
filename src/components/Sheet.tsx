@@ -1,3 +1,4 @@
+import { PresentationScope } from '../context/PresentationContext';
 import { useI18n } from '../hooks/useI18n';
 import { PropsWithChildren, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, type Ref } from 'react';
 import { Animated, Pressable, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -77,7 +78,7 @@ export function Sheet({ visible, title, onClose, onBack, children, scrollable = 
   };
   return <Modal visible={motion.present} transparent animationType="none" accessibilityLabel={title} onShow={motion.onShow}
     onDismiss={() => { if (!presented.current) finishDismiss(); }} onRequestClose={() => requestClose(onBack ?? onClose)} statusBarTranslucent>
-    <MotionScope active={motion.interactive}>
+    <PresentationScope active={motion.present} independent><MotionScope active={motion.interactive}>
     <KeyboardAvoidingView style={styles.overlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Animated.View testID="sheet-backdrop" pointerEvents={motion.interactive ? 'auto' : 'none'} style={[StyleSheet.absoluteFill, styles.backdrop, { opacity: motion.progress }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={() => requestClose(onClose)} accessibilityRole="button" accessibilityLabel={m.closeWindow} />
@@ -99,7 +100,7 @@ export function Sheet({ visible, title, onClose, onBack, children, scrollable = 
         {scrollable ? <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content} bounces={false} keyboardShouldPersistTaps="handled">{children}</ScrollView> : <View style={[styles.content, styles.staticContent]}>{children}</View>}
       </Animated.View>
     </KeyboardAvoidingView>
-    </MotionScope>
+    </MotionScope></PresentationScope>
   </Modal>;
 }
 

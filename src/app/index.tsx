@@ -1,8 +1,8 @@
 import { MotionPressable } from '../components/MotionPressable';
 import { useI18n } from '../hooks/useI18n';
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import { useCrono } from '../context/CronoContext';
+import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { useCronoActions, useCronoData } from '../context/CronoContext';
 import { emptyStopwatch, MAX_LAPS, pause, recordLap, saveSession, start } from '../core/stopwatch';
 import { StopwatchFace } from '../components/StopwatchFace';
 import { LapList } from '../components/LapList';
@@ -16,10 +16,10 @@ export default function StopwatchScreen() {
   const { messages: m } = useI18n();
   const { colors: c } = useTheme();
   const styles = useThemeStyles(createStyles);
-  const { data, update, feedback, notify } = useCrono();
+  const { update, feedback, notify } = useCronoActions();
   const [resetDialog, setResetDialog] = useState(false);
   const compact = useWindowDimensions().height < 740;
-  const stopwatch = data.stopwatch;
+  const stopwatch = useCronoData('stopwatch');
   const running = stopwatch.startedAt !== null;
   const hasTime = stopwatch.accumulatedMs > 0 || running;
   const lapLimit = stopwatch.laps.length >= MAX_LAPS;
@@ -34,7 +34,7 @@ export default function StopwatchScreen() {
     if (running) update((previous) => ({ ...previous, stopwatch: recordLap(previous.stopwatch) }));
     else setResetDialog(true);
   };
-  return <ScrollView style={styles.screen} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+  return <><LapList laps={stopwatch.laps} style={styles.screen} contentContainerStyle={styles.content} header={<>
     <View style={styles.eyebrow}><View style={styles.dash} /><Text style={styles.eyebrowText}>{m.stopwatchEyebrow}</Text></View>
     <Text accessibilityRole="header" style={styles.title}>{m.stopwatchTitle}</Text>
     <Text style={[styles.subtitle, compact && { marginBottom: 8 }]}>{m.stopwatchSubtitle}</Text>
@@ -50,10 +50,11 @@ export default function StopwatchScreen() {
       </MotionPressable>
     </View>
     {hasTime && !running ? <MotionPressable accessibilityRole="button" onPress={() => { feedback(); update(saveSession); notify('sessionSaved'); }} style={[styles.save]}><Icon name="save" size={15} color={c.green} /><Text style={styles.saveText}>{m.saveSession}</Text></MotionPressable> : <View style={styles.hint}><View style={styles.hintDot} /><Text style={styles.hintText}>{lapLimit ? m.lapLimit : running ? m.runningHint : m.readyHint}</Text></View>}
-    <LapList laps={stopwatch.laps} />
+  </>} footer={<>
     <Text style={styles.footer}>{m.stopwatchFooter}</Text>
+  </>} />
     <ConfirmSheet visible={resetDialog} title={m.resetStopwatchTitle} description={m.resetStopwatchHelp} confirmLabel={m.resetStopwatch} onClose={() => setResetDialog(false)} onConfirm={() => { feedback(); update((previous) => ({ ...previous, stopwatch: emptyStopwatch() })); setResetDialog(false); }} />
-  </ScrollView>;
+  </>;
 }
 
 const createStyles = (c: Palette) => StyleSheet.create({

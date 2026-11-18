@@ -363,6 +363,8 @@ test('a run reset confirmation survives a parent update from independent timer c
   await page.getByRole('button', { name: m.resetSchedule, exact: true }).click();
   const confirm = page.getByRole('dialog', { name: m.resetScheduleTitle, exact: true });
   await expect(confirm).toBeVisible(); await page.clock.runFor(1000);
+  await expect(confirm.getByLabel(m.timerCompleted, { exact: true })).toBeVisible();
+  await page.clock.runFor(100);
   await expect.poll(async () => (await stored(page)).timer.status).toBe('completed');
   await expect(confirm).toBeVisible();
   expect((await stored(page)).planning.run).toEqual(run);

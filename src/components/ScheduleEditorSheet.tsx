@@ -1,6 +1,6 @@
 import { MotionPressable } from './MotionPressable';
 import { useI18n } from '../hooks/useI18n';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Keyboard, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { MAX_NAME_LENGTH, MAX_STEPS, readSchedule, readScheduleSteps } from '../core/planning';
 import type { Schedule, ScheduleStep } from '../core/planning';
@@ -19,7 +19,7 @@ import { DurationPicker } from './DurationPicker';
 import { EditorBody } from './EditorBody';
 import { durationMilliseconds } from '../core/durationPicker';
 import type { DurationParts } from '../core/durationPicker';
-import { useCrono } from '../context/CronoContext';
+import { useCronoActions } from '../context/CronoContext';
 import type { StepDraft } from './ScheduleStepRow';
 import { PanelTransition } from './PanelTransition';
 
@@ -41,7 +41,7 @@ export function ScheduleEditorSheet({ schedule, isNew, visible = true, onClose, 
   const { colors: c } = useTheme(); const styles = useThemeStyles(createStyles);
   const [initial] = useState(() => draftOf(schedule)); const [draft, setDraft] = useState(initial);
   const [discard, setDiscard] = useState(false); const [saveError, setSaveError] = useState(false);
-  const { feedback } = useCrono();
+  const { feedback } = useCronoActions();
   const [durationEdit, setDurationEdit] = useState<{ stepId: string; parts: DurationParts } | null>(null);
   const [wheelBusy, setWheelBusy] = useState(false);
   const [calendarEdit, setCalendarEdit] = useState(false);
@@ -54,7 +54,7 @@ export function ScheduleEditorSheet({ schedule, isNew, visible = true, onClose, 
   const panelReturn = useRef<{ offset: number; target: ReturnTarget } | null>(null), restoring = useRef(false);
   const editorReady = useRef(false);
   const covered = discard || !!durationEdit || calendarEdit || repeatEdit;
-  const rememberReturn = (target: ReturnTarget) => { panelReturn.current = { offset: listOffset.current, target }; };
+  const rememberReturn = useCallback((target: ReturnTarget) => { panelReturn.current = { offset: listOffset.current, target }; }, []);
   const restoreList = useCallback(() => {
     const pending = panelReturn.current;
     if (!restoring.current || !pending) return;
@@ -74,12 +74,12 @@ export function ScheduleEditorSheet({ schedule, isNew, visible = true, onClose, 
     feedback(); restoring.current = true;
     temporaryParts.current = null; moving.current = false; setWheelBusy(false); setDurationEdit(null);
   };
-  const openDuration = (step: StepDraft) => {
+  const openDuration = useCallback((step: StepDraft) => {
     rememberReturn({ kind: 'duration', stepId: step.id });
     feedback(); Keyboard.dismiss();
     const parts = { hours: Number(step.hours), minutes: Number(step.minutes), seconds: Number(step.seconds) };
     temporaryParts.current = parts; moving.current = false; setWheelBusy(false); setDurationEdit({ stepId: step.id, parts });
-  };
+  }, [feedback, rememberReturn]);
   const changeDuration = (changes: Partial<DurationParts>) => {
     if (!durationEdit || !temporaryParts.current) return;
     const parts = { ...temporaryParts.current, ...changes };
@@ -104,9 +104,11 @@ export function ScheduleEditorSheet({ schedule, isNew, visible = true, onClose, 
     setDraft((previous) => ({ ...previous, calendar }));
     closeCalendar();
   };
-  const dirty = JSON.stringify(initial) !== JSON.stringify(draft);
-  const repeatable = readScheduleSteps(draft.steps.map((step) => ({ id: step.id, name: step.name,
-    durationMs: parseDuration(step.hours, step.minutes, step.seconds) ?? 0 })));
+  const initialSerialized = useMemo(() => JSON.stringify(initial), [initial]);
+  const dirty = useMemo(() => initialSerialized !== JSON.stringify(draft), [initialSerialized, draft]);
+  const parsedSteps = useMemo(() => draft.steps.map((step) => ({ id: step.id, name: step.name,
+    durationMs: parseDuration(step.hours, step.minutes, step.seconds) ?? 0 })), [draft.steps]);
+  const repeatable = useMemo(() => readScheduleSteps(parsedSteps), [parsedSteps]);
   const closeRepeat = () => { feedback(); restoring.current = true; setRepeatEdit(false); };
   const applyRepeat = (cycles: number) => {
     if (!repeatable) return;
@@ -114,10 +116,9 @@ export function ScheduleEditorSheet({ schedule, isNew, visible = true, onClose, 
     if (!repeated) return;
     setDraft((previous) => ({ ...previous, steps: stepDrafts(repeated) })); closeRepeat();
   };
-  const candidate = readSchedule({ id: schedule.id, name: draft.name, calendar: draft.calendar, steps: draft.steps.map((step) => ({
-    id: step.id, name: step.name, durationMs: parseDuration(step.hours, step.minutes, step.seconds) ?? 0,
-  })) });
-  const total = candidate?.steps.reduce((sum, step) => sum + step.durationMs, 0) ?? 0;
+  const candidate = useMemo(() => readSchedule({ id: schedule.id, name: draft.name, calendar: draft.calendar, steps: parsedSteps }),
+    [schedule.id, draft.name, draft.calendar, parsedSteps]);
+  const total = useMemo(() => candidate?.steps.reduce((sum, step) => sum + step.durationMs, 0) ?? 0, [candidate]);
   const stepLimit = draft.steps.length >= MAX_STEPS;
   const close = () => {
     if (durationEdit) { closeDuration(); return; }
@@ -127,12 +128,25 @@ export function ScheduleEditorSheet({ schedule, isNew, visible = true, onClose, 
     else if (dirty) { rememberReturn({ kind: 'close' }); setDiscard(true); }
     else onClose();
   };
-  const move = (index: number, direction: number) => setDraft((previous) => {
+  const move = useCallback((id: string, direction: number) => setDraft((previous) => {
+    const index = previous.steps.findIndex((step) => step.id === id);
+    if (index < 0) return previous;
     const next = index + direction;
     if (next < 0 || next >= previous.steps.length) return previous;
     const steps = [...previous.steps]; [steps[index], steps[next]] = [steps[next], steps[index]];
     return { ...previous, steps };
-  });
+  }), []);
+  const changeStep = useCallback((id: string, changes: Partial<StepDraft>) => setDraft((previous) => ({
+    ...previous, steps: previous.steps.map((step) => step.id === id ? { ...step, ...changes } : step),
+  })), []);
+  const removeStep = useCallback((id: string) => setDraft((previous) => ({ ...previous, steps: previous.steps.filter((step) => step.id !== id) })), []);
+  const registerDuration = useCallback((id: string, node: View | null) => {
+    if (node) { durationButtons.current.set(id, node); restoreList(); } else durationButtons.current.delete(id);
+  }, [restoreList]);
+  const renderStep = useCallback(({ item, index }: { item: StepDraft; index: number }) =>
+    <ScheduleStepRow value={item} index={index} count={draft.steps.length} onChange={changeStep}
+      onEditDuration={openDuration} durationRef={registerDuration} onMove={move} onRemove={removeStep} />,
+  [draft.steps.length, changeStep, openDuration, registerDuration, move, removeStep]);
   const selectedIndex = durationEdit ? draft.steps.findIndex((step) => step.id === durationEdit.stepId) : -1;
   const title = durationEdit ? m.durationPickerTitle(selectedIndex + 1)
     : calendarEdit ? m.calendarSchedule
@@ -165,11 +179,7 @@ export function ScheduleEditorSheet({ schedule, isNew, visible = true, onClose, 
       </MotionPressable>
       <Text style={styles.help}>{m.editorCount(draft.steps.length, MAX_STEPS)} · {candidate ? m.editorTotal(formatRemaining(total)) : m.draftInvalid}</Text>
         </>}
-        renderItem={({ item, index }) => <ScheduleStepRow value={item} index={index} count={draft.steps.length}
-        onChange={(changes) => setDraft((previous) => ({ ...previous, steps: previous.steps.map((step) => step.id === item.id ? { ...step, ...changes } : step) }))}
-        onEditDuration={() => openDuration(item)} durationRef={(node) => {
-          if (node) { durationButtons.current.set(item.id, node); restoreList(); } else durationButtons.current.delete(item.id);
-        }} onMove={(direction) => move(index, direction)} onRemove={() => setDraft((previous) => ({ ...previous, steps: previous.steps.filter((step) => step.id !== item.id) }))} />}
+        renderItem={renderStep}
         ListFooterComponent={<><MotionPressable accessibilityRole="button" disabled={stepLimit} onPress={() => {
           const step: StepDraft = { id: createTimingId(), name: m.stepNumber(draft.steps.length + 1), hours: '00', minutes: '05', seconds: '00' };
           setDraft((previous) => ({ ...previous, steps: [...previous.steps, step] }));

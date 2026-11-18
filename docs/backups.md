@@ -1,4 +1,4 @@
-[← Background notifications](background-notifications.md) · [Back to README](../README.md)
+[← Background notifications](background-notifications.md) · [Back to README](../README.md) · [Performance →](performance.md)
 
 # Backups and Import
 

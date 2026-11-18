@@ -134,3 +134,21 @@ test('a completion while native acknowledgement is delayed retains its accepted 
   assert.equal(latest.timerCompleted, true);
   assert.deepEqual(latest.events, [{ eventId: 'timer:run', dueAt: 2000 }]);
 });
+
+test('unrelated accepted snapshots do not reserialize native completion policy', async () => {
+  const { f, controller } = fixture(); await flush();
+  const stringify = JSON.stringify; let policies = 0;
+  JSON.stringify = ((value: unknown, ...args: unknown[]) => {
+    if (value && typeof value === 'object' && 'timerRunId' in value && 'events' in value) policies++;
+    return Reflect.apply(stringify, JSON, [value, ...args]);
+  }) as typeof JSON.stringify;
+  try {
+    for (let i = 0; i < 20; i++) {
+      f.data = { ...f.data, preferences: { ...f.data.preferences, haptics: !f.data.preferences.haptics } };
+      await controller.syncPolicy();
+    }
+    assert.equal(policies, 0);
+    f.data = { ...f.data, preferences: { ...f.data.preferences, alertDurationSeconds: 15 } };
+    await controller.syncPolicy(); assert.ok(policies > 0);
+  } finally { JSON.stringify = stringify; controller.dispose(); }
+});

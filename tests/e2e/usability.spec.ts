@@ -36,6 +36,7 @@ test('System appearance preserves three active clocks and unsaved name and durat
   await panel.getByRole('button', { name: m.applyDuration, exact: true }).click(); await page.clock.runFor(300);
   await expect(name).toHaveValue('Unsaved · Учёба'); expect(await stored(page)).toEqual(before);
   await editor.getByRole('button', { name: m.saveSchedule, exact: true }).click();
+  await page.clock.runFor(100);
   await expect.poll(async () => (await stored(page)).planning.schedules.length).toBe(2);
   const saved = await stored(page); expect(saved.planning.schedules[1].steps[0].durationMs).toBe(120000);
   expect(saved.stopwatch).toEqual(before.stopwatch); expect(saved.timer).toEqual(before.timer); expect(saved.planning.run).toEqual(before.planning.run);
@@ -51,12 +52,14 @@ test('quick Timer setup and active extensions preserve one run through pause and
   await expect(page.getByRole('spinbutton', { name: m.timeUnits[1], exact: true })).toHaveAttribute('aria-valuenow', '25');
   await page.getByRole('button', { name: m.startTimer, exact: true }).click();
   await expect(page.getByRole('spinbutton')).toHaveCount(0);
+  await expect.poll(async () => (await stored(page)).timer.status).toBe('running');
   const started = (await stored(page)).timer;
   await page.getByRole('button', { name: m.addMinute, exact: true }).click();
   await expect.poll(async () => (await stored(page)).timer.durationMs).toBe(1560000);
   expect((await stored(page)).timer.deadlineAt).toBe(started.deadlineAt! + 60000);
   expect((await stored(page)).timer.runId).toBe(started.runId);
   await page.getByRole('button', { name: m.pauseTimer, exact: true }).click();
+  await expect.poll(async () => (await stored(page)).timer.status).toBe('paused');
   const paused = (await stored(page)).timer;
   await page.getByRole('button', { name: m.addMinute, exact: true }).click();
   await expect.poll(async () => (await stored(page)).timer.remainingMs).toBe(paused.remainingMs + 60000);
@@ -83,6 +86,7 @@ test('the end-clock includes a date across midnight and disappears while paused'
   const data = initialData(); data.timer = initialTimer(60000); data.preferences.timerSound = false;
   await seed(page, data); await page.goto('/timer');
   await page.getByRole('button', { name: m.startTimer, exact: true }).click();
+  await expect.poll(async () => (await stored(page)).timer.status).toBe('running');
   const running = (await stored(page)).timer;
   const label = m.timerEndsAt(deadlineLabel(running.deadlineAt!, now, 'ro', 'UTC'));
   await expect(page.getByText(label, { exact: true })).toBeVisible();
@@ -90,6 +94,7 @@ test('the end-clock includes a date across midnight and disappears while paused'
   await expect(page.getByText(label, { exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: m.addMinute, exact: true }).click();
   await page.getByRole('button', { name: m.resumeTimer, exact: true }).click();
+  await expect.poll(async () => (await stored(page)).timer).toMatchObject({ status: 'running', durationMs: 120000 });
   const resumed = (await stored(page)).timer;
   await expect(page.getByText(m.timerEndsAt(deadlineLabel(resumed.deadlineAt!, now, 'ro', 'UTC')), { exact: true })).toBeVisible();
 });
@@ -257,7 +262,7 @@ test('active rows control both owners off-tab without ticking storage and stay b
   await page.getByRole('button', { name: m.pauseTimer, exact: true }).click();
   await page.getByRole('button', { name: m.pauseSchedule, exact: true }).click();
   await expect.poll(async () => (await stored(page)).timer.status).toBe('paused');
-  expect((await stored(page)).planning.run?.status).toBe('paused');
+  await expect.poll(async () => (await stored(page)).planning.run?.status).toBe('paused');
   await page.getByRole('button', { name: m.settings, exact: true }).click();
   await expect(page.getByRole('dialog', { name: m.settingsTitle, exact: true })).toBeVisible();
   await expect(timerOpen).toHaveCount(0); await expect(planningOpen).toHaveCount(0);

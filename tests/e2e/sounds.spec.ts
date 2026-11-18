@@ -15,9 +15,11 @@ test('sound selections and a saved five-second choice persist across reload', as
   await expect(dialog.getByRole('radio', { name: 'Durata sunetului 60 secunde', exact: true })).toBeChecked();
   for (const [label, id] of [['Clopoțel', 'bell'], ['Digital', 'digital'], ['Clasic', 'classic'], ['Gong', 'gong']]) {
     await dialog.getByRole('radio', { name: `Sunet ${label}`, exact: true }).click();
+    await page.clock.runFor(100);
     await expect.poll(async () => (await stored(page)).preferences.alertSoundId).toBe(id);
   }
   await dialog.getByRole('radio', { name: 'Durata sunetului 5 secunde', exact: true }).click();
+  await page.clock.runFor(100);
   await expect.poll(async () => (await stored(page)).preferences.alertDurationSeconds).toBe(5);
   await page.reload(); dialog = await settings(page, 'sounds');
   await expect(dialog.getByRole('radio', { name: 'Durata sunetului 5 secunde', exact: true })).toBeChecked();
@@ -28,6 +30,7 @@ test('a saved 15-second choice persists and its looping preview lasts exactly th
   await audioSpy(page); await page.goto('/'); let dialog = await settings(page, 'sounds');
   await dialog.getByRole('radio', { name: 'Sunet Gong', exact: true }).click();
   await dialog.getByRole('radio', { name: 'Durata sunetului 15 secunde', exact: true }).click();
+  await page.clock.runFor(100);
   await expect.poll(async () => (await stored(page)).preferences.alertDurationSeconds).toBe(15);
   await page.reload(); dialog = await settings(page, 'sounds');
   await expect(dialog.getByRole('radio', { name: 'Sunet Gong', exact: true })).toBeChecked();
@@ -91,13 +94,15 @@ for (const ending of ['duration', 'stop'] as const) {
     await page.getByRole('button', { name: 'Pornește temporizatorul', exact: true }).click();
     const dialog = await settings(page, 'sounds'); await page.clock.runFor(1000);
     await expect.poll(() => playCount(page)).toBe(1);
+    await page.clock.runFor(100);
     const completed = (await stored(page)).timer;
+    expect(completed.status).toBe('completed');
     await dialog.getByRole('button', { name: 'Ascultă sunetul', exact: true }).click();
     const warning = dialog.getByText('O alertă este deja în redare.', { exact: true });
     await expect(warning).toBeVisible();
     expect(await playCount(page)).toBe(1);
     if (ending === 'stop') await dialog.getByRole('button', { name: 'Oprește sunetul', exact: true }).click();
-    else await page.clock.runFor(60000);
+    else await page.clock.runFor(59900);
     await expect(dialog.getByRole('button', { name: 'Oprește sunetul', exact: true })).not.toBeVisible();
     await expect(warning).not.toBeVisible();
     expect((await stored(page)).timer).toEqual(completed);
@@ -210,17 +215,19 @@ test('legacy data retains Bell and 60 seconds through reload, concurrent timer a
   await page.getByRole('button', { name: 'Repornește temporizatorul', exact: true }).click();
   await page.getByRole('tab', { name: 'Planificare', exact: true }).click();
   await page.getByRole('button', { name: 'Pornește orarul Un minut', exact: true }).click();
+  await page.clock.runFor(100);
   const firstDeadline = (await stored(page)).planning.run!.deadlineAt!;
-  await page.clock.runFor(1000); await expect.poll(() => playCount(page)).toBe(1);
+  await page.clock.runFor(900); await expect.poll(() => playCount(page)).toBe(1);
   await page.clock.runFor(2000); await expect.poll(() => playCount(page)).toBe(2);
+  await page.clock.runFor(100);
   expect((await stored(page)).planning.run).toMatchObject({ stepIndex: 1, deadlineAt: firstDeadline + 5000 });
-  await page.clock.runFor(5000); await expect.poll(() => playCount(page)).toBe(3);
-  expect((await stored(page)).planning.run?.status).toBe('completed');
+  await page.clock.runFor(4900); await expect.poll(() => playCount(page)).toBe(3);
   await page.clock.runFor(59999);
   await expect(page.getByRole('button', { name: 'Oprește sunetul', exact: true })).toBeVisible();
   await page.clock.runFor(1);
   await expect(page.getByRole('button', { name: 'Oprește sunetul', exact: true })).not.toBeVisible();
   expect(await playCount(page)).toBe(3);
+  expect((await stored(page)).planning.run?.status).toBe('completed');
   const saved = await stored(page); expect(saved.stopwatch).toEqual(legacy.stopwatch); expect(saved.sessions).toEqual(legacy.sessions);
   await page.reload(); await expect.poll(async () => (await stored(page)).preferences.alertDurationSeconds).toBe(60);
   expect(await playCount(page)).toBe(0);

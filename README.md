@@ -40,6 +40,14 @@ When developing on Windows, you can preview the interface on a physical iPhone u
 
 Tap **Pauză → Salvează sesiunea** (Pause → Save session) to keep your result and prepare a new stopwatch session. In **Istoric** (History), tap a session to view its details and share it. On the web, results are copied to the clipboard if the browser does not support native sharing.
 
+## Documentation
+
+| Guide | Contents |
+|---|---|
+| [Background notifications](docs/background-notifications.md) | Setup, sound delivery and platform limits |
+| [Backups and import](docs/backups.md) | Portable records, reviewed imports and recovery |
+| [Performance](docs/performance.md) | Rendering and persistence changes, reproducible checks and pending phone measurements |
+
 ## Language, Theme, Timer, and Sound
 
 Open the gear button (**Setări** in Romanian). The overview groups Appearance, Language, Sound, Notifications, Device, Data and About, with current summaries. Back returns to the overview; Close exits Settings. Choose a language under **Limbă / Language**. Settings lists the choices by estimated total speakers worldwide, including native and second-language speakers.
@@ -76,6 +84,8 @@ Sheets slide up with a fading backdrop and slide down when closed. Settings grou
 Open **Timer** and scroll **Ore / Minute / Secunde** (hours/minutes/seconds) until the desired values reach the highlighted center row, then press **Pornește**. A quick flick continues gliding after release and snaps to a centered value; move slowly for precise selection. Mouse-wheel and trackpad input uses a slightly longer, gentler slowdown before stopping exactly on a row. Android and iOS use gentler native deceleration settings; browser touch retains its normal scrolling. New input takes over immediately. Reduce motion leaves browser scrolling in control instead of adding this interpolation.
 
 Duration selection opens no numeric keyboard. Hours stop at 00–23; minutes and seconds stop at 00–59, without wrapping or carrying into another column. Start waits for every manually moving column to settle; `00:00:00` is invalid. On web, focus a column and use ArrowUp/ArrowDown or Home/End, or click a neighboring value.
+
+Native wheels accept a current, verified final position even when the last scroll update arrives out of step with the end event, avoiding an unnecessary recovery wait. An already centered value is not scrolled again when selection updates. The slow glide and Start/Apply guards remain unchanged. Physical stop-to-accept latency still needs measurement on an updated phone build; see the [settlement plan](.ai-factory/plans/feature-responsive-wheel-settlement.md).
 
 The default is five minutes; valid durations remain `00:00:01`–`23:59:59`. Setup uses a compact dial and wheels while idle/completed. Running/paused views show a larger countdown and hide the wheels.
 
@@ -140,7 +150,7 @@ Save up to 20 schedules, each with 1–50 ordered actions. Names allow 80 trimme
 
 ## How Time Is Measured
 
-The stopwatch calculates the difference between timestamps instead of accumulating interval ticks. Time spent in the background or with the phone locked is therefore included when you return. The display refreshes approximately every 32 ms; this does not guarantee measurement accuracy. Manually changing the device clock may affect the current session.
+The stopwatch calculates the difference between timestamps instead of accumulating interval ticks. Time spent in the background or with the phone locked is therefore included when you return. The visible stopwatch display refreshes approximately every 32 ms; this does not guarantee measurement accuracy. Manually changing the device clock may affect the current session.
 
 The countdown and schedule use absolute deadlines, with local foreground display refreshes every 200 ms. Schedule deadlines remain anchored to preceding actions; a delayed callback catches up without replaying every missed sound. Positive fractions round up to the next displayed second. Pausing freezes the exact remaining milliseconds. Device clock changes can affect both activities too.
 
@@ -192,6 +202,8 @@ ai-factory update
 Source: [lee-to/ai-factory](https://github.com/lee-to/ai-factory).
 
 ## Verification Status
+
+The [app performance implementation](.ai-factory/plans/feature-app-performance.md) passed lint/typecheck, **318 Node tests**, **22 Android JVM unit tests** and fresh Android/iOS/web exports. All **536 browser cases** have passing evidence across the full run (482 passed, 54 storage-timing assumptions failed) and a **65-case targeted rerun** after updating those tests for deferred persistence and unchanged-snapshot deduplication. Exact value, legacy-data, motion and audio-duration checks remain. Application sources stayed unchanged between those browser runs. The source-verified development-signed release APK is installed on Redmi. A limited navigation/Settings frame comparison showed remaining native mounting costs and no demonstrated navigation gain; wider response/large-data checks remain pending. See [Performance](docs/performance.md) for mechanisms, reproduction and storage limits.
 
 The preceding [compact clock-style picker](.ai-factory/plans/feature-compact-duration-picker.md) passed lint/typecheck, **294 Node tests**, **176 related browser scenarios in one final run (7.1 minutes; no skips/retries)** and fresh Android/iOS/web exports. Eight new cases measure actual digits, colons, rows and text bounds in Timer/Planning, both themes and 320/390/1024 px layouts, plus browser magnification with retained focus. The first browser selection exposed two accidentally enlarged no-op test inputs; their correction preserves the existing no-write, audio and legacy-data assertions, and the final selection passes together. The plan records both runs and tested input identities. Native font scaling, glyph alignment, accessibility and wheel feel remain deferred.
 

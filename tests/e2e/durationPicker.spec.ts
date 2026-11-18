@@ -130,6 +130,7 @@ for (const theme of ['light', 'dark'] as const) for (const width of [320, 390, 1
       await page.mouse.click(separator.x + separator.width / 2 + 2, separator.y + separator.height / 2);
       await expect(wheels.nth(index + 1)).toBeFocused(); expect(await stored(page)).toEqual(before);
       await wheels.nth(index + 1).press('ArrowUp'); await centered(wheels.nth(index + 1));
+      await expect.poll(async () => (await stored(page)).timer.durationMs).toBe(index === 0 ? 3485000 : 3486000);
     }
     expect((await stored(page)).timer).toEqual(initialTimer(3486000));
     const beforePlanning = await stored(page);
@@ -175,7 +176,7 @@ for (const theme of ['light', 'dark'] as const) test(`full-width-clock ${theme} 
     });
     expect(physical).toEqual({ font: 50, row: 62.5 });
     await hours.press('ArrowUp'); await centered(hours);
-    expect(await stored(page)).toEqual({ ...data, timer: initialTimer(7263000) });
+    await expect.poll(() => stored(page)).toEqual({ ...data, timer: initialTimer(7263000) });
   } finally { try { await session.send('Emulation.resetPageScaleFactor'); } finally { await session.detach(); } }
 });
 
@@ -243,6 +244,7 @@ test('real wheel motion gates Start, combines columns, snaps and preserves runni
   })).toBe(outer);
   await seconds.focus(); await noNumericKeyboard(page);
   const before = await page.evaluate(() => Date.now()); await start.click();
+  await expect.poll(async () => (await stored(page)).timer.status).toBe('running');
   const running = (await stored(page)).timer;
   expect(running).toMatchObject({ status: 'running', durationMs: 63000, remainingMs: 63000 });
   expect(running.deadlineAt).toBeGreaterThanOrEqual(before + 63000);
@@ -250,6 +252,7 @@ test('real wheel motion gates Start, combines columns, snaps and preserves runni
   await expect(page.getByRole('spinbutton')).toHaveCount(0);
   expect((await stored(page)).timer).toEqual(running);
   await page.getByRole('button', { name: 'Pauză temporizator', exact: true }).click();
+  await expect.poll(async () => (await stored(page)).timer.status).toBe('paused');
   const paused = (await stored(page)).timer;
   await expect(page.getByRole('spinbutton')).toHaveCount(0);
   expect((await stored(page)).timer).toEqual(paused);
@@ -267,7 +270,7 @@ test('keyboard endpoints, row clicks and releasing a pointer outside the wheel l
     await wheel.press('End'); await wheel.press('ArrowUp');
     await expect(wheel).toHaveAttribute('aria-valuenow', maximum); await centered(wheel);
   }
-  expect((await stored(page)).timer.durationMs).toBe(86399000);
+  await expect.poll(async () => (await stored(page)).timer.durationMs).toBe(86399000);
   await duration(page, '01');
   await seconds.locator('button').nth(2).click();
   await expect(seconds).toHaveAttribute('aria-valuenow', '2'); await centered(seconds);
@@ -486,6 +489,8 @@ test('timer and schedule completions remain visible and stoppable inside an unsa
   await panel.getByRole('button', { name: 'Aplică durata', exact: true }).click();
   await expect(page.getByRole('textbox', { name: 'Nume etapa 1', exact: true })).toHaveValue('Respiră · Отдых');
   await page.getByRole('button', { name: 'Salvează orarul', exact: true }).click();
+  // This test pauses browser timers; allow deferred persistence after Save.
+  await page.clock.runFor(100);
   await expect.poll(async () => (await stored(page)).planning.schedules[1].steps[0].durationMs).toBe(4000);
   const saved = await stored(page);
   expect(saved.timer).toMatchObject({ status: 'completed', runId: 'parallel-timer' });

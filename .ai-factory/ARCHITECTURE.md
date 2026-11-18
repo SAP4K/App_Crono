@@ -39,7 +39,7 @@ src/
 │   ├── PlanningNotice.tsx    # Current boundary/final event feedback
 │   ├── TimingNotices.tsx    # Shared timer/planning notices and playback Stop
 │   ├── SystemNotificationNotice.tsx # Independent native failure/retry feedback
-│   ├── LapList.tsx           # Lap rows and statistics
+│   ├── LapList.tsx           # Virtualized lap surface, compact content and cached statistics
 │   ├── Sheet.tsx             # Modal and confirmation primitives
 │   ├── ActiveActivities.tsx  # Other-tab Timer/Planning controls and local display
 │   ├── ScheduleCard.tsx      # Primary Start and secondary action disclosure
@@ -51,11 +51,13 @@ src/
 │   ├── MotionPressable.tsx   # One ref-safe Pressable host with finite visual feedback
 │   └── Icon.tsx              # Shared SVG icons
 ├── context/
-│   ├── CronoContext.tsx      # Shared state, global runners/audio, mobile feedback
+│   ├── CronoContext.tsx      # Same-store branch/action/status ports, global runners/audio
+│   ├── PresentationContext.tsx # Presentation-only route/sheet visibility
 │   ├── ThemeContext.tsx      # Saved palette and platform appearance
 │   └── MotionContext.tsx     # One reduced-motion/activity owner and covered scopes
 ├── hooks/
-│   ├── useStopwatch.ts       # Hydration outcome, accepted updates, ordered storage
+│   ├── useStopwatch.ts       # Hydration outcome and synchronous accepted updates
+│   ├── persistenceWriter.ts  # Deferred encoding, one write and latest pending snapshot
 │   ├── useI18n.ts            # Saved language projection and shared-state setter
 │   ├── themeAppearance.ts / useSystemTheme.ts # Appearance lifecycle and native background ordering
 │   ├── motionPreference.ts  # Injected live OS-query/event ordering and foreground refresh
@@ -64,9 +66,10 @@ src/
 │   ├── pressMotion.ts / usePressMotion.ts # Cancellable visual controller and Animated binding
 │   ├── backupTransfer.ts / useBackupTransfer.ts # Fenced file operations and accepted imports
 │   ├── backupFiles.ts / .web.ts # Native system picker/share and browser upload/download
-│   ├── useForegroundNow.ts   # Presentation ticks only while active
+│   ├── useForegroundNow.ts   # Presentation ticks only while visible and active
 │   ├── sheetIsolation.ts / .web.ts # Native Modal / reference-counted web isolation
 │   ├── durationWheel.ts      # Injected bounded manual settling/generation controller
+│   ├── wheelSettlement.ts    # Native terminal proof/observed alignment and shared end gate
 │   ├── wheelPresentation.ts  # Finite preset scrolling; no selection or busy ownership
 │   ├── useDurationWheel.ts   # Committed props, alignment and lifecycle cleanup
 │   ├── timerCompletion.ts    # Framework-free injected completion coordinator
@@ -122,10 +125,12 @@ src/
 tests/
 ├── language.test.ts          # Defaults and independently restored preference
 ├── i18n.test.ts              # Catalogs, plural boundaries, dates and sharing
+├── storePersistence.test.ts  # Bounded writes, lifecycle, hydration and real hook guards
 ├── stopwatch.test.ts         # Core logic tests
 ├── timer.test.ts             # Countdown boundaries/transitions
 ├── durationPicker.test.ts    # Parts, valid bounds and snapping geometry
 ├── durationWheel.test.ts     # Motion, stale callbacks, disposal and geometry changes
+├── nativeWheelSettlement.test.ts # Native timestamps, alignment and composed end acceptance
 ├── wheelPresentation.test.ts # Visual target replacement, takeover, lifecycle and failures
 ├── transitionMotion.test.ts  # Readiness, cancellation, reopening, policy and failure fallback
 ├── timerCompletion.test.ts   # Coordination, cancellation, and audio races
@@ -212,11 +217,13 @@ flowchart TD
 
 `_layout.tsx` composes fonts, safe areas, `CronoProvider`, then `ThemeProvider`. Crono owns one `useStopwatch` instance, timer/planning coordinators, one shared audio controller, and one system notification coordinator. Storage hydration passes JSON through `restoreData`. Interactive tabs wait for both fonts and storage; native splash release also follows those gates. The native launch image precedes saved-data hydration and does not promise the saved theme.
 
-The current error path also becomes ready after a failed read. Its potential to overwrite existing data is an open defect recorded in [DESCRIPTION.md](DESCRIPTION.md), not a guarantee of safe recovery. A separate loading/loaded/failed hydration outcome prevents notification inventory mutation and feature-specific preference writes after a failed read; dismissing the storage banner does not change that outcome.
+The error path still becomes ready with initial fallback data after a failed read. A loading/loaded/failed hydration outcome now blocks all persistence as well as notification inventory mutation and guarded preference/file-transfer actions after that failure. Dismissing the storage banner does not change the outcome. Read recovery remains open in [DESCRIPTION.md](DESCRIPTION.md).
 
 ### User Actions and Persistence
 
-Screens call `update(previous => next)` through `useCrono`. Core functions compute stopwatch transitions; the hook retains the latest state in a ref, updates React state, and queues its serialized snapshot. The write queue preserves action order. Lifecycle events request another snapshot when the app leaves the active state. Stable subscribers run outside updater functions immediately after effective accepted updates, using the current ref; no-op updates and display ticks do not notify them.
+Screens call `update(previous => next)` through the shared action port. Core functions compute transitions; the hook retains the latest accepted state in a ref and updates React state. Stable subscribers run synchronously outside updater functions after effective updates; no-op updates and display ticks do not notify them. `useCronoData(key)` uses those subscriptions to read immutable branches of this same store, while action/status contexts isolate unrelated presentation changes. There is no second editable store.
+
+`persistenceWriter` defers JSON encoding to one non-renewing 32 ms foreground task. One active storage write and one latest pending snapshot bound its work; only not-started persistence is coalesced, and a later snapshot cannot be overwritten by an older write. Background/pagehide/disposal flush accepted work, loaded baseline snapshots skip duplicate writes, and failed hydration cannot persist fallback data. Accepted state and durable storage remain distinct.
 
 Countdown actions use `useCrono().timerControls`; planning execution uses `useCrono().planning.controls`. Both coordinators apply pure transitions through that same `update` API. Its `{ changed, data }` result allows side effects only after an accepted update; `getSnapshot()` supplies fresh state for asynchronous guards. Template CRUD also uses shared functional updates. No additional storage owner is created.
 
@@ -230,13 +237,20 @@ The current storage unit is the complete `AppData` object at `@crono/app-v1`. Ch
 
 ### Display and Device Behavior
 
+`PresentationScope` gates only display clocks by route focus; independent sheet scopes preserve portal readouts. `useForegroundNow` also observes existing covered MotionScopes and app activity, refreshing on reveal before paint while retaining 32/200 ms visible cadence. Global runners, audio and OS notification ownership remain outside these scopes. `LapList` owns the full Stopwatch scroll surface and long History details with virtualized variable-height rows; small History details retain the compact sheet.
+
+
 `DurationPicker` composes three numeric columns using pure `durationPicker` helpers. Native columns use finite ScrollViews and adjustable accessibility actions, using numeric deceleration candidates Android 0.99575 / iOS 0.99915 for gentler coasting, pending physical acceptance; the web adapter owns CSS snapping, spinbutton semantics, keyboard/row selection and window-level release cleanup. The injected `durationWheel` controller distinguishes user motion from silent alignment, invalidates stale settling callbacks and releases interaction state on cancellation/disable/unmount. `useDurationWheel` binds committed current props and cancels unfinished motion when the app becomes inactive. Font-scale geometry realigns silently; ordinary controlled-value alignment is nonanimated.
+
+The native adapter's small `wheelSettlement` helper verifies released manual gestures against monotonic native event timestamps. A verified current terminal may supply a newer final offset than the last JS scroll cache; stale, held or unverifiable gestures cannot bypass the shared acceptance gate. Observed native offsets suppress redundant alignment commands while retaining initial-layout retries and explicit cancellation. Selection and combined busy state remain owned by the existing manual controller/picker, and the browser's cached-position/presentation guards remain intact. Physical final-stop latency remains pending; this does not replace native momentum or its end-event policy.
 
 Timer alone publishes an explicit local preset revision and route eligibility. The separate injected `wheelPresentation` owner scrolls native/web adapters toward the already accepted value, with one finite fallback and generation-fenced cleanup. It cannot select data or report manual busy state. Lifecycle settlement uses compositor cancellation on web; manual takeover retains the displayed offset, ignoring a cancelled nearest-snap end until displacement or manual fallback. Temporary cancellation offsets remain presentation only.
 
 For cancelable browser wheel/trackpad events, the adapter suppresses default scrolling and injects the finite cubic-ease-out `wheelDeceleration` driver, normalized by pixel/line/page units. Each glide lasts 337.5–900 ms according to its row distance, with the existing independent deadline 40 ms later (940 ms maximum). It owns visual offsets only; `durationWheel` still owns busy and accepted selection. Each request has one frame writer and an independent terminal deadline, with generation-fenced cancellation and exact row alignment. Fractional streams accumulate and reversal rebases on the visible position. Browser touch and noncancelable/modifier events retain platform behavior; reduced motion bypasses added interpolation. Explicit choices and presets replace unfinished manual motion; lifecycle/configuration changes invalidate obsolete writes. No wheel physics or presentation state is persisted.
 
 The Timer route holds numeric parts and fresh selection/motion refs. Settled manual choices and accepted quick presets configure the existing timer coordinator only for effective, valid changes; Start uses the latest parts and waits for genuine manual motion. Preset selection updates all parts immediately while changed columns glide, so Start and later presets remain available. Reduced motion, backgrounding, blur, disablement and geometry changes settle obsolete presentation without replay; Starting unmounts its wheels. No revision or motion state is persisted. Running/paused views hide the wheels. Zero stays an invalid local selection; focus and same-value alignment do not mutate a completed timer or cancel its audio.
+
+The schedule editor memoizes dirty/parsed/validated summaries by their actual draft dependencies and shares stable step-ID actions/ref registration with memoized rows. Native wheel columns receive stable per-unit callbacks without changing the existing interaction/terminal guards. Temporary duration work does not rebuild an unchanged full draft.
 
 The schedule editor owns one selected action ID and temporary numeric parts inside its existing Sheet. Apply functionally changes that action's draft; Cancel/Back/close abandons temporary parts. Save remains the only template-persistence boundary. One FlatList owns the whole draft: its stable header element contains the name, Scheduling, Repeat and count/total; its footer contains Add, errors and Save. Actions remain virtualized with stable IDs, without a surrounding vertical ScrollView. `EditorBody` preserves that list's layout while duration/calendar/repeat/discard content covers it: native hides interaction/accessibility, while web also uses inertness and hidden visibility to exclude covered controls from tab order. Each active panel has one bounded body ScrollView, with numeric duration columns as independent input scrollers. A captured whole-list offset and pending source target restore the opening position/focus; a virtualized action target remains pending until its button registers. Shared timing notices remain accessible through Sheet. No stacked duration Modal, timing runner or storage owner is added. The title/Close placement remains unchanged pending the explicit choice in the active scrolling plan.
 
@@ -286,13 +300,13 @@ The public SDK-57 `expo-router/js-tabs` navigator owns the four routes' 180 ms h
 
 `core/notifications` projects one future timer completion and cumulative remaining schedule boundaries from accepted snapshots, with one final event. It filters elapsed deadlines and has no React, platform, storage or translation dependency. `notificationContent` adds selected-language text and the selected one-shot sound/channel outside the pure core, preserving user names.
 
-`notificationCoordinator` is an injected side-effect owner, not a timing runner or a second store. `useSystemNotifications` subscribes to accepted timer/run and relevant preference updates; successful hydration and foreground return also reconcile. One serialized worker re-reads fresh state, reuses identical requests, and cancels only validated owned requests. Unique physical registration IDs are separate from semantic event/deadline/content identity.
+`notificationCoordinator` is an injected side-effect owner, not a timing runner or a second store. `useSystemNotifications` subscribes to accepted timer/run and relevant preference updates; successful hydration and foreground return also reconcile. One serialized worker re-reads fresh state, reuses identical requests, and cancels only validated owned requests. Unique physical registration IDs are separate from semantic event/deadline/content identity. Relevant snapshot/preference/transport inputs build one bounded indexed descriptor projection; expiry, consumed receipts and freshness guards remain live after every await. Native playback policy similarly skips unrelated snapshot encoding while capturing every relevant accepted transition.
 
 Deferred stale registrations are cancelled by exact ID; cancellation failure blocks that owner's replacement and remains visible until a relevant change or explicit retry. Delivered/elapsed metadata is consumed in a bounded session set to avoid replay, including clock rollback. Failed hydration never enumerates/removes valid native inventory.
 
 `completionNotificationAdapter` composes ordinary SDK-57 notifications with the optional Android backend under the same serialized coordinator. Both inventories are validated/cancelled before replacement; an enhanced registration failure is reported without ambiguous ordinary retry. Native capability/duration enter enhanced fingerprints only; unknown capability retains the last known mode. iOS duration-only changes keep ordinary fingerprints unchanged. Existing sound channels/resource basenames remain stable. Ordinary Android fallback and iOS use one-shot 15-second generated clips from `assets/audio/notifications/`; enhanced Android loops the effective channel sound through the broker with a silent notification envelope. Foreground system presentation is suppressed, and future requests survive backgrounding/ordinary cleanup.
 
-The Android module atomically persists validated delivery projections/policy, at most 51 pending events, 256 consumed receipts, 256 presented records and the latest response/failure. It never owns editable clocks/history. Main-thread receiver/service/module operations serialize native effects. One immutable explicit `setAlarmClock` request targets the earliest deadline; delivery consumes receipts and arms the next boundary before starting sound. Priority is shared with literal TS/Kotlin fixtures. Audio does not delay schedule deadlines. Failed hydration cannot replace policy or clear armed requests; invalid storage/version fails without overwriting. Cold reopen consumes native status/receipts and does not replay an old minute.
+The Android module atomically persists validated delivery projections/policy, at most 51 pending events, 256 consumed receipts, 256 presented records and the latest response/failure. It never owns editable clocks/history. Main-thread receiver/service/module operations serialize native effects. Policy replacement and pruning commit one candidate atomically before publishing memory state; failed storage retains the previous policy/pending set. Individual registrations still commit separately. One immutable explicit `setAlarmClock` request targets the earliest deadline; delivery consumes receipts and arms the next boundary before starting sound. Priority is shared with literal TS/Kotlin fixtures. Audio does not delay schedule deadlines. Failed hydration cannot replace policy or clear armed requests; invalid storage/version fails without overwriting. Cold reopen consumes native status/receipts and does not replay an old minute.
 
 Permission is transient, refreshed on foreground, and requested only from accepted user start/resume/restart, enable or explicit permission gestures. Saved opt-in remains independent of denied/limited authorization. No push token/server, background JS worker, recording or permanent service is used. The web adapter imports no native notification/intent module and reports unsupported; Expo Go/missing native resources report unavailable. The enhanced Android module requires a native rebuild; it adds no iOS alarm/audio mode.
 
@@ -313,7 +327,7 @@ The native iOS DATE input is rounded upward to a whole second to avoid SDK 57 tr
 1. **Pure calculations:** Keep timing, lap invariants, formatting, and stored-data validation independently testable.
 2. **One shared state owner:** Use the existing provider and functional updates for clocks, planning, history, and preference changes.
 3. **Local rendering state:** Keep ticking timestamps and modal visibility close to their consumers.
-4. **Ordered persistence:** Preserve serialization order and treat storage failures as user-visible state.
+4. **Ordered persistence:** Serialize writes, coalesce only pending persistence and treat storage failures as user-visible state.
 5. **Mobile compatibility:** Respect safe areas, accessible controls, lifecycle cleanup, and runtime availability of native modules.
 6. **Bounded data:** Respect the session/lap limits and account for serialized size when changing persistence.
 
@@ -343,7 +357,7 @@ assert.equal(elapsed(stopped, 90_000), 1_500);
 The stopwatch screen delegates transitions inside its event handler:
 
 ```ts
-// In src/app/index.tsx, with update from useCrono and core functions imported
+// In src/app/index.tsx, with update from useCronoActions and core functions imported
 update((previous) => ({
   ...previous,
   stopwatch: previous.stopwatch.startedAt !== null

@@ -18,6 +18,7 @@ export function createNativeAlertPlayback(a: Adapters): AlertPlayback & { refres
   let policyJob: Promise<void> | null = null, policyDirty = false;
   let lastPolicy = '';
   let observedPolicy: CompletionPolicy | undefined;
+  let policyInputs: unknown[] | undefined, observedSerialized = '';
   const pending = new Map<number, AlertRequest>();
   const cancelled = new Set<number>();
   function publish(next: AlertState) { state = next; if (!disposed) a.changed(next); }
@@ -85,14 +86,19 @@ export function createNativeAlertPlayback(a: Adapters): AlertPlayback & { refres
     if (disposed || a.getHydration() !== 'loaded') return Promise.resolve();
     // Capture every accepted transition before awaiting native acknowledgement.
     // Completion can then retain its deadline even when writes coalesce.
-    observedPolicy = completionPolicy(a.getSnapshot(), observedPolicy);
+    const data = a.getSnapshot(), p = data.preferences;
+    const inputs = [data.timer, data.planning.run, p.timerSound, p.systemNotifications, p.alertSoundId, p.alertDurationSeconds];
+    if (!policyInputs || !inputs.every((value, i) => value === policyInputs![i])) {
+      observedPolicy = completionPolicy(data, observedPolicy);
+      observedSerialized = JSON.stringify(observedPolicy); policyInputs = inputs;
+    }
     policyDirty = true;
     if (!policyJob) policyJob = (async () => {
       while (policyDirty && !disposed && a.getHydration() === 'loaded') {
         policyDirty = false;
         const policy = observedPolicy;
         if (!policy) continue;
-        const serialized = JSON.stringify(policy);
+        const serialized = observedSerialized;
         if (serialized === lastPolicy) continue;
         try { await a.native.setPolicyAsync(policy); lastPolicy = serialized; }
         catch { a.warn(); }

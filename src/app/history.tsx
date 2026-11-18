@@ -3,11 +3,11 @@ import { useI18n } from '../hooks/useI18n';
 import { useState } from 'react';
 import { Platform, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { Link } from 'expo-router';
-import { useCrono } from '../context/CronoContext';
+import { useCronoActions, useCronoData } from '../context/CronoContext';
 import { formatTime, Session } from '../core/stopwatch';
 import { sessionDate, sessionTime, sessionText } from '../i18n/formatters';
 import { Icon } from '../components/Icon';
-import { LapList } from '../components/LapList';
+import { LapList, LapListContent } from '../components/LapList';
 import { ConfirmSheet, Sheet } from '../components/Sheet';
 import { headingFamily } from '../typography';
 import { textSizes, radii, fonts as f, Palette } from '../theme';
@@ -17,14 +17,15 @@ import { useSheetPresentation } from '../hooks/useSheetPresentation';
 
 export default function HistoryScreen() {
   const { language, messages: m } = useI18n();
+  const sessions = useCronoData('sessions');
   const { colors: c } = useTheme();
   const styles = useThemeStyles(createStyles);
-  const { data, update, feedback, notify } = useCrono();
+  const { update, feedback, notify } = useCronoActions();
   const details = useSheetPresentation<Session>();
   const selected = details.presentation?.value;
   const [deleting, setDeleting] = useState<string | null>(null);
-  const total = data.sessions.reduce((sum, session) => sum + session.durationMs, 0);
-  const totalLaps = data.sessions.reduce((sum, session) => sum + session.laps.length, 0);
+  const total = sessions.reduce((sum, session) => sum + session.durationMs, 0);
+  const totalLaps = sessions.reduce((sum, session) => sum + session.laps.length, 0);
 
   const share = async (session: Session) => {
     const message = sessionText(session, language);
@@ -41,6 +42,17 @@ export default function HistoryScreen() {
     }
   };
 
+  const detailHeader = selected && <>
+        <Text style={styles.detailDate}>{sessionDate(selected.savedAt, language)} · {sessionTime(selected.savedAt, language)}</Text>
+        <View style={styles.detailTotal}><Text style={styles.detailLabel}>{m.totalTimeUpper}</Text><Text style={styles.detailTime} adjustsFontSizeToFit numberOfLines={1}>{formatTime(selected.durationMs)}</Text></View>
+  </>;
+  const detailActions = selected && <>
+        <View style={styles.detailActions}>
+          <MotionPressable accessibilityRole="button" accessibilityLabel={m.deleteSession} onPress={() => { feedback(); setDeleting(selected.id); details.close(); }} style={styles.delete}><Icon name="trash" size={19} color={c.danger} /></MotionPressable>
+          <MotionPressable accessibilityRole="button" onPress={() => { feedback(); void share(selected); }} style={[styles.share]}><Icon name="share" size={17} color={c.actionIcon} /><Text style={styles.shareText}>{m.shareResults}</Text></MotionPressable>
+        </View>
+  </>;
+
   return <ScrollView style={styles.screen} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
     <Text style={styles.eyebrow}>{m.historyEyebrow}</Text>
     <Text accessibilityRole="header" style={styles.title}>{m.historyTitle}</Text>
@@ -48,31 +60,25 @@ export default function HistoryScreen() {
     <View style={styles.overview}>
       <View style={styles.overviewTop}><Text style={styles.overviewLabel}>{m.accumulatedTime}</Text><View style={styles.overviewIcon}><Icon name="history" size={22} color={c.lime} /></View></View>
       <Text style={styles.overviewTime}>{formatTime(total).slice(0, -3)}<Text style={styles.overviewUnit}> {m.historyUnits(total >= 3600000)}</Text></Text>
-      <View style={styles.overviewBottom}><Text style={styles.overviewMeta}>{m.savedSessions(data.sessions.length)}</Text><View style={styles.overviewDot} /><Text style={styles.overviewMeta}>{m.recordedLaps(totalLaps)}</Text></View>
+      <View style={styles.overviewBottom}><Text style={styles.overviewMeta}>{m.savedSessions(sessions.length)}</Text><View style={styles.overviewDot} /><Text style={styles.overviewMeta}>{m.recordedLaps(totalLaps)}</Text></View>
     </View>
-    <View style={styles.sectionHeading}><Text style={styles.sectionTitle}>{m.yourSessions}</Text><Text style={styles.sectionCount}>{data.sessions.length} / 50</Text></View>
-    {data.sessions.length === 0 ? <View style={styles.empty}>
+    <View style={styles.sectionHeading}><Text style={styles.sectionTitle}>{m.yourSessions}</Text><Text style={styles.sectionCount}>{sessions.length} / 50</Text></View>
+    {sessions.length === 0 ? <View style={styles.empty}>
       <View style={styles.emptyIcon}><Icon name="history" size={30} color={c.green} /></View>
       <Text style={styles.emptyTitle}>{m.historyEmptyTitle}</Text>
       <Text style={styles.emptyText}>{m.historyEmptyText}</Text>
       <Link href="/" asChild><MotionPressable accessibilityRole="button" style={styles.emptyAction}><Icon name="play" size={15} color={c.actionIcon} /><Text style={styles.emptyActionText}>{m.toStopwatch}</Text></MotionPressable></Link>
-    </View> : data.sessions.map((session, index) => <MotionPressable key={session.id} accessibilityRole="button" accessibilityLabel={m.sessionLabel(sessionDate(session.savedAt, language), formatTime(session.durationMs), session.laps.length)} onPress={() => { feedback(); details.open(session); }} style={[styles.card]}>
+    </View> : sessions.map((session, index) => <MotionPressable key={session.id} accessibilityRole="button" accessibilityLabel={m.sessionLabel(sessionDate(session.savedAt, language), formatTime(session.durationMs), session.laps.length)} onPress={() => { feedback(); details.open(session); }} style={[styles.card]}>
       <View style={styles.cardMark}><Icon name="clock" size={21} color={c.green} /></View>
       <View style={styles.cardCopy}><Text style={styles.cardDate}>{sessionDate(session.savedAt, language)}{index === 0 && <Text style={styles.newLabel}> · {m.recent}</Text>}</Text><Text style={styles.cardTime}>{formatTime(session.durationMs)}</Text><Text style={styles.cardMeta}>{sessionTime(session.savedAt, language)}   ·   {m.lapCount(session.laps.length)}</Text></View>
       <Icon name="chevron" size={16} color={c.muted} />
     </MotionPressable>)}
     <View style={styles.privacy}><Icon name="check" size={13} color={c.muted} /><Text style={styles.privacyText}>{m.savedLocally}</Text></View>
-    <Sheet visible={details.presentation?.visible ?? false} title={m.sessionTitle} onClose={details.close}
+    <Sheet scrollable={!selected || selected.laps.length <= 50} visible={details.presentation?.visible ?? false} title={m.sessionTitle} onClose={details.close}
       onAfterClose={() => { if (details.presentation) details.afterClose(details.presentation.token); }}>
-      {selected && <>
-        <Text style={styles.detailDate}>{sessionDate(selected.savedAt, language)} · {sessionTime(selected.savedAt, language)}</Text>
-        <View style={styles.detailTotal}><Text style={styles.detailLabel}>{m.totalTimeUpper}</Text><Text style={styles.detailTime} adjustsFontSizeToFit numberOfLines={1}>{formatTime(selected.durationMs)}</Text></View>
-        {selected.laps.length > 0 ? <LapList laps={selected.laps} /> : <Text style={styles.noLaps}>{m.noLaps}</Text>}
-        <View style={styles.detailActions}>
-          <MotionPressable accessibilityRole="button" accessibilityLabel={m.deleteSession} onPress={() => { feedback(); setDeleting(selected.id); details.close(); }} style={styles.delete}><Icon name="trash" size={19} color={c.danger} /></MotionPressable>
-          <MotionPressable accessibilityRole="button" onPress={() => { feedback(); void share(selected); }} style={[styles.share]}><Icon name="share" size={17} color={c.actionIcon} /><Text style={styles.shareText}>{m.shareResults}</Text></MotionPressable>
-        </View>
-      </>}
+      {selected && (selected.laps.length > 50
+        ? <LapList laps={selected.laps} header={detailHeader} footer={detailActions} />
+        : <>{detailHeader}{selected.laps.length > 0 ? <LapListContent laps={selected.laps} /> : <Text style={styles.noLaps}>{m.noLaps}</Text>}{detailActions}</>)}
     </Sheet>
     <ConfirmSheet visible={deleting !== null} title={m.deleteSessionTitle} description={m.deleteSessionHelp} confirmLabel={m.deleteSession} onClose={() => setDeleting(null)} onConfirm={() => { feedback(); update((previous) => ({ ...previous, sessions: previous.sessions.filter((session) => session.id !== deleting) })); setDeleting(null); notify('sessionDeleted'); }} />
   </ScrollView>;

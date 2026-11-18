@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AppData, initialData, restoreData } from '../core/stopwatch';
+import { createPersistenceWriter } from './persistenceWriter';
+import { type AppData, initialData, restoreData } from '../core/stopwatch';
 
 const STORAGE_KEY = '@crono/app-v1';
 
@@ -14,19 +15,18 @@ export function useStopwatch() {
   const subscribers = useRef(new Set<() => void>());
   const [storageError, setStorageError] = useState(false);
   const current = useRef(data);
-  const writeQueue = useRef(Promise.resolve());
   const mounted = useRef(true);
 
-  const persist = useCallback((value: AppData) => {
-    // Serialize writes so a slower previous save cannot overwrite the latest action.
-    const serialized = JSON.stringify(value);
-    writeQueue.current = writeQueue.current
-      .then(() => AsyncStorage.setItem(STORAGE_KEY, serialized))
-      .catch(() => { if (mounted.current) setStorageError(true); });
-  }, []);
+  const writer = useRef<ReturnType<typeof createPersistenceWriter<AppData>> | null>(null);
+  const persist = useCallback((value: AppData) => writer.current?.request(value), []);
 
   useEffect(() => {
-    mounted.current = true;
+    const owner = createPersistenceWriter<AppData>({
+      serialize: JSON.stringify, write: (value) => AsyncStorage.setItem(STORAGE_KEY, value),
+      canPersist: () => hydration.current === 'loaded', failed: () => { if (mounted.current) setStorageError(true); },
+      schedule: (callback) => setTimeout(callback, 32), cancel: (handle) => clearTimeout(handle),
+    });
+    writer.current = owner; mounted.current = true;
     const ticket = ++hydrationGeneration.current;
     const isCurrent = () => mounted.current && ticket === hydrationGeneration.current;
     AsyncStorage.getItem(STORAGE_KEY)
@@ -34,6 +34,7 @@ export function useStopwatch() {
         if (!isCurrent()) return;
         current.current = restoreData(raw);
         setData(current.current);
+        owner.baseline(current.current);
         hydration.current = 'loaded'; setHydrationStatus('loaded');
       })
       .catch(() => {
@@ -41,7 +42,7 @@ export function useStopwatch() {
         hydration.current = 'failed'; setHydrationStatus('failed'); setStorageError(true);
       })
       .finally(() => { if (isCurrent()) setReady(true); });
-    return () => { mounted.current = false; hydrationGeneration.current = ticket + 1; };
+    return () => { mounted.current = false; void owner.dispose(); writer.current = null; hydrationGeneration.current = ticket + 1; };
   }, []);
 
   const update = useCallback((action: (previous: AppData) => AppData) => {
@@ -66,11 +67,12 @@ export function useStopwatch() {
 
   useEffect(() => {
     if (!ready) return;
-    const subscription = AppState.addEventListener('change', (state) => {
-      if (state !== 'active') persist(current.current);
-    });
-    return () => subscription.remove();
+    const flush = () => { persist(current.current); void writer.current?.flush(); };
+    const subscription = AppState.addEventListener('change', (state) => { if (state !== 'active') flush(); });
+    if (Platform.OS === 'web') window.addEventListener('pagehide', flush);
+    return () => { subscription.remove(); if (Platform.OS === 'web') window.removeEventListener('pagehide', flush); };
   }, [persist, ready]);
 
-  return { data, update, getSnapshot, subscribeUpdates, hydrationStatus, getHydrationStatus, ready, storageError, dismissStorageError: () => setStorageError(false) };
+  const dismissStorageError = useCallback(() => setStorageError(false), []);
+  return { data, update, getSnapshot, subscribeUpdates, hydrationStatus, getHydrationStatus, ready, storageError, dismissStorageError };
 }

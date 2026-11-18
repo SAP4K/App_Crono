@@ -2,7 +2,7 @@ import { createContext, PropsWithChildren, useContext, useEffect, useMemo } from
 import { Platform } from 'react-native';
 import { DarkTheme, DefaultTheme, ThemeProvider as NavigationThemeProvider } from 'expo-router';
 import * as SystemUI from 'expo-system-ui';
-import { useCrono } from './CronoContext';
+import { useCronoData, useCronoStatus } from './CronoContext';
 import { palettes, Palette } from '../theme';
 import type { ThemeMode } from '../core/stopwatch';
 import { useSystemTheme } from '../hooks/useSystemTheme';
@@ -11,8 +11,9 @@ import { createThemeBackground } from '../hooks/themeAppearance';
 const ThemeContext = createContext<{ mode: ThemeMode; colors: Palette } | null>(null);
 
 export function ThemeProvider({ children }: PropsWithChildren) {
-  const { data, ready } = useCrono();
-  const mode = useSystemTheme(data.preferences.theme, ready);
+  const { ready } = useCronoStatus();
+  const preferences = useCronoData('preferences');
+  const mode = useSystemTheme(preferences.theme, ready);
   const colors = palettes[mode];
   const value = useMemo(() => ({ mode, colors }), [mode, colors]);
   const navigationTheme = useMemo(() => ({

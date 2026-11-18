@@ -54,18 +54,29 @@ export function createNotificationCoordinator(a: Adapters) {
       return data ? [{ identifier: item.identifier, data }] : [];
     });
   }
-  function desired(): NotificationDescriptor[] {
-    if (disposed || a.getHydration() !== 'loaded' || !state.capability.canSchedule) return [];
-    const data = a.getSnapshot();
-    return projectNotificationEvents(data, a.now()).filter((event) => !consumed.has(notificationEventKey(event)))
-      .map((event) => {
-        const content = notificationContent(event, data.preferences);
+  let projection: { inputs: unknown[]; at: number; items: NotificationDescriptor[]; index: Map<string, NotificationDescriptor> } | undefined;
+  function currentProjection() {
+    if (disposed || a.getHydration() !== 'loaded' || !state.capability.canSchedule) return;
+    const data = a.getSnapshot(), now = a.now(), p = data.preferences;
+    const inputs = [data.timer, data.planning.run, p.systemNotifications, p.language, p.timerSound,
+      p.alertSoundId, p.alertDurationSeconds, extendedSound, alarmMode];
+    if (!projection || now < projection.at || !inputs.every((value, i) => value === projection!.inputs[i])) {
+      const items: NotificationDescriptor[] = projectNotificationEvents(data, now).map((event) => {
+        const content = notificationContent(event, p);
         return { ...content, backend: extendedSound ? 'native' : 'ordinary',
-          fingerprint: JSON.stringify([completionFingerprint(content.fingerprint, extendedSound, data.preferences.alertDurationSeconds), 'date-v2', alarmMode]) };
+          fingerprint: JSON.stringify([completionFingerprint(content.fingerprint, extendedSound, p.alertDurationSeconds), 'date-v2', alarmMode]) };
       });
+      projection = { inputs, at: now, items, index: new Map(items.map((item) => [notificationEventKey(item.event), item])) };
+    }
+    return projection;
+  }
+  function desired(): NotificationDescriptor[] {
+    return currentProjection()?.items.filter(({ event }) => event.dueAt > a.now() && !consumed.has(notificationEventKey(event))) ?? [];
   }
   function wanted(data: NotificationData) {
-    return desired().some((item) => notificationEventKey(item.event) === notificationEventKey(data) && item.fingerprint === data.fingerprint);
+    const key = notificationEventKey(data), item = currentProjection()?.index.get(key);
+    // Time and consumption stay live across every await; a cache cannot authorize a stale event.
+    return !!item && item.event.dueAt > a.now() && !consumed.has(key) && item.fingerprint === data.fingerprint;
   }
   async function cancel(item: Owned) {
     try { await a.native.cancel(item.identifier); known.delete(item.identifier); rearmIds.delete(item.identifier); return true; }
@@ -139,20 +150,21 @@ export function createNotificationCoordinator(a: Adapters) {
       try { await a.native.dismiss(item.identifier); }
       catch { failed = true; warn('dismiss'); }
     }
+    const registeredKeys = new Set([...known.values()].map((item) => notificationEventKey(item.data) + '\0' + item.data.fingerprint));
     for (const descriptor of desired()) {
       if (ticket !== generation || disposed) return;
       if (blockedOwners.has(descriptor.event.owner)) continue;
       const metadata = notificationData(descriptor.event, descriptor.fingerprint);
       if (!wanted(metadata)) continue;
-      if ([...known.values()].some((item) => notificationEventKey(item.data) === notificationEventKey(metadata)
-        && item.data.fingerprint === metadata.fingerprint)) continue;
+      const registrationKey = notificationEventKey(metadata) + '\0' + metadata.fingerprint;
+      if (registeredKeys.has(registrationKey)) continue;
       const identifier = NOTIFICATION_PREFIX + a.createId();
       const registrationLifecycle = lifecycle;
       try {
         const registered = await a.native.schedule(identifier, descriptor);
         if (registered === null) { remember(metadata); continue; } // Elapsed during native preparation.
         const item = { identifier: registered, data: metadata };
-        known.set(registered, item);
+        known.set(registered, item); registeredKeys.add(registrationKey);
         if (registrationLifecycle !== lifecycle || !wanted(metadata)) failed = !(await cancel(item)) || failed;
       } catch {
         warn('schedule'); failed = true;

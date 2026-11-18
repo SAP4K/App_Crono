@@ -123,6 +123,7 @@ for (const { id } of LANGUAGES) {
     await page.getByRole('button', { name: m.pause, exact: true }).click();
     await page.getByRole('button', { name: m.resetStopwatch, exact: true }).click();
     await page.getByRole('dialog', { name: m.resetStopwatchTitle, exact: true }).getByRole('button', { name: m.cancel, exact: true }).click();
+    await expect.poll(async () => (await stored(page)).stopwatch.accumulatedMs).toBe(2250);
     const retainedStopwatch = (await stored(page)).stopwatch;
     expect(retainedStopwatch.accumulatedMs).toBe(2250);
     await page.getByRole('tab', { name: m.timerTab, exact: true }).click();
@@ -132,6 +133,7 @@ for (const { id } of LANGUAGES) {
     await duration(page, '01', m);
     await page.getByRole('button', { name: m.startTimer, exact: true }).click();
     await page.getByRole('button', { name: m.pauseTimer, exact: true }).click();
+    await expect.poll(async () => (await stored(page)).timer.status).toBe('paused');
     const retainedTimer = (await stored(page)).timer;
     await page.getByRole('tab', { name: m.planningTab, exact: true }).click();
     await page.getByRole('button', { name: m.newSchedule, exact: true }).click();
@@ -152,6 +154,7 @@ for (const { id } of LANGUAGES) {
     await expect(editor.getByRole('textbox', { name: m.stepName(1), exact: true })).toHaveValue(action);
     await editor.getByRole('button', { name: m.saveSchedule, exact: true }).click();
     await expect(editor).not.toBeVisible();
+    await expect.poll(async () => (await stored(page)).planning.schedules.length).toBe(1);
     const template = (await stored(page)).planning.schedules[0];
     const next = ({ ro: 'ru', en: 'ru', ru: 'en', es: 'fr', fr: 'de', de: 'es' } as const)[id]; const n = getMessages(next);
     await selectLanguage(page, id, next);
@@ -168,6 +171,7 @@ for (const { id } of LANGUAGES) {
     await scheduleOptions(page, name, n);
     await expect(page.getByRole('button', { name: n.editSchedule(name), exact: true })).toBeDisabled();
     await page.getByRole('button', { name: n.pauseSchedule, exact: true }).click();
+    await expect.poll(async () => (await stored(page)).planning.run?.status).toBe('paused');
     const pausedRun = (await stored(page)).planning.run;
     await selectLanguage(page, next, id);
     expect((await stored(page)).planning.run).toEqual(pausedRun);
@@ -179,6 +183,7 @@ for (const { id } of LANGUAGES) {
     await scheduleOptions(page, name, n);
     await page.getByRole('button', { name: n.deleteSchedule(name), exact: true }).click();
     await page.getByRole('dialog', { name: n.deleteScheduleTitle, exact: true }).getByRole('button', { name: n.deleteScheduleConfirm, exact: true }).click();
+    await expect.poll(async () => (await stored(page)).planning.schedules.length).toBe(0);
     const saved = await stored(page);
     expect(saved.planning.schedules).toEqual([]);
     expect(saved.stopwatch).toEqual(retainedStopwatch); expect(saved.timer).toEqual(retainedTimer);
@@ -308,6 +313,7 @@ for (const [first, second] of [['en', 'ru'], ['es', 'fr'], ['fr', 'de'], ['de', 
     dialog = page.getByRole('dialog', { name: getMessages(second).settingsGroups.language, exact: true });
     await expect(dialog.getByLabel(getMessages(second).scheduleCompleted, { exact: true })).toBeVisible();
     await expect.poll(() => playCount(page)).toBe(3);
+    await page.clock.runFor(100); // Let the final accepted boundary reach durable storage.
     const result = await stored(page);
     expect(result.timer).toMatchObject({ status: 'completed', runId: 'language-timer' });
     expect(result.planning.run).toMatchObject({ status: 'completed', runId: 'language-schedule', stepIndex: 1 });
@@ -324,6 +330,7 @@ for (const target of ['ru', 'es', 'fr', 'de'] as const) {
     await page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' }); document.dispatchEvent(new Event('visibilitychange')); });
     await page.clock.runFor(10000);
     await page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' }); document.dispatchEvent(new Event('visibilitychange')); });
+    await page.clock.runFor(100); // Browser timers are paused after foreground catch-up.
     await expect.poll(async () => (await stored(page)).timer.status).toBe('completed');
     await expect.poll(async () => (await stored(page)).planning.run?.status).toBe('completed');
     await expect(page.getByLabel(getMessages(target).timerCompleted, { exact: true })).toBeVisible();

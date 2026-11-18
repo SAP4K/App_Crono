@@ -117,6 +117,7 @@ test('real timers allow countdown pause, resume and confirmed reset', async ({ p
   const runId = (await stored(page)).timer.runId;
   await page.getByRole('button', { name: 'Pauză temporizator', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Continuă temporizatorul', exact: true })).toBeVisible();
+  await expect.poll(async () => (await stored(page)).timer.status).toBe('paused');
   const paused = (await stored(page)).timer;
   expect(paused).toMatchObject({ status: 'paused', runId, deadlineAt: null });
   expect(paused.remainingMs).toBeGreaterThan(0);
@@ -141,6 +142,7 @@ test('real timers allow schedule pause, resume and confirmed reset without losin
   const runId = (await stored(page)).planning.run!.runId;
   await page.getByRole('button', { name: 'Pauză orar', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Continuă orarul', exact: true })).toBeVisible();
+  await expect.poll(async () => (await stored(page)).planning.run?.status).toBe('paused');
   const paused = (await stored(page)).planning.run!;
   expect(paused).toMatchObject({ status: 'paused', runId, deadlineAt: null });
   expect(paused.remainingMs).toBeGreaterThan(0);

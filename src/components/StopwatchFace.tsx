@@ -1,6 +1,6 @@
 import { useI18n } from '../hooks/useI18n';
-import { useEffect, useState } from 'react';
-import { AppState, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { useForegroundNow } from '../hooks/useForegroundNow';
+import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { elapsed, formatTime, Stopwatch } from '../core/stopwatch';
 import { textSizes, radii, fonts as f, Palette } from '../theme';
 import { useTheme, useThemeStyles } from '../context/ThemeContext';
@@ -9,25 +9,10 @@ export function StopwatchFace({ stopwatch }: { stopwatch: Stopwatch }) {
   const { messages: m } = useI18n();
   const { colors: c } = useTheme();
   const styles = useThemeStyles(createStyles);
-  const [now, setNow] = useState(Date.now);
   const { width, height, fontScale } = useWindowDimensions();
   const compact = height < 740;
   const running = stopwatch.startedAt !== null;
-  useEffect(() => {
-    if (!running) return;
-    let interval: ReturnType<typeof setInterval> | undefined;
-    const refresh = () => {
-      if (interval) clearInterval(interval);
-      interval = undefined;
-      setNow(Date.now());
-      if (AppState.currentState === 'active' || AppState.currentState == null) {
-        interval = setInterval(() => setNow(Date.now()), 32);
-      }
-    };
-    interval = setInterval(() => setNow(Date.now()), 32);
-    const subscription = AppState.addEventListener('change', refresh);
-    return () => { if (interval) clearInterval(interval); subscription.remove(); };
-  }, [running]);
+  const now = useForegroundNow(running, 32);
 
   const total = elapsed(stopwatch, now);
   const size = Math.min(width - 48, 432);

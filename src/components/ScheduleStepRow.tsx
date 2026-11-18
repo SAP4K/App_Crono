@@ -1,3 +1,4 @@
+import { memo, useCallback } from 'react';
 import { MotionPressable } from './MotionPressable';
 import { useI18n } from '../hooks/useI18n';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
@@ -9,30 +10,31 @@ import { Icon } from './Icon';
 
 export type StepDraft = { id: string; name: string; hours: string; minutes: string; seconds: string };
 
-export function ScheduleStepRow({ value, index, count, onChange, onMove, onRemove, onEditDuration, durationRef }: {
-  value: StepDraft; index: number; count: number; onChange: (value: Partial<StepDraft>) => void;
-  onMove: (direction: number) => void; onRemove: () => void;
-  onEditDuration: () => void; durationRef: (node: View | null) => void;
+export const ScheduleStepRow = memo(function ScheduleStepRow({ value, index, count, onChange, onMove, onRemove, onEditDuration, durationRef }: {
+  value: StepDraft; index: number; count: number; onChange: (id: string, value: Partial<StepDraft>) => void;
+  onMove: (id: string, direction: number) => void; onRemove: (id: string) => void;
+  onEditDuration: (step: StepDraft) => void; durationRef: (id: string, node: View | null) => void;
 }) {
+  const register = useCallback((node: View | null) => durationRef(value.id, node), [durationRef, value.id]);
   const { messages: m } = useI18n();
   const { colors: c } = useTheme(); const styles = useThemeStyles(createStyles);
   return <View style={styles.row}>
     <View style={styles.heading}><Text style={styles.label}>{m.stepNumber(index + 1)}</Text>
       <View style={styles.controls}>
-        <MotionPressable accessibilityRole="button" accessibilityLabel={m.moveStepUp(index + 1)} disabled={index === 0} onPress={() => onMove(-1)} style={[styles.control, index === 0 && styles.disabled]}><Text style={styles.arrow}>↑</Text></MotionPressable>
-        <MotionPressable accessibilityRole="button" accessibilityLabel={m.moveStepDown(index + 1)} disabled={index === count - 1} onPress={() => onMove(1)} style={[styles.control, index === count - 1 && styles.disabled]}><Text style={styles.arrow}>↓</Text></MotionPressable>
-        <MotionPressable accessibilityRole="button" accessibilityLabel={m.removeStep(index + 1)} onPress={onRemove} style={[styles.control]}><Icon name="trash" size={17} color={c.danger} /></MotionPressable>
+        <MotionPressable accessibilityRole="button" accessibilityLabel={m.moveStepUp(index + 1)} disabled={index === 0} onPress={() => onMove(value.id, -1)} style={[styles.control, index === 0 && styles.disabled]}><Text style={styles.arrow}>↑</Text></MotionPressable>
+        <MotionPressable accessibilityRole="button" accessibilityLabel={m.moveStepDown(index + 1)} disabled={index === count - 1} onPress={() => onMove(value.id, 1)} style={[styles.control, index === count - 1 && styles.disabled]}><Text style={styles.arrow}>↓</Text></MotionPressable>
+        <MotionPressable accessibilityRole="button" accessibilityLabel={m.removeStep(index + 1)} onPress={() => onRemove(value.id)} style={[styles.control]}><Icon name="trash" size={17} color={c.danger} /></MotionPressable>
       </View>
     </View>
-    <TextInput accessibilityLabel={m.stepName(index + 1)} value={value.name} maxLength={MAX_NAME_LENGTH} onChangeText={(name) => onChange({ name })} placeholder={m.stepPlaceholder} placeholderTextColor={c.muted} style={styles.input} selectionColor={c.green} />
-    <MotionPressable ref={durationRef} accessibilityRole="button" accessibilityLabel={m.editStepDuration(index + 1)} onPress={onEditDuration}
+    <TextInput accessibilityLabel={m.stepName(index + 1)} value={value.name} maxLength={MAX_NAME_LENGTH} onChangeText={(name) => onChange(value.id, { name })} placeholder={m.stepPlaceholder} placeholderTextColor={c.muted} style={styles.input} selectionColor={c.green} />
+    <MotionPressable ref={register} accessibilityRole="button" accessibilityLabel={m.editStepDuration(index + 1)} onPress={() => onEditDuration(value)}
       style={[styles.duration]}>
       <Text style={styles.unit}>{m.duration}</Text>
       <Text style={styles.number}>{formatRemaining(parseDuration(value.hours, value.minutes, value.seconds) ?? 0)}</Text>
       <Icon name="timer" size={18} color={c.green} />
     </MotionPressable>
   </View>;
-}
+});
 
 const createStyles = (c: Palette) => StyleSheet.create({
   row: { paddingVertical: 16, borderBottomWidth: 1, borderColor: c.separator, marginBottom: 12, gap: 12, backgroundColor: c.background },

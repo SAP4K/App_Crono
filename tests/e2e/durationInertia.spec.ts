@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { initialData } from '../../src/core/stopwatch';
+import { initialData, restoreData } from '../../src/core/stopwatch';
 import { initialTimer } from '../../src/core/timer';
 import { getMessages } from '../../src/i18n';
 import { readFileSync } from 'node:fs';
@@ -123,9 +123,18 @@ for (const screen of ['timer', 'planning'] as const) test(`${screen} browser whe
     await wheel.hover(); await wheelPixels(page, rowHeight * 6);
     await expect(wheel).toHaveAttribute('aria-valuenow', '26'); await expect(action).toBeEnabled(); await centered(wheel);
     await expect.poll(() => recording.evaluate((record) => record.samples.some((sample) => sample.value === 26 && !sample.busy))).toBe(true);
+    await expect.poll(() => recording.evaluate((record) => record.samples.filter((sample) => sample.value === 26 && !sample.busy).length)).toBeGreaterThanOrEqual(2);
     const samples = await recording.evaluate((record) => record.samples);
     await info.attach('wheel-speed-profile', { body: JSON.stringify(samples), contentType: 'application/json' });
     expect(samples.find((sample) => sample.value === 26 && !sample.busy)!.at).toBeGreaterThanOrEqual(600);
+    const target = 26 * rowHeight;
+    const stopped = samples.find((sample, index) => Math.abs(sample.offset - target) < 0.5
+      && samples.slice(index).every((later) => Math.abs(later.offset - target) < 0.5));
+    const accepted = samples.find((sample) => sample.value === 26 && !sample.busy)!;
+    expect(stopped, 'the recorder observed the final centered stop').toBeDefined();
+    const acceptanceLag = Math.max(0, accepted.at - stopped!.at);
+    await info.attach('wheel-stop-to-accept', { body: JSON.stringify({ stoppedAt: stopped!.at, acceptedAt: accepted.at, acceptanceLag }), contentType: 'application/json' });
+    expect(acceptanceLag, 'centered stop to rendered value and action readiness').toBeLessThanOrEqual(100);
     const moving = samples.slice(1).map((point, index) => ({
       speed: (point.offset - samples[index].offset) / (point.at - samples[index].at), point,
     })).filter(({ speed }) => speed > 0.01);
@@ -285,9 +294,9 @@ test('literal legacy records survive a progressively slowed duration edit and re
   await page.emulateMedia({ reducedMotion: 'no-preference' }); await seed(page, legacy); await page.goto('/timer');
   await expect(page.getByRole('button', { name: m.restartTimer, exact: true })).toBeEnabled();
   await page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' }); document.dispatchEvent(new Event('visibilitychange')); });
-  await expect.poll(async () => (await stored(page)).planning).toEqual({ schedules: [], run: null });
+  expect(await stored(page)).toEqual(legacy); // Unchanged hydration needs no normalization write.
   await page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' }); document.dispatchEvent(new Event('visibilitychange')); });
-  const before = await stored(page), wheel = page.getByRole('spinbutton', { name: m.timeUnits[2], exact: true });
+  const before = restoreData(JSON.stringify(await stored(page))), wheel = page.getByRole('spinbutton', { name: m.timeUnits[2], exact: true });
   const row = await wheel.locator('button').first().evaluate((node) => node.getBoundingClientRect().height);
   await wheel.hover(); await wheelPixels(page, row * 2);
   await expect(wheel).toHaveAttribute('aria-valuenow', '3'); await centered(wheel);
@@ -473,7 +482,7 @@ test('an explicit keyboard choice interrupts a coast without a late value replac
   await expect(wheel).toHaveAttribute('aria-valuenow', '0'); await centered(wheel);
   await expect(action).toBeDisabled(); // Zero stays invalid even after motion has stopped.
   await wheel.press('ArrowUp'); await expect(action).toBeEnabled();
-  expect((await stored(page)).timer.durationMs).toBe(1000);
+  await expect.poll(async () => (await stored(page)).timer.durationMs).toBe(1000);
 });
 
 test('a reverse flick interrupts the previous coast and rapid explicit choices stay centered with reduced motion', async ({ page }) => {
@@ -492,5 +501,5 @@ test('a reverse flick interrupts the previous coast and rapid explicit choices s
     await wheel.press('Home'); await wheel.press('ArrowUp');
   });
   await expect(wheel).toHaveAttribute('aria-valuenow', '1'); await centered(wheel); await expect(action).toBeEnabled();
-  expect((await stored(page)).timer.durationMs).toBe(1000);
+  await expect.poll(async () => (await stored(page)).timer.durationMs).toBe(1000);
 });
