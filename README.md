@@ -27,7 +27,7 @@ When developing on Windows, you can preview the interface on a physical iPhone u
 - Individual lap durations and cumulative times, with the fastest laps highlighted and average lap times displayed.
 - Save the latest 50 sessions with up to 1,000 laps each, view details, share results, and delete with confirmation.
 - Run an independent countdown with quick presets, a large active view, localized end time and a bounded **+1 minute** control; run an action sequence alongside both clocks.
-- Select timer and action durations with wheels that glide gently and slow to a centered value; create schedules from templates, duplicate them and repeat a draft sequence.
+- Select timer and action durations with a full-width clock-style selector whose wheels glide gently and slow to a centered value; create schedules from templates, duplicate them and repeat a draft sequence.
 - Use grouped Settings, compact cross-tab activity controls and [portable backup/import](docs/backups.md).
 - Choose from four bundled sounds with 5, 15, 30, or 60 seconds of playback, preview, and Stop controls; rebuilt Android apps also support the selected duration in the background.
 - Schedule native timer/action/final notifications for Home and locked screens, with saved enablement and OS permission controls.
@@ -61,7 +61,9 @@ Studio light mode uses cream surfaces and terracotta accents; dark mode uses cha
 
 Existing valid Light/Dark preferences are preserved. Missing or invalid saved themes use System; unavailable system detection falls back to the Light palette. Changing the appearance preserves active clocks, schedules, unsaved editor drafts and real completion audio. The first interactive screen uses the restored choice and current appearance; the native launch image appears before saved settings can load. Launcher icons, favicon, and splash artwork retain their existing branding.
 
-Studio uses serif screen and sheet titles, Inter body text and time digits, rectangular active readouts, and one shared frame around the duration wheels. Timer setup shows the selector directly; the large time readout appears while running or paused. The current presets, wheel inertia, actions and saved data remain unchanged.
+Studio uses serif screen and sheet titles, Inter body text and time digits, rectangular active readouts, and one shared frame around the duration wheels. Timer setup and Planning's action-duration panel share a full-width clock-style selector with large digits, fixed colon separators and full localized unit labels. The frame and selection band fill the available content width, respecting the screen or sheet's side padding.
+
+The three columns stay centered in a group up to 360 px wide at normal text scale, with 40 px digits, 32 px colons and 50 px rows. Native text scaling can enlarge that group within the frame; numbers fit locally when needed. Physical large-text/glyph acceptance remains pending. The large countdown readout appears while running or paused. Presets, wheel inertia, actions and saved data retain their existing behavior. See the [full-width picker plan](.ai-factory/plans/feature-full-width-duration-picker.md) for verification and native limitations.
 
 Titles use Georgia on iOS/web and the system serif on Android; font metrics and glyphs can differ, with physical-device acceptance still pending.
 
@@ -190,6 +192,8 @@ ai-factory update
 Source: [lee-to/ai-factory](https://github.com/lee-to/ai-factory).
 
 ## Verification Status
+
+The preceding [compact clock-style picker](.ai-factory/plans/feature-compact-duration-picker.md) passed lint/typecheck, **294 Node tests**, **176 related browser scenarios in one final run (7.1 minutes; no skips/retries)** and fresh Android/iOS/web exports. Eight new cases measure actual digits, colons, rows and text bounds in Timer/Planning, both themes and 320/390/1024 px layouts, plus browser magnification with retained focus. The first browser selection exposed two accidentally enlarged no-op test inputs; their correction preserves the existing no-write, audio and legacy-data assertions, and the final selection passes together. The plan records both runs and tested input identities. Native font scaling, glyph alignment, accessibility and wheel feel remain deferred.
 
 The [Studio outline contrast fix](.ai-factory/patches/2026-11-12-15.31.md) passed lint/typecheck, **54 related browser scenarios in one run (2.2 minutes; no skips/retries)** and fresh Android/iOS/web exports. Two registered regressions first failed on the original export, then passed after correcting three shared outline styles; they measure 21 enabled controls per theme against both adjacent backgrounds. The reported outlines now measure **3.57:1 in Light** and **3.99:1 in Dark**, above the required 3:1. The full browser and Node suites were not repeated for this style-only fix; physical native acceptance remains deferred.
 

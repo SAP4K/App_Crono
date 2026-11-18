@@ -1,0 +1,133 @@
+{
+  "kind": "planning-only DOM layout reference, not an implemented feature",
+  "base": "59e75289a77bda62eda36ae37ffa2f6b4b0dcda2",
+  "selected_option": "B with another small increase in digits and colons",
+  "normal_scale": {
+    "frameWidth": 260,
+    "digitSize": 40,
+    "digitLineHeight": 44,
+    "colonSize": 32,
+    "colonLineHeight": 38,
+    "rowHeight": 50,
+    "verticalPadding": 8,
+    "labelGap": 6
+  },
+  "prototype_measurements": [
+    {
+      "theme": "dark",
+      "id": "b",
+      "title": "B · Larger digits",
+      "width": 260,
+      "note": "40px digits and 32px colons in the same compact frame.",
+      "filename": "b-dark.png",
+      "originalWidth": 342,
+      "height": 189,
+      "rowHeight": 50,
+      "columnWidths": [
+        86,
+        86,
+        86
+      ],
+      "selected": [
+        "0",
+        "57",
+        "5"
+      ],
+      "glyphs": [
+        {
+          "fontSize": "40px",
+          "glyphWidth": 51.765625,
+          "glyphHeight": 49,
+          "rowWidth": 86,
+          "rowHeight": 50,
+          "fits": true
+        },
+        {
+          "fontSize": "40px",
+          "glyphWidth": 51.765625,
+          "glyphHeight": 49,
+          "rowWidth": 86,
+          "rowHeight": 50,
+          "fits": true
+        },
+        {
+          "fontSize": "40px",
+          "glyphWidth": 51.765625,
+          "glyphHeight": 49,
+          "rowWidth": 86,
+          "rowHeight": 50,
+          "fits": true
+        }
+      ]
+    },
+    {
+      "theme": "light",
+      "id": "b",
+      "title": "B · Larger digits",
+      "width": 260,
+      "note": "40px digits and 32px colons in the same compact frame.",
+      "filename": "b-light.png",
+      "originalWidth": 342,
+      "height": 189,
+      "rowHeight": 50,
+      "columnWidths": [
+        86,
+        86,
+        86
+      ],
+      "selected": [
+        "0",
+        "57",
+        "5"
+      ],
+      "glyphs": [
+        {
+          "fontSize": "40px",
+          "glyphWidth": 51.765625,
+          "glyphHeight": 49,
+          "rowWidth": 86,
+          "rowHeight": 50,
+          "fits": true
+        },
+        {
+          "fontSize": "40px",
+          "glyphWidth": 51.765625,
+          "glyphHeight": 49,
+          "rowWidth": 86,
+          "rowHeight": 50,
+          "fits": true
+        },
+        {
+          "fontSize": "40px",
+          "glyphWidth": 51.765625,
+          "glyphHeight": 49,
+          "rowWidth": 86,
+          "rowHeight": 50,
+          "fits": true
+        }
+      ]
+    }
+  ],
+  "reference_files": [
+    {
+      "path": "b-large-dark.png",
+      "sha256": "28f889758457a3603dc541a6a4c6332702d94e4d311c78fca45244ec5d3e2b44"
+    },
+    {
+      "path": "b-large-light.png",
+      "sha256": "dcbe3d056ae67f327e65af73f8dc7b28f43b1065af1a4babf4b92654cde5990d"
+    }
+  ],
+  "native_acceptance": "pending; existing user device-test deferral applies",
+  "accepted_refinement": "fale te rog putin inca mai mari",
+  "previous_target": {
+    "frameWidth": 260,
+    "digitSize": 36,
+    "digitLineHeight": 40,
+    "colonSize": 28,
+    "colonLineHeight": 34,
+    "rowHeight": 44,
+    "verticalPadding": 8,
+    "labelGap": 6
+  }
+}

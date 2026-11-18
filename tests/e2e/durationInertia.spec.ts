@@ -62,7 +62,8 @@ test('unsupported scrollend and a wheel at its endpoint recover without changing
   });
   const { wheel, action } = await openPicker(page, 'timer');
   expect(await wheel.evaluate((node) => 'onscrollend' in node)).toBe(false);
-  await wheel.hover(); await wheelPixels(page, 88);
+  const row = await wheel.locator('button').first().evaluate((node) => node.getBoundingClientRect().height);
+  await wheel.hover(); await wheelPixels(page, row * 2);
   await expect(wheel).toHaveAttribute('aria-valuenow', '22'); await expect(action).toBeEnabled(); await centered(wheel);
   await wheel.press('End'); await wheelPixels(page, 1000);
   await expect(action).toBeEnabled(); await centered(wheel);

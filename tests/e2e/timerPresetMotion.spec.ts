@@ -196,14 +196,18 @@ for (const policy of ['reduce', 'background', 'route', 'resize'] as const) test(
 });
 
 for (const { id } of LANGUAGES) for (const theme of ['light', 'dark'] as const) for (const { width, enlarged } of [{ width: 320, enlarged: false }, { width: 390, enlarged: true }, { width: 320, enlarged: true }]) {
-  test(`${id} ${theme} preset remains centered and usable with ${enlarged ? 'enlarged' : 'compact'} text at ${width}px`, async ({ page }) => {
+  test(`${id} ${theme} preset remains centered and usable with ${enlarged ? 'enlarged' : 'compact'} labels at ${width}px`, async ({ page }) => {
     const messages = getMessages(id), data = initialData(); data.preferences.language = id; data.preferences.theme = theme; data.timer = initialTimer(4117000);
     await page.setViewportSize({ width, height: 844 }); await seed(page, data); await page.goto('/timer'); await ready(page);
-    if (enlarged) await page.addStyleTag({ content: '[role="spinbutton"] button { font-size:36px !important; }' });
+    if (enlarged) await page.addStyleTag({ content: '[data-testid="duration-track"] > div:not([data-testid="duration-format"]) > :last-child { font-size:16px !important; }' });
+    const captions = page.getByTestId('duration-picker').locator('[data-testid="duration-track"] > div:not([data-testid="duration-format"]) > :last-child');
+    await expect(captions).toHaveCount(3);
+    for (const caption of await captions.all()) await expect(caption).toHaveCSS('font-size', enlarged ? '16px' : '12px');
     await page.getByRole('button', { name: messages.presetMinutes(25), exact: true }).click(); await ready(page);
     await expect(page.getByRole('button', { name: messages.startTimer, exact: true })).toBeEnabled();
     expect((await stored(page)).timer.durationMs).toBe(1500000);
     for (const wheel of await page.getByRole('spinbutton').all()) {
+      await expect(wheel.locator('button').first()).toHaveCSS('font-size', '40px');
       const box = (await wheel.boundingBox())!; expect(box.width).toBeGreaterThanOrEqual(44); expect(box.x).toBeGreaterThanOrEqual(0); expect(box.x + box.width).toBeLessThanOrEqual(width);
       expect(await wheel.evaluate((node) => {
         const row = node.querySelectorAll('button')[Number(node.getAttribute('aria-valuenow'))];
@@ -211,6 +215,17 @@ for (const { id } of LANGUAGES) for (const theme of ['light', 'dark'] as const) 
         return range.getBoundingClientRect().height <= row.getBoundingClientRect().height;
       })).toBe(true);
     }
+    const layout = await page.getByTestId('duration-picker').evaluate(root => {
+      const r = root.getBoundingClientRect(), parent = root.parentElement!, p = parent.getBoundingClientRect(), c = getComputedStyle(parent);
+      return { gaps: [r.left - p.left - parseFloat(c.paddingLeft) - parseFloat(c.borderLeftWidth),
+        p.right - r.right - parseFloat(c.paddingRight) - parseFloat(c.borderRightWidth)],
+      captionsFit: Array.from(root.querySelectorAll('[data-testid="duration-track"] > div:not([data-testid="duration-format"]) > :last-child')).every(node => {
+        const range = document.createRange(); range.selectNodeContents(node);
+        const text = range.getBoundingClientRect(), label = node.getBoundingClientRect();
+        return text.left >= label.left && text.right <= label.right && text.top >= label.top && text.bottom <= label.bottom;
+      }) };
+    });
+    expect(layout.gaps.every(gap => Math.abs(gap) < 1)).toBe(true); expect(layout.captionsFit).toBe(true);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
 }

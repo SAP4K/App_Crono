@@ -2,11 +2,11 @@ import { useCallback, useEffect, useRef } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useThemeStyles } from '../context/ThemeContext';
 import { useDurationWheel } from '../hooks/useDurationWheel';
-import { fonts, type Palette } from '../theme';
+import { durationPickerMetrics as metrics, fonts, type Palette } from '../theme';
 import type { DurationWheelProps } from './DurationWheel.types';
 
 export function DurationWheel(props: DurationWheelProps) {
-  const { value, maximum, rowHeight, label, hint, disabled, autoFocus } = props;
+  const { value, maximum, rowHeight, label, hint, disabled, autoFocus, fontSize = metrics.digitSize } = props;
   const scroll = useRef<ScrollView>(null), focus = useRef<View>(null);
   const position = useRef(0), animation = useRef<{ target: number; finished: () => void } | null>(null);
   const styles = useThemeStyles(createStyles);
@@ -47,7 +47,9 @@ export function DurationWheel(props: DurationWheelProps) {
         onScroll={({ nativeEvent }) => { position.current = nativeEvent.contentOffset.y; controller.scroll(position.current); }}>
         {Array.from({ length: maximum + 1 }, (_, index) => <Pressable key={index} accessible={false} disabled={disabled}
           onPress={() => controller.choose(index)} style={[styles.item, { height: rowHeight }]}>
-          <Text style={[styles.number, { color: index === value ? styles.selected.color : styles.number.color }]}>{String(index).padStart(2, '0')}</Text>
+          <Text numberOfLines={1} adjustsFontSizeToFit style={[styles.number, { fontSize,
+            lineHeight: fontSize * metrics.digitLineHeight / metrics.digitSize,
+            color: index === value ? styles.selected.color : styles.number.color }]}>{String(index).padStart(2, '0')}</Text>
         </Pressable>)}
       </ScrollView>
     </View>
@@ -55,10 +57,11 @@ export function DurationWheel(props: DurationWheelProps) {
   </View>;
 }
 const createStyles = (c: Palette) => StyleSheet.create({
-  column: { flex: 1, minWidth: 0, gap: 8 },
+  column: { flex: 1, minWidth: 0, gap: metrics.labelGap },
   viewport: { overflow: 'hidden' },
   item: { alignItems: 'center', justifyContent: 'center' },
-  number: { fontFamily: fonts.semibold, fontSize: 28, lineHeight: 36, color: c.muted, fontVariant: ['tabular-nums'] },
+  number: { fontFamily: fonts.semibold, color: c.muted, fontVariant: ['tabular-nums'],
+    includeFontPadding: false, textAlignVertical: 'center' },
   selected: { color: c.ink }, disabled: { opacity: 0.5 },
   label: { fontFamily: fonts.medium, fontSize: 12, color: c.muted, textAlign: 'center' },
 });

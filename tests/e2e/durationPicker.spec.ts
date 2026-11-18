@@ -15,14 +15,179 @@ test.beforeEach(({ page }) => {
 });
 test.afterEach(({ page }) => { expectNoPageErrors(page); expect(warnings.get(page)).toEqual([]); });
 
+async function clockGeometry(scope: Page | Locator, fitted = false) {
+  const picker = scope.getByTestId('duration-picker');
+  await picker.scrollIntoViewIfNeeded();
+  await expect(picker.getByRole('spinbutton')).toHaveCount(3);
+  await expect(picker.getByTestId('duration-separator')).toHaveCount(2);
+  await expect(picker.getByTestId('duration-selection')).toHaveAttribute('aria-hidden', 'true');
+  await expect(picker.getByTestId('duration-selection')).toHaveCSS('pointer-events', 'none');
+  await expect(picker.getByTestId('duration-format')).toHaveAttribute('aria-hidden', 'true');
+  await expect(picker.getByTestId('duration-format')).toHaveCSS('pointer-events', 'none');
+  const geometry = await picker.evaluate((root) => {
+    const bounds = (node: Element) => {
+      const r = node.getBoundingClientRect();
+      return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height };
+    };
+    const textBounds = (node: Element) => {
+      const range = document.createRange(); range.selectNodeContents(node);
+      const r = range.getBoundingClientRect();
+      return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height };
+    };
+    const parent = root.parentElement!, parentBox = bounds(parent), parentStyle = getComputedStyle(parent), frameStyle = getComputedStyle(root);
+    return {
+      frame: bounds(root), band: bounds(root.querySelector('[data-testid="duration-selection"]')!),
+      track: bounds(root.querySelector('[data-testid="duration-track"]')!),
+      parent: { left: parentBox.left + parseFloat(parentStyle.paddingLeft) + parseFloat(parentStyle.borderLeftWidth),
+        right: parentBox.right - parseFloat(parentStyle.paddingRight) - parseFloat(parentStyle.borderRightWidth) },
+      border: { left: parseFloat(frameStyle.borderLeftWidth), right: parseFloat(frameStyle.borderRightWidth) },
+      wheels: Array.from(root.querySelectorAll('[role="spinbutton"]')).map((node) => {
+        const row = node.querySelectorAll('button')[Number(node.getAttribute('aria-valuenow'))];
+        const label = node.parentElement!.parentElement!.lastElementChild!;
+        return { viewport: bounds(node), row: bounds(row), text: textBounds(row), font: getComputedStyle(row).fontSize,
+          label: bounds(label), caption: textBounds(label) };
+      }),
+      separators: Array.from(root.querySelectorAll('[data-testid="duration-separator"]')).map((node) => ({
+        box: bounds(node), text: textBounds(node), font: getComputedStyle(node).fontSize,
+      })),
+    };
+  });
+  expect(Math.abs(geometry.frame.left - geometry.parent.left)).toBeLessThan(1);
+  expect(Math.abs(geometry.frame.right - geometry.parent.right)).toBeLessThan(1);
+  expect(Math.abs(geometry.band.left - geometry.frame.left - geometry.border.left)).toBeLessThan(1);
+  expect(Math.abs(geometry.frame.right - geometry.band.right - geometry.border.right)).toBeLessThan(1);
+  expect(geometry.track.width).toBeCloseTo(Math.min(360, geometry.frame.width - geometry.border.left - geometry.border.right), 0);
+  expect(Math.abs(geometry.track.left + geometry.track.width / 2 - geometry.frame.left - geometry.frame.width / 2)).toBeLessThan(1);
+  if (geometry.frame.width > 362) expect(geometry.frame.width).toBeGreaterThan(geometry.track.width);
+  expect(geometry.band.height).toBe(50);
+  const center = geometry.band.top + geometry.band.height / 2;
+  for (const wheel of geometry.wheels) {
+    if (fitted) { expect(parseFloat(wheel.font)).toBeLessThan(40); expect(parseFloat(wheel.font)).toBeGreaterThan(0); }
+    else expect(wheel.font).toBe('40px');
+    expect(wheel.row.height).toBe(50); expect(wheel.viewport.height).toBe(150);
+    expect(wheel.viewport.width).toBeGreaterThanOrEqual(44);
+    expect(Math.abs(wheel.viewport.width - geometry.track.width / 3)).toBeLessThan(1);
+    expect(wheel.text.width).toBeLessThanOrEqual(wheel.row.width);
+    expect(wheel.text.height).toBeLessThanOrEqual(wheel.row.height);
+    expect(wheel.text.left).toBeGreaterThanOrEqual(wheel.row.left); expect(wheel.text.right).toBeLessThanOrEqual(wheel.row.right);
+    expect(wheel.caption.left).toBeGreaterThanOrEqual(wheel.label.left); expect(wheel.caption.right).toBeLessThanOrEqual(wheel.label.right);
+    expect(wheel.caption.top).toBeGreaterThanOrEqual(wheel.label.top); expect(wheel.caption.bottom).toBeLessThanOrEqual(wheel.label.bottom);
+    expect(Math.abs(wheel.row.top + wheel.row.height / 2 - center)).toBeLessThan(1);
+  }
+  for (const [index, separator] of geometry.separators.entries()) {
+    if (fitted) { expect(parseFloat(separator.font)).toBeLessThan(32); expect(parseFloat(separator.font)).toBeGreaterThan(0); }
+    else expect(separator.font).toBe('32px');
+    expect(Math.abs(separator.box.top + separator.box.height / 2 - center)).toBeLessThan(1);
+    expect(Math.abs(separator.box.left + separator.box.width / 2 - geometry.wheels[index].viewport.right)).toBeLessThan(1);
+    expect(separator.text.left - geometry.wheels[index].text.right).toBeGreaterThanOrEqual(4);
+    expect(geometry.wheels[index + 1].text.left - separator.text.right).toBeGreaterThanOrEqual(4);
+  }
+  return picker;
+}
+
+async function narrowParent(page: Page, scope: Page | Locator, action: Locator) {
+  const picker = scope.getByTestId('duration-picker'), wheels = picker.getByRole('spinbutton'), hours = wheels.first();
+  await hours.focus(); const host = await hours.elementHandle(), before = await stored(page);
+  const values = await wheels.evaluateAll(nodes => nodes.map(node => node.getAttribute('aria-valuenow')));
+  const original = await picker.evaluate(root => {
+    const parent = root.parentElement!, style = parent.getAttribute('style'), c = getComputedStyle(parent);
+    const inset = parseFloat(c.paddingLeft) + parseFloat(c.paddingRight) + parseFloat(c.borderLeftWidth) + parseFloat(c.borderRightWidth);
+    const width = `${180 + (c.boxSizing === 'border-box' ? inset : 0)}px`;
+    Object.assign(parent.style, { width, maxWidth: width, minWidth: '0', alignSelf: 'center' });
+    return style;
+  });
+  try {
+    await expect.poll(() => picker.evaluate(node => node.getBoundingClientRect().width)).toBe(180);
+    await expect.poll(() => hours.locator('button').first().evaluate(node => parseFloat(getComputedStyle(node).fontSize))).toBeLessThan(40);
+    await clockGeometry(scope, true); await expect(hours).toBeFocused();
+    expect(await hours.evaluate((node, original) => node === original, host)).toBe(true);
+    expect(await wheels.evaluateAll(nodes => nodes.map(node => node.getAttribute('aria-valuenow')))).toEqual(values);
+    expect(await stored(page)).toEqual(before); await expect(action).toBeEnabled();
+  } finally {
+    await picker.evaluate((node, style) => style === null ? node.parentElement!.removeAttribute('style') : node.parentElement!.setAttribute('style', style), original);
+  }
+  await clockGeometry(scope); await expect(hours).toBeFocused();
+  expect(await hours.evaluate((node, original) => node === original, host)).toBe(true);
+  expect(await wheels.evaluateAll(nodes => nodes.map(node => node.getAttribute('aria-valuenow')))).toEqual(values);
+  expect(await stored(page)).toEqual(before); await expect(action).toBeEnabled();
+  await host?.dispose();
+}
+
+for (const theme of ['light', 'dark'] as const) for (const width of [320, 390, 1024]) {
+  test(`full-width-clock ${theme} at ${width}px fits both callers and passes input through separators`, async ({ page }, info) => {
+    const m = getMessages('ro'), data = initialData(), name = 'Școală · Учёба';
+    data.preferences.theme = theme; data.timer = initialTimer(3425000);
+    data.planning.schedules = [{ id: 'compact', name, steps: [{ id: 'step', name: 'Respiră · Отдых', durationMs: 3663000 }] }];
+    await page.setViewportSize({ width, height: 844 }); await page.emulateMedia({ reducedMotion: 'reduce' });
+    await seed(page, data); await page.goto('/timer'); await page.evaluate(() => document.fonts.ready);
+    const picker = await clockGeometry(page);
+    await picker.screenshot({ path: info.outputPath('timer-clock.png'), animations: 'disabled' });
+    await narrowParent(page, page, page.getByRole('button', { name: m.startTimer, exact: true }));
+    const wheels = picker.getByRole('spinbutton');
+    for (const index of [0, 1]) {
+      const separator = (await picker.getByTestId('duration-separator').nth(index).boundingBox())!;
+      const before = await stored(page);
+      await page.mouse.click(separator.x + separator.width / 2 + 2, separator.y + separator.height / 2);
+      await expect(wheels.nth(index + 1)).toBeFocused(); expect(await stored(page)).toEqual(before);
+      await wheels.nth(index + 1).press('ArrowUp'); await centered(wheels.nth(index + 1));
+    }
+    expect((await stored(page)).timer).toEqual(initialTimer(3486000));
+    const beforePlanning = await stored(page);
+    await page.getByRole('tab', { name: m.planningTab, exact: true }).click(); await scheduleOptions(page, name, m);
+    await page.getByRole('button', { name: m.editSchedule(name), exact: true }).click();
+    const edit = page.getByRole('button', { name: m.editStepDuration(1), exact: true }); await edit.click();
+    const panel = page.getByRole('dialog', { name: m.durationPickerTitle(1), exact: true });
+    await page.evaluate(() => document.fonts.ready); const planningPicker = await clockGeometry(panel);
+    await planningPicker.screenshot({ path: info.outputPath('planning-clock.png'), animations: 'disabled' });
+    await narrowParent(page, panel, panel.getByRole('button', { name: m.applyDuration, exact: true }));
+    const seconds = panel.getByRole('spinbutton', { name: m.stepField(m.timeUnits[2], 1), exact: true });
+    await seconds.press('ArrowUp'); await centered(seconds);
+    await panel.getByRole('button', { name: m.cancel, exact: true }).click();
+    await expect(edit).toBeFocused(); await expect(edit).toContainText('01:01:03');
+    expect(await stored(page)).toEqual(beforePlanning);
+    await edit.click(); await seconds.press('ArrowUp');
+    await panel.getByRole('button', { name: m.applyDuration, exact: true }).click();
+    await expect(edit).toContainText('01:01:04'); expect(await stored(page)).toEqual(beforePlanning);
+    await page.getByRole('button', { name: m.saveSchedule, exact: true }).click();
+    const expected = structuredClone(beforePlanning); expected.planning.schedules[0].steps[0].durationMs = 3664000;
+    await expect.poll(() => stored(page)).toEqual(expected);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  });
+}
+
+for (const theme of ['light', 'dark'] as const) test(`full-width-clock ${theme} browser zoom enlarges rows and glyphs together without replacing focus`, async ({ page }) => {
+  const m = getMessages('ro'), data = initialData(); data.preferences.theme = theme; data.timer = initialTimer(3663000);
+  await page.setViewportSize({ width: 1024, height: 844 }); await page.emulateMedia({ reducedMotion: 'reduce' });
+  await seed(page, data); await page.goto('/timer'); await page.evaluate(() => document.fonts.ready);
+  await clockGeometry(page);
+  const hours = page.getByRole('spinbutton', { name: m.timeUnits[0], exact: true });
+  await hours.focus(); const host = await hours.elementHandle();
+  const session = await page.context().newCDPSession(page);
+  try {
+    await session.send('Emulation.setPageScaleFactor', { pageScaleFactor: 1.25 });
+    await expect.poll(() => page.evaluate(() => visualViewport?.scale)).toBe(1.25);
+    await clockGeometry(page); await expect(hours).toBeFocused();
+    expect(await hours.evaluate((node, original) => node === original, host)).toBe(true);
+    // This is browser magnification, not native OS text-scale emulation.
+    const physical = await hours.evaluate((node) => {
+      const row = node.querySelector('button')!, scale = visualViewport!.scale;
+      return { font: Number.parseFloat(getComputedStyle(row).fontSize) * scale, row: row.getBoundingClientRect().height * scale };
+    });
+    expect(physical).toEqual({ font: 50, row: 62.5 });
+    await hours.press('ArrowUp'); await centered(hours);
+    expect(await stored(page)).toEqual({ ...data, timer: initialTimer(7263000) });
+  } finally { try { await session.send('Emulation.resetPageScaleFactor'); } finally { await session.detach(); } }
+});
+
 async function openTimer(page: Page) {
   const data = initialData(); data.timer = initialTimer(1000); data.preferences.timerSound = false;
   await seed(page, data); await page.goto('/timer');
   await expect(page.getByRole('spinbutton')).toHaveCount(3);
   return page.getByRole('button', { name: 'Pornește temporizatorul', exact: true });
 }
-async function wheelBy(page: Page, wheel: Locator, delta: number) {
-  await wheel.hover(); await page.mouse.wheel(0, delta * await page.evaluate(() => devicePixelRatio));
+async function wheelBy(page: Page, wheel: Locator, rows: number) {
+  const height = await wheel.locator('button').first().evaluate((row) => row.getBoundingClientRect().height);
+  await wheel.hover(); await page.mouse.wheel(0, rows * height * await page.evaluate(() => devicePixelRatio));
 }
 async function observeBusy(action: Locator) {
   const record = await action.evaluateHandle((node) => {
@@ -66,8 +231,8 @@ test('real wheel motion gates Start, combines columns, snaps and preserves runni
     return parent?.scrollTop ?? 0;
   });
   const wasBusy = await observeBusy(start);
-  await wheelBy(page, minutes, 44);
-  await wheelBy(page, seconds, 88);
+  await wheelBy(page, minutes, 1);
+  await wheelBy(page, seconds, 2);
   await expect(minutes).toHaveAttribute('aria-valuenow', '1');
   await expect(seconds).toHaveAttribute('aria-valuenow', '3');
   await expect(start).toBeEnabled(); await wasBusy(); await centered(minutes); await centered(seconds);
@@ -153,13 +318,13 @@ test('Planning discards temporary selection and applies only settled values to i
   const seconds = page.getByRole('spinbutton', { name: 'Secunde etapa 2', exact: true });
   const apply = page.getByRole('button', { name: 'Aplică durata', exact: true });
   const cancelledBusy = await observeBusy(apply);
-  await wheelBy(page, seconds, 440);
+  await wheelBy(page, seconds, 10);
   await expect(apply).toBeEnabled(); await cancelledBusy();
   await page.getByRole('button', { name: 'Renunță', exact: true }).click();
   await expect(edit).toContainText('00:00:02'); await edit.click();
   await expect(seconds).toHaveAttribute('aria-valuenow', '2');
   const appliedBusy = await observeBusy(apply);
-  await wheelBy(page, seconds, 44);
+  await wheelBy(page, seconds, 1);
   await expect(seconds).toHaveAttribute('aria-valuenow', '3');
   await expect(apply).toBeEnabled(); await appliedBusy(); await apply.click();
   await expect(edit).toContainText('00:00:03');
@@ -192,7 +357,8 @@ test('same-value real scroll preserves completed timer identity and playing audi
   await expect.poll(() => playCount(page)).toBe(1);
   const completed = (await stored(page)).timer;
   const seconds = page.getByRole('spinbutton', { name: 'Secunde', exact: true });
-  await wheelBy(page, seconds, 1);
+  // A small fraction of one row exercises a real scroll without selecting another value.
+  await wheelBy(page, seconds, 0.02);
   const restart = page.getByRole('button', { name: 'Repornește temporizatorul', exact: true });
   await expect(restart).toBeDisabled(); await expect(restart).toBeEnabled(); await centered(seconds);
   expect((await stored(page)).timer).toEqual(completed);
@@ -216,7 +382,7 @@ test('literal legacy data survives no-op wheels, a translated action draft, an u
   const count = await page.evaluate(() => (window as unknown as { durationWrites: number }).durationWrites);
   for (const name of ['Ore', 'Minute', 'Secunde']) await page.getByRole('spinbutton', { name, exact: true }).focus();
   await page.getByRole('spinbutton', { name: 'Ore', exact: true }).press('ArrowDown');
-  await wheelBy(page, page.getByRole('spinbutton', { name: 'Secunde', exact: true }), 1);
+  await wheelBy(page, page.getByRole('spinbutton', { name: 'Secunde', exact: true }), 0.02);
   await expect(restart).toBeDisabled(); await expect(restart).toBeEnabled();
   expect(await page.evaluate(() => (window as unknown as { durationWrites: number }).durationWrites)).toBe(count);
   expect((await stored(page)).timer).toEqual(legacy.timer); expect(await playCount(page)).toBe(0);
@@ -350,6 +516,7 @@ for (const { id } of LANGUAGES) for (const theme of ['light', 'dark'] as const) 
     await selectTheme(settings, theme, m);
     await settings.getByRole('button', { name: m.close, exact: true }).click(); await expect(settings).not.toBeVisible();
     expect((await stored(page)).timer).toEqual(data.timer);
+    await clockGeometry(page);
     await page.screenshot({ path: `previews/wheels-${id}-${theme}-${width}-timer.png`, animations: 'disabled' });
     await page.getByRole('tab', { name: m.planningTab, exact: true }).click();
     await scheduleOptions(page, name, m);
@@ -358,13 +525,18 @@ for (const { id } of LANGUAGES) for (const theme of ['light', 'dark'] as const) 
     const panel = page.getByRole('dialog', { name: m.durationPickerTitle(1), exact: true });
     await panel.getByRole('spinbutton', { name: m.stepField(m.timeUnits[0], 1), exact: true }).press('Shift+Tab');
     await expect(panel.getByRole('button', { name: m.close, exact: true })).toBeFocused();
-    // User-style enlargement exercises web text fit; native OS font scaling is a separate device check.
-    await page.addStyleTag({ content: '[role="spinbutton"] button { font-size: 36px !important; }' });
+    // Enlarge captions without shrinking the new 40px numeric default. Native OS
+    // font scaling is separate; coherent browser zoom has its own case below.
+    await page.addStyleTag({ content: '[data-testid="duration-track"] > div:not([data-testid="duration-format"]) > :last-child { font-size: 16px !important; }' });
+    const captions = panel.getByTestId('duration-picker').locator('[data-testid="duration-track"] > div:not([data-testid="duration-format"]) > :last-child');
+    await expect(captions).toHaveCount(3);
+    for (const caption of await captions.all()) await expect(caption).toHaveCSS('font-size', '16px');
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.setViewportSize({ width: width + 40, height: 844 }); await page.setViewportSize({ width, height: 844 });
     for (const [index, value] of [1, 1, 3].entries()) {
       const wheel = panel.getByRole('spinbutton', { name: m.stepField(m.timeUnits[index], 1), exact: true });
       await expect(wheel).toHaveAttribute('aria-valuenow', String(value)); await centered(wheel);
+      await expect(wheel.locator('button').first()).toHaveCSS('font-size', '40px');
       const box = (await wheel.boundingBox())!;
       expect(box.width).toBeGreaterThanOrEqual(44); expect(box.x).toBeGreaterThanOrEqual(0); expect(box.x + box.width).toBeLessThanOrEqual(width);
       expect(await wheel.evaluate((element) => {
@@ -374,6 +546,7 @@ for (const { id } of LANGUAGES) for (const theme of ['light', 'dark'] as const) 
       })).toBe(true);
     }
     await expect(panel.getByRole('button', { name: m.applyDuration, exact: true })).toBeEnabled();
+    await clockGeometry(panel);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: `previews/wheels-${id}-${theme}-${width}-panel-large-text.png`, animations: 'disabled' });
     await panel.getByRole('button', { name: m.cancel, exact: true }).click();
