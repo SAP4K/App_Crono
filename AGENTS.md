@@ -95,7 +95,7 @@ tests/
   notificationResponses.test.ts Buffered, validated and deduplicated tap navigation
   fixtures/             Literal legacy version-1 saved data
   e2e/                  Timing, themes, languages, sound, planning, notifications, real wheel gestures
-modules/                Android access probe and completion alarm/audio Expo modules
+modules/                Local Android Expo modules for access, completion alerts and wheel settlement
 assets/                 App icons, splash images, original WAV patterns and legacy Classic copy
 assets/audio/notifications/ Four generated 15-second system notification clips
 scripts/                Reproducible notification sound generator
@@ -148,6 +148,7 @@ scripts/                Reproducible notification sound generator
 | `src/core/notifications.ts`, `src/i18n/notificationContent.ts` | Future event projection/payload validation and localized OS content |
 | `src/hooks/notificationCoordinator.ts`, `useSystemNotifications.ts` | One serialized OS request owner, hydration guard and accepted-update bridge |
 | `src/hooks/systemNotifications.ts`, `.web.ts`, `notificationTypes.ts` | Native date/channel/permission adapter and native-free web fallback |
+| `modules/crono-duration-wheel/` | Observe the current Android wheel fling ending on the UI thread |
 | `modules/crono-background-access/`, `src/hooks/backgroundAccess.ts`, `.web.ts` | Read-only exact-alarm and battery observations |
 | `src/hooks/notificationReadiness.ts`, `notificationPresentation.ts`, `notificationTrigger.ts` | Delivery policy, activity handoff, native date mapping |
 | `src/components/BackgroundNotificationHelp.tsx`, `src/i18n/notificationStatus.ts` | Localized native setup and readiness |
