@@ -155,4 +155,26 @@ class CompletionPolicyTest {
     val oversized = projectedPolicy(); repeat(51) { oversized.getJSONArray("events").put(JSONObject()) }
     assertFalse(CompletionAlertPolicy.validPolicy(oversized))
   }
+  @Test fun policyAndPrunedRegistrationsUseOneAtomicCommit() {
+    var disk: String? = null; var writes = 0
+    val store = CompletionAlertLedger({ disk }, { disk = it; writes++ })
+    for (index in 0..50) store.put(record(index))
+    writes = 0
+    val policy = projectedPolicy().put("backgroundEnabled", false)
+    store.applyPolicy(policy)
+    assertEquals(1, writes); assertTrue(store.pending().isEmpty())
+    val restored = CompletionAlertLedger({ disk }, {})
+    assertFalse(restored.policy()!!.getBoolean("backgroundEnabled")); assertTrue(restored.pending().isEmpty())
+    store.applyPolicy(policy); assertEquals(1, writes)
+  }
+  @Test fun failedPolicyTransactionKeepsPreviousPolicyAndAllPendingRecords() {
+    var disk: String? = null; var broken = false
+    val store = CompletionAlertLedger({ disk }, { if (broken) error("disk"); disk = it })
+    store.setPolicy(projectedPolicy()); store.put(record()); val before = disk
+    broken = true
+    try { store.applyPolicy(projectedPolicy().put("backgroundEnabled", false)); fail("Expected failure") }
+    catch (_: IllegalStateException) { }
+    assertEquals(before, disk); assertTrue(store.policy()!!.getBoolean("backgroundEnabled")); assertEquals(1, store.pending().size)
+  }
+
 }

@@ -64,6 +64,7 @@ test('schedule editor saves ordered actions, validates durations, and preserves 
   await scheduleOptions(page, 'Studiu');
   await page.getByRole('button', { name: 'Șterge orarul Studiu', exact: true }).click();
   await page.getByRole('dialog', { name: 'Ștergi orarul?', exact: true }).getByRole('button', { name: 'Șterge orarul', exact: true }).click();
+  await page.clock.runFor(100);
   await expect.poll(async () => (await stored(page)).planning.schedules.length).toBe(0);
 });
 
@@ -276,6 +277,7 @@ test('schedule execution pauses exactly, persists, advances automatically, and r
   await expect(page.getByLabel('Timp etapă 00:00:02', { exact: true })).toBeVisible();
   await page.clock.runFor(1001);
   await page.getByRole('button', { name: 'Pauză orar', exact: true }).click();
+  await page.clock.runFor(100); // Paused browser timers must run the persistence task.
   const paused = (await stored(page)).planning.run;
   expect(paused?.remainingMs).toBe(999);
   await page.clock.runFor(5000); await page.reload();
@@ -283,16 +285,21 @@ test('schedule execution pauses exactly, persists, advances automatically, and r
   expect((await stored(page)).planning.run).toEqual(paused);
   await page.getByRole('button', { name: 'Continuă orarul', exact: true }).click();
   await page.clock.runFor(999);
+  await expect(page.getByLabel('Etapă finalizată', { exact: true })).toBeVisible();
+  await page.clock.runFor(100);
   await expect.poll(async () => (await stored(page)).planning.run?.stepIndex).toBe(1);
   expect(await playCount(page)).toBe(1);
-  await page.clock.runFor(1000);
+  await page.clock.runFor(900); // Keep the second boundary exactly one second after the first.
   await expect(page.getByRole('button', { name: 'Repornește orarul', exact: true })).toBeVisible();
+  await page.clock.runFor(100);
   expect((await stored(page)).planning.run?.status).toBe('completed');
   expect(await playCount(page)).toBe(2);
   await page.getByRole('button', { name: 'Repornește orarul', exact: true }).click();
+  await page.clock.runFor(100);
   expect((await stored(page)).planning.run?.runId).not.toBe(paused?.runId);
   await page.getByRole('button', { name: 'Resetează orarul', exact: true }).click();
   await page.getByRole('dialog', { name: 'Resetezi orarul?', exact: true }).getByRole('button', { name: 'Resetează orarul', exact: true }).click();
+  await page.clock.runFor(100);
   await expect.poll(async () => (await stored(page)).planning.run).toBeNull();
   expect((await stored(page)).planning.schedules).toHaveLength(2);
 });
@@ -301,6 +308,7 @@ test('only one schedule runs; replacement confirms and preserves the independent
   const data = scheduleData(); data.stopwatch.startedAt = Date.parse('2026-11-05T10:00:00Z');
   await seed(page, data); await page.goto('/planning');
   await page.getByRole('button', { name: 'Pornește orarul Studiu', exact: true }).click();
+  await page.clock.runFor(100);
   const original = (await stored(page)).planning.run;
   await scheduleOptions(page, 'Studiu');
   await expect(page.getByRole('button', { name: 'Editează orarul Studiu', exact: true })).toBeDisabled();
@@ -345,7 +353,9 @@ test('settings can stop completion audio without clearing the schedule', async (
   await page.getByRole('button', { name: 'Pornește orarul Studiu', exact: true }).click();
   const dialog = await settings(page, 'sounds'); await page.clock.runFor(1000);
   await expect(dialog.getByLabel('Orar finalizat', { exact: true })).toBeVisible();
+  await page.clock.runFor(100);
   const completed = (await stored(page)).planning.run;
+  expect(completed?.status).toBe('completed');
   await dialog.getByRole('button', { name: 'Oprește sunetul', exact: true }).click();
   expect((await stored(page)).planning.run).toEqual(completed);
   await expect(dialog.getByLabel('Orar finalizat', { exact: true })).toBeVisible();
@@ -358,6 +368,7 @@ test('hidden schedule expiry and completed hydration return silently across tabs
   await page.clock.runFor(10000);
   expect((await stored(page)).planning.run?.status).toBe('running');
   await page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' }); document.dispatchEvent(new Event('visibilitychange')); });
+  await page.clock.runFor(100);
   await expect.poll(async () => (await stored(page)).planning.run?.status).toBe('completed');
   expect(await playCount(page)).toBe(0);
   await page.getByRole('tab', { name: 'Timer', exact: true }).click();
@@ -384,6 +395,7 @@ for (const first of ['timer', 'planning']) {
     const data = scheduleData(); data.planning.schedules[0].steps = [data.planning.schedules[0].steps[0]];
     await seed(page, data); await audioSpy(page); await page.goto('/');
     await page.getByRole('button', { name: 'Pornește', exact: true }).click();
+    await page.clock.runFor(100);
     const stopwatch = (await stored(page)).stopwatch;
     for (const target of first === 'timer' ? ['timer', 'planning'] : ['planning', 'timer']) {
       await page.getByRole('tab', { name: target === 'timer' ? 'Timer' : 'Planificare', exact: true }).click();
@@ -399,6 +411,7 @@ for (const first of ['timer', 'planning']) {
     await expect(dialog.getByLabel('Orar finalizat', { exact: true })).toBeVisible();
     await expect(dialog.getByText('Sunet timer', { exact: true })).toBeVisible();
     await dialog.getByRole('button', { name: 'Oprește sunetul', exact: true }).click();
+    await page.clock.runFor(100);
     const result = await stored(page);
     expect(result.stopwatch).toEqual(stopwatch); expect(result.timer.status).toBe('completed');
     expect(result.planning.run?.status).toBe('completed'); expect(result.sessions).toEqual([]);

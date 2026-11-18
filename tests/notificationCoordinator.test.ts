@@ -536,3 +536,21 @@ test('a late old-deadline registration is replaced by the extended deadline with
   assert.ok(f.cancelled.includes(f.scheduled[0].identifier));
   assert.ok(f.pending.has(f.scheduled.at(-1)!.identifier));
 });
+
+test('fifty-step reconciliation bounds content work while retaining all registrations', async () => {
+  const { f, controller } = fixture();
+  f.data.planning.schedules = [{ id: 's', name: 'Study', steps: Array.from({ length: 50 }, (_, i) => ({ id: `a${i}`, name: `Action ${i}`, durationMs: 60000 })) }];
+  f.data.planning = startSchedule(f.data.planning, 's', f.now, 'run');
+  const stringify = JSON.stringify; let contents = 0;
+  JSON.stringify = ((value: unknown, ...args: unknown[]) => {
+    if (Array.isArray(value) && value.length === 4 && typeof value[0] === 'string' && typeof value[1] === 'string' && typeof value[3] === 'string') contents++;
+    return Reflect.apply(stringify, JSON, [value, ...args]);
+  }) as typeof JSON.stringify;
+  try {
+    await controller.reconcile(); assert.equal(f.pending.size, 51); assert.ok(contents <= 51, `content fingerprints: ${contents}`);
+    contents = 0; await controller.reconcile(); assert.equal(f.pending.size, 51); assert.ok(contents <= 51);
+    f.data.preferences = { ...f.data.preferences, language: 'en' };
+    await controller.reconcile(); assert.equal(f.pending.size, 51);
+    assert.equal(f.scheduled.at(-1)!.descriptor.title, 'CRONO · Planning');
+  } finally { JSON.stringify = stringify; controller.dispose(); }
+});

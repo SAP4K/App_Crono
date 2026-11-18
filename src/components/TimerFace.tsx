@@ -1,6 +1,6 @@
 import { useI18n } from '../hooks/useI18n';
-import { useEffect, useState } from 'react';
-import { AppState, Platform, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { useForegroundNow } from '../hooks/useForegroundNow';
+import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import type { TimerState } from '../core/timer';
 import { formatRemaining, remainingTime } from '../core/timer';
 import { deadlineLabel } from '../i18n/formatters';
@@ -11,26 +11,7 @@ export function TimerFace({ timer, compact = false }: { timer: TimerState; compa
   const { language, messages: m } = useI18n();
   const styles = useThemeStyles(createStyles);
   const { width, height } = useWindowDimensions();
-  const [now, setNow] = useState(Date.now);
-  useEffect(() => {
-    if (timer.status !== 'running') return;
-    let interval: ReturnType<typeof setInterval> | undefined;
-    const refresh = () => {
-      if (interval) clearInterval(interval);
-      const active = Platform.OS === 'web' ? document.visibilityState === 'visible' : AppState.currentState === 'active';
-      setNow(Date.now());
-      if (active) interval = setInterval(() => setNow(Date.now()), 200);
-    };
-    const active = Platform.OS === 'web' ? document.visibilityState === 'visible' : AppState.currentState === 'active';
-    if (active) interval = setInterval(() => setNow(Date.now()), 200);
-    const subscription = AppState.addEventListener('change', refresh);
-    if (Platform.OS === 'web') document.addEventListener('visibilitychange', refresh);
-    return () => {
-      if (interval) clearInterval(interval);
-      subscription.remove();
-      if (Platform.OS === 'web') document.removeEventListener('visibilitychange', refresh);
-    };
-  }, [timer.status, timer.deadlineAt]);
+  const now = useForegroundNow(timer.status === 'running');
   const size = Math.min(width - 48, 432);
   const remaining = remainingTime(timer, now);
   const status = { idle: m.timerIdle, running: m.timerRunning, paused: m.timerPaused, completed: m.timerExpired }[timer.status];

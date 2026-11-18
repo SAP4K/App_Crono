@@ -52,7 +52,7 @@ The app uses technical layers with shared pure stopwatch/countdown/schedule core
 src/
   app/          Expo Router routes and application shell
   components/   Dials, native/web duration wheels, schedule editor/run card, notices, sheets
-  context/      Shared state, saved theme, interaction motion, notices, and mobile feedback
+  context/      Shared branch/action/status ports, presentation visibility, theme, motion, notices and feedback
   hooks/        Persistence, timing/playback owners, OS notifications, native/web adapters
   core/         Pure timing/schedule operations, notification projection, registries, validation
   i18n/         Typed catalogs, plural/date formatting, and localized sharing
@@ -62,10 +62,12 @@ src/
 tests/
   language.test.ts      Language defaults, validation, and legacy preservation
   i18n.test.ts          Catalog parity, plurals, locale dates, and shared results
+  storePersistence.test.ts Deferred/ordered writes, bounded pending state and actual-hook hydration guards
   stopwatch.test.ts     Node.js core logic tests
   timer.test.ts         Countdown boundary/transition tests
   durationPicker.test.ts Bounded parts, conversion and snapping geometry
   durationWheel.test.ts Settling, cancellation, disabled state and changed row geometry
+  nativeWheelSettlement.test.ts Native terminal ordering, alignment and shared acceptance guards
   wheelPresentation.test.ts Visual preset targets, takeover, lifecycle and stale callbacks
   wheelDeceleration.test.ts Progressive easing, delta units, reversal and finite cancellation/deadlines
   timerCompletion.test.ts Completion/audio coordination tests
@@ -115,6 +117,7 @@ scripts/                Reproducible notification sound generator
 | `src/core/durationPicker.ts` | Numeric duration parts, finite bounds, conversion and snap index |
 | `src/components/DurationPicker.tsx`, `DurationWheel.tsx`, `.web.tsx` | Shared themed picker, native adjustable columns and web spinbuttons |
 | `src/hooks/durationWheel.ts`, `useDurationWheel.ts` | Manual settling/cancellation and explicit preset-presentation lifecycle bridge |
+| `src/hooks/wheelSettlement.ts` | Native timestamp/position validation and shared terminal acceptance gate |
 | `src/hooks/wheelPresentation.ts` | Finite visual wheel targets, takeover/settlement and stale callbacks; no selection/busy ownership |
 | `src/hooks/wheelDeceleration.ts` | Bounded browser wheel easing and unit normalization; visual offsets only, manual controller retains selection/busy |
 | `src/core/planning.ts` | Schedule bounds, CRUD, snapshot restoration, and cumulative deadlines |
@@ -122,8 +125,10 @@ scripts/                Reproducible notification sound generator
 | `src/core/backup.ts` | Strict portable projection/parser and additive fresh-ID merge |
 | `src/core/planningCalendar.ts` | Civil date validation, weekday normalization, and matching saved rules |
 | `src/core/sounds.ts`, `src/audio/sources.ts` | Pure sound preferences and separate asset map |
-| `src/hooks/useStopwatch.ts` | Hydration outcome, accepted-update subscriptions, functional updates, ordered writes |
-| `src/context/CronoContext.tsx` | Shared state, timer/planning runners, one audio owner, haptics, wake lock |
+| `src/hooks/useStopwatch.ts`, `persistenceWriter.ts` | Accepted-update subscriptions, hydration guards, deferred encoding and bounded ordered writes |
+| `src/context/CronoContext.tsx` | Same-store branch readers, stable actions/status, timer/planning runners, one audio owner, haptics and wake lock |
+| `src/context/PresentationContext.tsx`, `src/hooks/useForegroundNow.ts` | Presentation-only visibility scopes and local foreground readouts |
+| `src/components/LapList.tsx` | One virtualized scroll surface for Stopwatch and large History details |
 | `src/theme.ts`, `src/typography.ts` | Pure Studio tokens and separate platform heading-family adapter |
 | `src/context/ThemeContext.tsx` | Saved theme, navigation palette, native appearance |
 | `src/context/MotionContext.tsx`, `src/hooks/motionPreference.ts` | Shared live reduced-motion/activity policy and covered-surface scopes |
@@ -171,9 +176,11 @@ scripts/                Reproducible notification sound generator
 
 | File | Purpose |
 |---|---|
-| `README.md` | Setup, Studio appearance, wheels, themes, notifications and checks |
+| `README.md` | Setup, Studio appearance, wheel settlement, themes and checks |
 | `docs/background-notifications.md` | Android minute playback, setup, limits and verification |
 | `docs/backups.md` | Portable export/import, selected theme compatibility, limits and recovery |
+| `docs/performance.md` | Bounded work, durability limits, reproducible checks and pending phone comparison |
+| `tests/e2e/performance.spec.ts` | Hidden clocks, large lap lists and unchanged temporary editor work |
 | `AGENTS.md` | Repository map and authoritative Expo workflow requirements |
 | `.ai-factory/DESCRIPTION.md` | Project purpose, stack, data model, and known follow-ups |
 | `.ai-factory/ARCHITECTURE.md` | Layered architecture, dependencies, and data flow |

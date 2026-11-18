@@ -200,14 +200,13 @@ object CompletionPlaybackBroker {
     application = context.applicationContext
     val ledger = store(context); val previous = ledger.policy()
     val policy = CompletionAlertPolicy.resolvePolicy(previous, incoming)
-    if (previous?.toString() != policy.toString()) ledger.setPolicy(policy)
+    ledger.applyPolicy(policy)
     val failure = ledger.failure()
     if (failure != null && (!CompletionAlertPolicy.allowed(policy, failure.getJSONObject("request"))
       || !CompletionAlertPolicy.soundMatches(policy, failure.getJSONObject("request")) || !policy.optBoolean("soundEnabled"))) {
       ledger.setFailure(null)
       if (record == null) { error = false; publish() }
     }
-    for (item in ledger.pending()) if (!policy.optBoolean("backgroundEnabled") || !CompletionRuntime.allowed(ledger, item.getJSONObject("request"))) ledger.cancel(item.getString("identifier"))
     val current = record
     if (current != null && (!liveAllowed(context, current) || (previous != null && (previous.optString("soundId") != policy.optString("soundId")
       || previous.optInt("durationSeconds") != policy.optInt("durationSeconds") || previous.optBoolean("soundEnabled") != policy.optBoolean("soundEnabled")))

@@ -134,7 +134,8 @@ for (const [preference, initial, next] of [
     Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
     document.dispatchEvent(new Event('visibilitychange'));
   });
-  await expect.poll(async () => (await readProbe()).writtenThemes).toEqual([preference]);
+  await page.clock.runFor(100);
+  expect((await readProbe()).writtenThemes).toEqual([]);
   const delivered = (await readProbe()).delivered;
   await page.emulateMedia({ colorScheme: next });
   await expect.poll(async () => (await readProbe()).suppressed).toBeGreaterThan(0);
@@ -145,11 +146,12 @@ for (const [preference, initial, next] of [
     Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
     document.dispatchEvent(new Event('visibilitychange'));
   });
+  await page.clock.runFor(100);
   const dark = (preference === 'system' ? next : preference) === 'dark';
   await expectTheme(page, dark);
   await expect(panel.getByTestId('sheet-surface')).toHaveCSS('background-color', dark ? cssColor(palettes.dark.background) : cssColor(palettes.light.background));
   await expect(minutes).toBeFocused(); await expect(minutes).toHaveAttribute('aria-valuenow', '2');
-  expect((await readProbe()).delivered).toBe(delivered); expect((await readProbe()).writtenThemes).toEqual([preference]);
+  expect((await readProbe()).delivered).toBe(delivered); expect((await readProbe()).writtenThemes).toEqual([]);
   expect(await stored(page)).toEqual(before);
   await panel.getByRole('button', { name: m.applyDuration, exact: true }).click(); await page.clock.runFor(300);
   await expect(name).toHaveValue('Foreground · Учёба');
@@ -158,7 +160,8 @@ for (const [preference, initial, next] of [
   await page.evaluate(() => { (window as unknown as { themeMediaProbe: ThemeMediaProbe }).themeMediaProbe.blocked = false; });
   await page.emulateMedia({ colorScheme: initial }); await expectTheme(page, initial === 'dark');
   await expect.poll(async () => (await readProbe()).delivered).toBeGreaterThan(delivered);
-  expect((await readProbe()).writtenThemes).toEqual([preference]); expect(await stored(page)).toEqual(before);
+  await page.clock.runFor(100);
+  expect((await readProbe()).writtenThemes).toEqual([]); expect(await stored(page)).toEqual(before);
 });
 
 for (const colorScheme of ['light', 'dark'] as const) test(`fresh System follows ${colorScheme} and live changes without preference writes`, async ({ page }) => {
@@ -256,6 +259,7 @@ test('legacy running stopwatch, laps and history survive theme changes and reloa
   await page.getByRole('button', { name: 'Pornește', exact: true }).click();
   await page.clock.setFixedTime(now + 1234);
   await page.getByRole('button', { name: 'Înregistrează o tură' }).click();
+  await expect.poll(async () => (await stored(page)).stopwatch.laps.length).toBe(1);
   const before = (await stored(page)).stopwatch;
   await settings(page, 'appearance');
   await selectTheme(page, 'dark');

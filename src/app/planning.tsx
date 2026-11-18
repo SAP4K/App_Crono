@@ -2,7 +2,7 @@ import { MotionPressable } from '../components/MotionPressable';
 import { useI18n } from '../hooks/useI18n';
 import { useState } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
-import { useCrono } from '../context/CronoContext';
+import { useCronoActions, useCronoData } from '../context/CronoContext';
 import { useThemeStyles } from '../context/ThemeContext';
 import { deleteSchedule, isProtectedSchedule, MAX_NAME_LENGTH, MAX_SCHEDULES, saveSchedule } from '../core/planning';
 import type { Schedule } from '../core/planning';
@@ -23,7 +23,8 @@ import { useSheetPresentation } from '../hooks/useSheetPresentation';
 
 export default function PlanningScreen() {
   const { language, messages: m } = useI18n();
-  const { data, update, getSnapshot, feedback, notify, planning, notifications } = useCrono(); const styles = useThemeStyles(createStyles);
+  const planningState = useCronoData('planning');
+  const { update, getSnapshot, feedback, notify, planning, notifications } = useCronoActions(); const styles = useThemeStyles(createStyles);
   const editorSheet = useSheetPresentation<{ schedule: Schedule; isNew: boolean }>();
   const editor = editorSheet.presentation?.value;
   const [deleting, setDeleting] = useState<Schedule | null>(null);
@@ -32,7 +33,7 @@ export default function PlanningScreen() {
   const dateSheet = useSheetPresentation<CalendarDateParts>();
   const dateDraft = dateSheet.presentation?.value;
   const [templatesOpen, setTemplatesOpen] = useState(false), [menuId, setMenuId] = useState<string | null>(null);
-  const schedules = data.planning.schedules;
+  const schedules = planningState.schedules;
   const scheduleLimit = schedules.length >= MAX_SCHEDULES;
   const visibleSchedules = selectedDate === null ? schedules : schedules.filter((item) => matchesScheduleDate(item.calendar, selectedDate));
   const selectedDateLabel = selectedDate === null ? null : planningDateLabel(selectedDate, language);
@@ -60,7 +61,7 @@ export default function PlanningScreen() {
   };
   const start = (schedule: Schedule) => {
     feedback();
-    if (data.planning.run && data.planning.run.status !== 'completed') setReplacing(schedule);
+    if (planningState.run && planningState.run.status !== 'completed') setReplacing(schedule);
     else if (!planning.controls.start(schedule.id)) notify('scheduleUnavailable');
     else void notifications.controller.requestPermission();
   };
@@ -124,7 +125,7 @@ export default function PlanningScreen() {
       </>}
       ListEmptyComponent={<Text style={styles.empty}>{selectedDate === null ? m.planningEmpty : m.calendarEmpty}</Text>}
       renderItem={({ item }) => {
-        const protectedTemplate = isProtectedSchedule(data.planning, item.id);
+        const protectedTemplate = isProtectedSchedule(planningState, item.id);
         return <ScheduleCard schedule={item} protectedTemplate={protectedTemplate} canDuplicate={!scheduleLimit} expanded={menuId === item.id}
           onToggle={() => { feedback(); setMenuId((id) => id === item.id ? null : item.id); }} onStart={() => { setMenuId(null); start(item); }}
           onEdit={() => { feedback(); setMenuId(null); editorSheet.open({ schedule: item, isNew: false }); }}

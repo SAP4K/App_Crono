@@ -3,7 +3,7 @@ import { MotionPressable } from '../components/MotionPressable';
 import { useI18n } from '../hooks/useI18n';
 import { useLayoutEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useCrono } from '../context/CronoContext';
+import { useCronoActions, useCronoData } from '../context/CronoContext';
 import { useTheme, useThemeStyles } from '../context/ThemeContext';
 import { durationMilliseconds, durationParts } from '../core/durationPicker';
 import type { DurationParts } from '../core/durationPicker';
@@ -17,10 +17,10 @@ import { textSizes, radii, fonts as f, Palette } from '../theme';
 
 export default function TimerScreen() {
   const { messages: m } = useI18n();
-  const { data, timerControls, feedback, getSnapshot, notifications } = useCrono();
+  const { timerControls, feedback, getSnapshot, notifications } = useCronoActions();
   const { colors: c } = useTheme();
   const styles = useThemeStyles(createStyles);
-  const timer = data.timer;
+  const timer = useCronoData('timer');
   const [parts, setParts] = useState(() => durationParts(timer.durationMs));
   const selected = useRef(parts); const moving = useRef(false);
   const [wheelBusy, setWheelBusy] = useState(false);

@@ -1,6 +1,7 @@
+import type { AppData } from '../core/stopwatch';
 import type { ToastNotice, TimerNotice } from '../core/notices';
 import { getMessages } from '../i18n';
-import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { AccessibilityInfo, Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useKeepAwake } from 'expo-keep-awake';
@@ -22,6 +23,27 @@ type CronoValue = ReturnType<typeof useStopwatch> & {
 };
 
 const CronoContext = createContext<CronoValue | null>(null);
+type Actions = Pick<CronoValue, 'update' | 'getSnapshot' | 'feedback' | 'notify' | 'timerControls'> & {
+  planning: Pick<CronoValue['planning'], 'controls'>;
+  notifications: Pick<CronoValue['notifications'], 'controller'>;
+};
+type Status = Pick<CronoValue, 'ready' | 'hydrationStatus' | 'storageError' | 'dismissStorageError' | 'notice'>;
+const ActionsContext = createContext<Actions | null>(null);
+const StatusContext = createContext<Status | null>(null);
+const StoreContext = createContext<Pick<CronoValue, 'getSnapshot' | 'subscribeUpdates'> | null>(null);
+
+function required<T>(value: T | null): T {
+  if (!value) throw new Error('CRONO hooks must be used inside CronoProvider');
+  return value;
+}
+export function useCronoActions() { return required(useContext(ActionsContext)); }
+export function useCronoStatus() { return required(useContext(StatusContext)); }
+/** Read immutable branches from the existing accepted store, never a second store. */
+export function useCronoData<K extends keyof AppData>(key: K): AppData[K] {
+  const store = required(useContext(StoreContext));
+  const snapshot = useCallback(() => store.getSnapshot()[key], [store, key]);
+  return useSyncExternalStore(store.subscribeUpdates, snapshot, snapshot);
+}
 
 function AwakeGuard() {
   useKeepAwake('crono-active-session', { suppressDeactivateWarnings: true });
@@ -66,10 +88,20 @@ export function CronoProvider({ children }: PropsWithChildren) {
     return () => clearTimeout(timeout);
   }, [notice]);
 
-  return <CronoContext.Provider value={{ ...stopwatch, feedback, notice, notify, timerControls, alerts, planning, notifications }}>
+  const actions = useMemo<Actions>(() => ({ update: stopwatch.update, getSnapshot, feedback, notify, timerControls,
+    planning: { controls: planning.controls }, notifications: { controller: notifications.controller } }),
+  [stopwatch.update, getSnapshot, feedback, notify, timerControls, planning.controls, notifications.controller]);
+  const status = useMemo<Status>(() => ({ ready: stopwatch.ready, hydrationStatus: stopwatch.hydrationStatus,
+    storageError: stopwatch.storageError, dismissStorageError: stopwatch.dismissStorageError, notice }),
+  [stopwatch.ready, stopwatch.hydrationStatus, stopwatch.storageError, stopwatch.dismissStorageError, notice]);
+  // Hydration is not an accepted edit; changing this port once lets early readers refresh.
+  const store = useMemo(() => ({ getSnapshot, subscribeUpdates: stopwatch.subscribeUpdates, hydrationStatus: stopwatch.hydrationStatus }),
+    [getSnapshot, stopwatch.subscribeUpdates, stopwatch.hydrationStatus]);
+  return <StoreContext.Provider value={store}><ActionsContext.Provider value={actions}><StatusContext.Provider value={status}>
+  <CronoContext.Provider value={{ ...stopwatch, feedback, notice, notify, timerControls, alerts, planning, notifications }}>
     {(stopwatch.data.stopwatch.startedAt !== null || stopwatch.data.timer.status === 'running' || stopwatch.data.planning.run?.status === 'running') && stopwatch.data.preferences.keepAwake && Platform.OS !== 'web' && <AwakeGuard />}
     {children}
-  </CronoContext.Provider>;
+  </CronoContext.Provider></StatusContext.Provider></ActionsContext.Provider></StoreContext.Provider>;
 }
 
 export function useCrono() {

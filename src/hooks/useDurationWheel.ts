@@ -4,6 +4,7 @@ import { createDurationWheel, type WheelRelease } from './durationWheel';
 import { isAppActive, subscribeAppActivity } from './appActivity';
 import { useMotionPreference } from '../context/MotionContext';
 import { createWheelPresentation, type WheelPresentationDriver } from './wheelPresentation';
+import { acceptsWheelTerminal } from './wheelSettlement';
 
 export function useDurationWheel(props: DurationWheelProps, align: (offset: number, cancelMotion?: boolean) => void,
   driver?: Pick<WheelPresentationDriver, 'read' | 'animate'> & { stopManual?: () => void; settleManual?: () => void }) {
@@ -65,10 +66,14 @@ export function useDurationWheel(props: DurationWheelProps, align: (offset: numb
       if (takeover.current !== undefined && Math.abs(offset - takeover.current) > latest.current.props.rowHeight / 2) takeover.current = undefined;
       instance.current?.scroll(offset);
     }, release: (options?: WheelRelease) => instance.current?.release(options),
-    end: (offset: number) => {
+    end: (offset: number, nativeTerminal = false) => {
       // Cancelling a programmatic scroll can queue its end before the new wheel delta.
-      // Let real displacement or the existing idle fallback settle that takeover.
-      if (takeover.current === undefined && !presentation.current?.isMoving() && (!latest.current.driver || Math.abs(latest.current.driver.read() - offset) < 1)) instance.current?.end(offset);
+      // Only a timestamp-validated native gesture may bypass the cached-position guard.
+      if (acceptsWheelTerminal(offset, { takeover: takeover.current, presenting: presentation.current?.isMoving() ?? false,
+        position: latest.current.driver?.read() }, nativeTerminal)) {
+        if (nativeTerminal) takeover.current = undefined;
+        instance.current?.end(offset);
+      }
     },
     choose: (value: number) => {
       // Explicit choices replace the accepted value; stop compositor motion before alignment.

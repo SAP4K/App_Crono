@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { DURATION_LIMITS, DURATION_UNITS } from '../core/durationPicker';
 import type { DurationParts, DurationUnit } from '../core/durationPicker';
@@ -18,6 +18,18 @@ export function DurationPicker({ value, onChange, disabled, onInteractionChange,
   const { fontScale } = useWindowDimensions();
   const styles = useThemeStyles(createStyles);
   const moving = useRef(new Set<DurationUnit>());
+  const latest = useRef({ onChange, onInteractionChange });
+  useLayoutEffect(() => { latest.current = { onChange, onInteractionChange }; });
+  const change = useCallback((unit: DurationUnit, next: number) => latest.current.onChange({ [unit]: next }), []);
+  const interaction = useCallback((unit: DurationUnit, busy: boolean) => {
+    const previous = moving.current.size > 0;
+    if (busy) moving.current.add(unit); else moving.current.delete(unit);
+    const current = moving.current.size > 0;
+    if (previous !== current) latest.current.onInteractionChange?.(current);
+  }, []);
+  const callbacks = useMemo(() => DURATION_UNITS.map((unit) => ({
+    onChange: (next: number) => change(unit, next), onInteractionChange: (busy: boolean) => interaction(unit, busy),
+  })), [change, interaction]);
   const [trackWidth, setTrackWidth] = useState<number>(metrics.trackMaxWidth);
   const scale = Math.max(1, fontScale);
   const rowHeight = Math.ceil(metrics.rowHeight * scale);
@@ -45,12 +57,7 @@ export function DurationPicker({ value, onChange, disabled, onInteractionChange,
       label={m.timeUnits[index]} hint={m.durationWheelHint} rowHeight={rowHeight} fontSize={fontSize} disabled={disabled}
       presentationRequest={presentationRequest} presentationActive={presentationActive}
       autoFocus={autoFocus && index === 0} accessibilityLabel={stepNumber ? m.stepField(m.timeUnits[index], stepNumber) : m.timeUnits[index]}
-      onChange={(next) => onChange({ [unit]: next })} onInteractionChange={(busy) => {
-        const previous = moving.current.size > 0;
-        if (busy) moving.current.add(unit); else moving.current.delete(unit);
-        const current = moving.current.size > 0;
-        if (previous !== current) onInteractionChange?.(current);
-      }} />)}
+      {...callbacks[index]} />)}
     </View>
   </View>;
 }

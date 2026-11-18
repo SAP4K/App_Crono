@@ -1,38 +1,28 @@
 import { MotionPressable } from './MotionPressable';
 import { useI18n } from '../hooks/useI18n';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { useCrono } from '../context/CronoContext';
+import { useCronoActions, useCronoData } from '../context/CronoContext';
 import { useThemeStyles } from '../context/ThemeContext';
 import { scheduleRemaining } from '../core/planning';
 import { formatRemaining } from '../core/timer';
-import { isAppActive, subscribeAppActivity } from '../hooks/appActivity';
+import { useForegroundNow } from '../hooks/useForegroundNow';
 import { textSizes, radii, fonts as f, Palette } from '../theme';
 import { ConfirmSheet } from './Sheet';
 
 export function PlanningRunCard() {
   const { messages: m } = useI18n();
-  const { data, planning, feedback, getSnapshot, notifications } = useCrono(); const styles = useThemeStyles(createStyles);
-  const run = data.planning.run;
-  const [now, setNow] = useState(Date.now); const [confirmReset, setConfirmReset] = useState(false);
-  useEffect(() => {
-    if (run?.status !== 'running') return;
-    let interval: ReturnType<typeof setInterval> | undefined;
-    const changed = () => {
-      if (interval) clearInterval(interval);
-      setNow(Date.now());
-      if (isAppActive()) interval = setInterval(() => setNow(Date.now()), 200);
-    };
-    if (isAppActive()) interval = setInterval(() => setNow(Date.now()), 200);
-    const unsubscribe = subscribeAppActivity(changed);
-    return () => { if (interval) clearInterval(interval); unsubscribe(); };
-  }, [run?.status, run?.deadlineAt]);
+  const { planning, feedback, getSnapshot, notifications } = useCronoActions(); const styles = useThemeStyles(createStyles);
+  const planningState = useCronoData('planning');
+  const run = planningState.run;
+  const now = useForegroundNow(run?.status === 'running');
+  const [confirmReset, setConfirmReset] = useState(false);
   if (!run) return null;
   const remaining = scheduleRemaining(run, now);
   const future = run.steps.slice(run.stepIndex + 1).reduce((sum, step) => sum + step.durationMs, 0);
   const total = run.steps.reduce((sum, step) => sum + step.durationMs, 0);
   const progress = Math.round(100 * (1 - (remaining + future) / total));
-  const canRestart = data.planning.schedules.some((item) => item.id === run.scheduleId);
+  const canRestart = planningState.schedules.some((item) => item.id === run.scheduleId);
   const restartDisabled = run.status === 'completed' && !canRestart;
   const reset = () => { feedback(); planning.controls.reset(); setConfirmReset(false); };
   const actionLabel = run.status === 'running' ? m.pauseSchedule : run.status === 'paused' ? m.resumeSchedule : m.restartSchedule;

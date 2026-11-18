@@ -1,7 +1,7 @@
 import { MotionPressable } from '../components/MotionPressable';
 import { useNotificationNavigation } from '../hooks/useNotificationNavigation';
 import { useI18n } from '../hooks/useI18n';
-import { ComponentProps, useCallback, useEffect, useState } from 'react';
+import { ComponentProps, memo, useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Platform, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { Tabs, type BottomTabNavigationOptions } from 'expo-router/js-tabs';
@@ -13,7 +13,7 @@ import { Inter_500Medium } from '@expo-google-fonts/inter/500Medium';
 import { Inter_600SemiBold } from '@expo-google-fonts/inter/600SemiBold';
 import { Inter_700Bold } from '@expo-google-fonts/inter/700Bold';
 import { Inter_800ExtraBold } from '@expo-google-fonts/inter/800ExtraBold';
-import { CronoProvider, useCrono } from '../context/CronoContext';
+import { CronoProvider, useCronoActions, useCronoData, useCronoStatus } from '../context/CronoContext';
 import { Icon, IconName } from '../components/Icon';
 import { ActiveActivities } from '../components/ActiveActivities';
 import { SettingsSheet } from '../components/SettingsSheet';
@@ -37,7 +37,7 @@ export default function RootLayout() {
 
 function RootContent({ fontsReady }: { fontsReady: boolean }) {
   const { language, messages: m } = useI18n();
-  const { ready } = useCrono();
+  const { ready } = useCronoStatus();
   useEffect(() => { if (Platform.OS === 'web') document.documentElement.lang = language; }, [language]);
   const { colors: c, mode } = useTheme();
   const styles = useThemeStyles(createStyles);
@@ -65,7 +65,8 @@ function TabBar({ state, navigation, onHeight }: TabBarProps & { onHeight: (heig
   const { colors: c } = useTheme();
   const styles = useThemeStyles(createStyles);
   const insets = useSafeAreaInsets();
-  const { data, feedback } = useCrono();
+  const { feedback } = useCronoActions();
+  const data = { stopwatch: useCronoData('stopwatch'), timer: useCronoData('timer'), planning: useCronoData('planning'), sessions: useCronoData('sessions') };
   return <View onLayout={(event) => onHeight(event.nativeEvent.layout.height)}><ActiveActivities currentTab={state.routes[state.index]?.name} /><View style={[styles.tabBar, compact && styles.compactTabBar, { paddingBottom: Math.max(insets.bottom, 14) }]}>
     {state.routes.map((route, index) => {
       const selected = state.index === index;
@@ -86,23 +87,39 @@ function TabBar({ state, navigation, onHeight }: TabBarProps & { onHeight: (heig
   </View></View>;
 }
 
+// Sheet/status changes must not restart unchanged navigator transitions.
+const RouteTabs = memo(function RouteTabs({ background, messages: m, animateRoutes, sceneWidth, onHeight }: {
+  background: string; messages: ReturnType<typeof useI18n>['messages']; animateRoutes: boolean;
+  sceneWidth: number; onHeight: (height: number) => void;
+}) {
+  const sceneStyleInterpolator = useCallback<NonNullable<BottomTabNavigationOptions['sceneStyleInterpolator']>>(({ current }) => ({
+    sceneStyle: { transform: [{ translateX: current.progress.interpolate({
+      inputRange: [-1, 0, 1], outputRange: [-sceneWidth, 0, sceneWidth], extrapolate: 'clamp',
+    }) }] },
+  }), [sceneWidth]);
+  return <Tabs initialRouteName="index" backBehavior="initialRoute" screenLayout={sceneLayout} tabBar={(props) => <TabBar {...props} onHeight={onHeight} />} screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: background },
+    animation: animateRoutes ? 'shift' : 'none', sceneStyleInterpolator,
+    transitionSpec: { animation: 'timing', config: { duration: animateRoutes ? motionTokens.routeMs : 0 } } }}>
+    <Tabs.Screen name="index" options={{ title: m.stopwatchTab }} />
+    <Tabs.Screen name="timer" options={{ title: m.timerTab }} />
+    <Tabs.Screen name="planning" options={{ title: m.planningTab }} />
+    <Tabs.Screen name="history" options={{ title: m.historyTab }} />
+  </Tabs>;
+});
+
 function AppShell() {
   useNotificationNavigation();
   const { messages: m } = useI18n();
   const { colors: c } = useTheme();
   const styles = useThemeStyles(createStyles);
   const insets = useSafeAreaInsets();
-  const { ready, notice, storageError, dismissStorageError, feedback } = useCrono();
+  const { ready, notice, storageError, dismissStorageError } = useCronoStatus();
+  const { feedback } = useCronoActions();
   const { reduceMotion, active } = useMotionPreference();
   const [settings, setSettings] = useState(false);
   const [tabBarHeight, setTabBarHeight] = useState(100);
   const [sceneWidth, setSceneWidth] = useState(0);
   const animateRoutes = !reduceMotion && active && sceneWidth > 0;
-  const sceneStyleInterpolator = useCallback<NonNullable<BottomTabNavigationOptions['sceneStyleInterpolator']>>(({ current }) => ({
-    sceneStyle: { transform: [{ translateX: current.progress.interpolate({
-      inputRange: [-1, 0, 1], outputRange: [-sceneWidth, 0, sceneWidth], extrapolate: 'clamp',
-    }) }] },
-  }), [sceneWidth]);
   const compact = useWindowDimensions().height < 740;
   if (!ready) return <View style={styles.loading}><ActivityIndicator color={c.green} accessibilityLabel={m.loadingSession} /></View>;
   return <View nativeID="crono-app" style={styles.desktop}><View testID="app-viewport" style={styles.app}
@@ -113,14 +130,7 @@ function AppShell() {
     </View>
     {storageError && <MotionPressable onPress={dismissStorageError} accessibilityRole="button" accessibilityLabel={m.dismissStorage} style={styles.warning}><Text style={styles.warningText}>{m.storageWarning}</Text><Icon name="close" size={15} color={c.danger} /></MotionPressable>}
     <TimingNotices />
-    <Tabs initialRouteName="index" backBehavior="initialRoute" screenLayout={sceneLayout} tabBar={(props) => <TabBar {...props} onHeight={setTabBarHeight} />} screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: c.background },
-      animation: animateRoutes ? 'shift' : 'none', sceneStyleInterpolator,
-      transitionSpec: { animation: 'timing', config: { duration: animateRoutes ? motionTokens.routeMs : 0 } } }}>
-      <Tabs.Screen name="index" options={{ title: m.stopwatchTab }} />
-      <Tabs.Screen name="timer" options={{ title: m.timerTab }} />
-      <Tabs.Screen name="planning" options={{ title: m.planningTab }} />
-      <Tabs.Screen name="history" options={{ title: m.historyTab }} />
-    </Tabs>
+    <RouteTabs background={c.background} messages={m} animateRoutes={animateRoutes} sceneWidth={sceneWidth} onHeight={setTabBarHeight} />
     <SettingsSheet visible={settings} onClose={() => setSettings(false)} />
     {notice && <View pointerEvents="none" style={[styles.toast, { bottom: tabBarHeight + 12 }]} accessibilityLiveRegion="polite"><Icon name="check" size={17} color={c.lime} /><Text style={styles.toastText}>{m[notice]}</Text></View>}
   </View></View>;

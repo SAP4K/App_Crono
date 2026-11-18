@@ -19,6 +19,14 @@ class CompletionAlertLedger(private val read: () -> String?, private val write: 
   private fun commit(next: JSONObject) { write(next.toString()); root = next }
   private fun copy() = JSONObject(root.toString())
   fun setPolicy(policy: JSONObject) { commit(copy().put("policy", policy)) }
+  fun applyPolicy(policy: JSONObject) {
+    require(CompletionAlertPolicy.validPolicy(policy))
+    val current = pending()
+    val retained = current.filter { policy.optBoolean("backgroundEnabled") && CompletionAlertPolicy.allowed(policy, it.getJSONObject("request")) }
+    if (policy()?.toString() == policy.toString() && retained.size == current.size) return
+    // Publish neither policy nor pruning unless their single atomic write succeeds.
+    commit(copy().put("policy", policy).put("pending", JSONArray(retained)))
+  }
   fun setResponse(response: JSONObject?) { commit(copy().put("response", response ?: JSONObject.NULL)) }
   fun setFailure(record: JSONObject?) { commit(copy().put("failure", record ?: JSONObject.NULL)) }
   fun contains(key: String): Boolean {

@@ -67,6 +67,7 @@ for (const dark of [false, true]) {
     await page.mouse.up();
     const pause = page.getByRole('button', { name: 'Pauză orar', exact: true });
     await expect(pause).toBeVisible();
+    await expect.poll(async () => (await stored(page)).planning.run?.status).toBe('running');
     const running = (await stored(page)).planning.run!;
     for (const name of ['Pornește orarul Studiu', 'Editează orarul Studiu', 'Șterge orarul Studiu']) {
       await scheduleOptions(page, 'Studiu');
@@ -77,7 +78,7 @@ for (const dark of [false, true]) {
     await page.mouse.up();
     const resume = page.getByRole('button', { name: 'Continuă orarul', exact: true });
     await released(resume);
-    expect((await stored(page)).planning.run).toMatchObject({ status: 'paused', runId: running.runId });
+    await expect.poll(async () => (await stored(page)).planning.run).toMatchObject({ status: 'paused', runId: running.runId });
     await hold(page, resume); await pressed(resume);
     expect((await stored(page)).planning.run?.status).toBe('paused');
     await page.mouse.up(); await released(pause);

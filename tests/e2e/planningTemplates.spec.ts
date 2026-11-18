@@ -142,6 +142,7 @@ for (const status of ['running', 'paused'] as const) test(`creating another buil
   await editor.getByRole('textbox', { name: m.scheduleName, exact: true }).fill('Next activity');
   expect(await stored(page)).toEqual(before);
   await editor.getByRole('button', { name: m.saveSchedule, exact: true }).click();
+  await page.clock.runFor(100); // Save is accepted before the paused persistence task runs.
   await expect.poll(async () => (await stored(page)).planning.schedules.length).toBe(2);
   const after = await stored(page);
   expect(after.planning.run).toEqual(before.planning.run);

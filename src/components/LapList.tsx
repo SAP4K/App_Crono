@@ -1,15 +1,16 @@
+import { memo, useCallback, useMemo, type ReactNode } from 'react';
 import { useI18n } from '../hooks/useI18n';
-import { StyleSheet, Text, View } from 'react-native';
+import { FlatList, StyleSheet, Text, View, type FlatListProps } from 'react-native';
 import { formatTime, Lap, lapStats } from '../core/stopwatch';
 import { textSizes, radii, fonts as f, Palette } from '../theme';
 import { useTheme, useThemeStyles } from '../context/ThemeContext';
 import { Icon } from './Icon';
 
-export function LapList({ laps }: { laps: Lap[] }) {
+export function LapListContent({ laps, summaryOnly = false, summaryStats }: { laps: Lap[]; summaryOnly?: boolean; summaryStats?: ReturnType<typeof lapStats> }) {
   const { messages: m } = useI18n();
   const { colors: c } = useTheme();
   const styles = useThemeStyles(createStyles);
-  const stats = lapStats(laps);
+  const stats = useMemo(() => summaryStats === undefined ? lapStats(laps) : summaryStats, [laps, summaryStats]);
   return (
     <View>
       <View style={styles.heading}>
@@ -30,18 +31,34 @@ export function LapList({ laps }: { laps: Lap[] }) {
             <View style={styles.stat}><Text style={styles.statLabel}>{m.averageUpper}</Text><Text style={styles.statValue}>{formatTime(stats.average)}</Text></View>
           </View>}
           <View style={styles.columns}><Text style={styles.columnNumber}>{m.lapUpper}</Text><Text style={styles.columnTime}>{m.durationUpper}</Text><Text style={styles.columnTime}>{m.totalUpper}</Text></View>
-          {[...laps].reverse().map((lap) => {
-            const best = laps.length > 1 && lap.splitMs === stats?.best;
-            return <View key={lap.number} style={[styles.row, best && styles.bestRow]}>
-              <View style={styles.numberGroup}><Text style={[styles.number, best && { color: c.green }]}>{String(lap.number).padStart(2, '0')}</Text>{best && <View style={styles.bestDot} />}</View>
-              <Text style={[styles.split, best && { color: c.green }]}>{formatTime(lap.splitMs)}</Text>
-              <Text style={styles.total}>{formatTime(lap.elapsedMs)}</Text>
-            </View>;
-          })}
+          {!summaryOnly && [...laps].reverse().map((lap) => <LapRow key={lap.number} lap={lap} best={laps.length > 1 && lap.splitMs === stats?.best} />)}
         </>
       )}
     </View>
   );
+}
+
+const LapRow = memo(function LapRow({ lap, best }: { lap: Lap; best: boolean }) {
+  const { colors: c } = useTheme(); const styles = useThemeStyles(createStyles);
+  return <View testID={`lap-row-${lap.number}`} style={[styles.row, best && styles.bestRow]}>
+    <View style={styles.numberGroup}><Text style={[styles.number, best && { color: c.green }]}>{String(lap.number).padStart(2, '0')}</Text>{best && <View style={styles.bestDot} />}</View>
+    <Text style={[styles.split, best && { color: c.green }]}>{formatTime(lap.splitMs)}</Text>
+    <Text style={styles.total}>{formatTime(lap.elapsedMs)}</Text>
+  </View>;
+});
+const lapKey = (lap: Lap) => String(lap.number);
+
+/** Own the complete surface scroll; callers put their controls in its header/footer. */
+export function LapList({ laps, header, footer, style, contentContainerStyle }: {
+  laps: Lap[]; header?: ReactNode; footer?: ReactNode;
+} & Pick<FlatListProps<Lap>, 'style' | 'contentContainerStyle'>) {
+  const reversed = useMemo(() => [...laps].reverse(), [laps]);
+  const stats = useMemo(() => lapStats(laps), [laps]);
+  const renderRow = useCallback(({ item }: { item: Lap }) => <LapRow lap={item} best={laps.length > 1 && item.splitMs === stats?.best} />, [laps.length, stats]);
+  return <FlatList testID="lap-list" style={[{ flex: 1 }, style]} contentContainerStyle={contentContainerStyle}
+    data={reversed} keyExtractor={lapKey} renderItem={renderRow} initialNumToRender={12} maxToRenderPerBatch={12} windowSize={5}
+    removeClippedSubviews={false} showsVerticalScrollIndicator={false}
+    ListHeaderComponent={<>{header}<LapListContent laps={laps} summaryOnly summaryStats={stats} /></>} ListFooterComponent={<>{footer}</>} />;
 }
 
 const createStyles = (c: Palette) => StyleSheet.create({

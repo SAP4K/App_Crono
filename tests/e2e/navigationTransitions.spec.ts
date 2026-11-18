@@ -74,6 +74,7 @@ test('rapid navigation retains the timer selection, independent clocks and the f
   const data = initialData(); data.stopwatch.startedAt = Date.now();
   await page.emulateMedia({ reducedMotion: 'no-preference' }); await seed(page, data); await page.goto('/timer');
   await selectDuration(page, [0, 0, 17]);
+  await expect.poll(async () => (await stored(page)).timer.durationMs).toBe(17000);
   const before = await stored(page);
   for (const label of [m.planningTab, m.historyTab, m.stopwatchTab, m.timerTab]) {
     await page.getByRole('tab', { name: label, exact: true }).click();
@@ -272,11 +273,11 @@ test('literal legacy records survive directional navigation and reload', async (
   const legacy = JSON.parse(readFileSync(new URL('../fixtures/app-v1-before-planning.json', import.meta.url), 'utf8'));
   await page.emulateMedia({ reducedMotion: 'no-preference' }); await seed(page, legacy); await page.goto('/timer');
   await expect(page.getByRole('button', { name: m.restartTimer, exact: true })).toBeEnabled();
-  // Flush the hydrated legacy snapshot through its existing inactivity persistence path.
+  // An unchanged legacy snapshot stays byte-for-byte intact through inactivity.
   await page.evaluate(() => {
     Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' }); document.dispatchEvent(new Event('visibilitychange'));
   });
-  await expect.poll(async () => (await stored(page)).planning).toEqual({ run: null, schedules: [] });
+  expect(await stored(page)).toEqual(legacy);
   await page.evaluate(() => {
     Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' }); document.dispatchEvent(new Event('visibilitychange'));
   });

@@ -1,7 +1,7 @@
 import { MotionPressable } from './MotionPressable';
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { useCrono } from '../context/CronoContext';
+import { useCronoActions } from '../context/CronoContext';
 import { useThemeStyles } from '../context/ThemeContext';
 import { dateKeyFromParts, datePartsFromKey, localDateKey, WEEKDAYS, type ScheduleCalendar, type Weekday } from '../core/planningCalendar';
 import { useI18n } from '../hooks/useI18n';
@@ -16,7 +16,7 @@ export function ScheduleCalendarPanel({ initialCalendar, onApply, onCancel, auto
   autoFocus?: boolean;
 }) {
   const { language, messages: m } = useI18n();
-  const { feedback } = useCrono();
+  const { feedback } = useCronoActions();
   const styles = useThemeStyles(createStyles);
   const initialMode = initialCalendar?.kind ?? 'manual';
   const [mode, setMode] = useState(initialMode);
