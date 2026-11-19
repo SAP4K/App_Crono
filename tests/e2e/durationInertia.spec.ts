@@ -59,6 +59,33 @@ test('an unrelated pointer release cannot settle the column held by another poin
   expect((await stored(page)).timer).toEqual(data.timer);
 });
 
+test('Timer ignores a premature scroll end before the manually moved wheel reaches a row', async ({ page }) => {
+  const { wheel, action, data } = await openPicker(page, 'timer');
+  await wheel.hover(); await page.mouse.down(); await expect(action).toBeDisabled();
+  const offset = await wheel.evaluate((node) => {
+    const rowHeight = node.querySelector('button')!.getBoundingClientRect().height;
+    node.style.scrollSnapType = 'none';
+    node.scrollTop = 20.5 * rowHeight;
+    return node.scrollTop;
+  });
+  await page.mouse.move(5, 5); await page.mouse.up();
+  await wheel.evaluate((node) => node.dispatchEvent(new Event('scrollend')));
+  // Let the renderer commit any change caused by the premature terminal.
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  await expect(action).toBeDisabled({ timeout: 100 });
+  expect(await wheel.evaluate((node) => node.scrollTop)).toBe(offset);
+  expect((await stored(page)).timer).toEqual(data.timer);
+
+  await wheel.evaluate((node) => {
+    const rowHeight = node.querySelector('button')!.getBoundingClientRect().height;
+    node.scrollTop = 21 * rowHeight;
+    node.style.scrollSnapType = '';
+    node.dispatchEvent(new Event('scrollend'));
+  });
+  await expect(action).toBeEnabled(); await centered(wheel);
+  await action.click();
+  expect((await stored(page)).timer.durationMs).toBe(21000);
+});
 test('unsupported scrollend and a wheel at its endpoint recover without changing other columns', async ({ page }) => {
   await page.addInitScript(() => {
     for (const prototype of [HTMLElement.prototype, Element.prototype]) Reflect.deleteProperty(prototype, 'onscrollend');
@@ -117,7 +144,7 @@ async function recordWheel(wheel: Locator, action: Locator) {
 }
 
 for (const screen of ['timer', 'planning'] as const) for (const unit of [0, 1, 2] as const) {
-  test(`${screen} browser ${m.timeUnits[unit]} wheel slows progressively into the exact row`, async ({ page }, info) => {
+  test(`${screen} browser ${m.timeUnits[unit]} wheel accelerates briefly and slows into the exact row`, async ({ page }, info) => {
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     const { wheel, action, startValue, unitMs } = await openPicker(page, screen, unit);
     const finalValue = startValue + 6;
@@ -141,12 +168,18 @@ for (const screen of ['timer', 'planning'] as const) for (const unit of [0, 1, 2
       await info.attach('wheel-stop-to-accept', { body: JSON.stringify({ stoppedAt: stopped!.at, acceptedAt: accepted.at, acceptanceLag }), contentType: 'application/json' });
       expect(acceptanceLag, 'centered stop to rendered value and action readiness').toBeLessThanOrEqual(100);
       const moving = samples.slice(1).map((point, index) => ({
-        speed: (point.offset - samples[index].offset) / (point.at - samples[index].at), point,
+        speed: Math.abs(point.offset - samples[index].offset) / (point.at - samples[index].at), point,
       })).filter(({ speed }) => speed > 0.01);
       expect(moving.length).toBeGreaterThanOrEqual(4);
-      const early = moving.slice(0, 2).reduce((sum, item) => sum + item.speed, 0) / 2;
-      const late = moving.slice(-2).reduce((sum, item) => sum + item.speed, 0) / 2;
-      expect(late).toBeLessThan(early * 0.65);
+      const windowSpeed = (from: number, to: number) => {
+        const window = moving.filter(({ point }) => point.at >= from && point.at < to);
+        expect(window.length).toBeGreaterThan(0);
+        return window.reduce((sum, item) => sum + item.speed, 0) / window.length;
+      };
+      const early = windowSpeed(0, 75), peak = windowSpeed(85, 210);
+      expect(peak).toBeGreaterThan(early * 1.15);
+      expect(windowSpeed(250, 375)).toBeLessThan(peak);
+      expect(windowSpeed(450, 575)).toBeLessThan(peak * 0.45);
       expect(moving.at(-1)!.point.at - moving[0].point.at).toBeGreaterThanOrEqual(460);
       expect(samples.filter((sample) => sample.offset > startValue * rowHeight + 1 && sample.offset < finalValue * rowHeight - 1).every((sample) => sample.busy && sample.value === startValue)).toBe(true);
       expect(await parentOffsets(wheel)).toEqual(outer);

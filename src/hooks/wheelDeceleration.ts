@@ -7,7 +7,31 @@ export function wheelDelta(delta: number, mode: number, rowHeight: number, viewp
 }
 
 type Geometry = { rowHeight: number; maximum: number };
-type Request = { from: number; raw: number; target: number; at: number; duration: number };
+type Request = { from: number; raw: number; target: number; at: number; duration: number; initialSpeed: number };
+
+const rampFraction = 0.18;
+const peakSpeed = (initialSpeed: number) => 2 - rampFraction * initialSpeed;
+const smoothSpeed = (phase: number) => phase ** 2 * (3 - 2 * phase);
+const speedIntegral = (phase: number) => phase ** 3 * (1 - phase / 2);
+
+function travel(progress: number, initial: number) {
+  const peak = peakSpeed(initial);
+  if (progress <= rampFraction) {
+    const phase = progress / rampFraction;
+    return rampFraction * (initial * phase + (peak - initial) * speedIntegral(phase));
+  }
+  const phase = (progress - rampFraction) / (1 - rampFraction);
+  return rampFraction * (initial + peak) / 2 + (1 - rampFraction) * peak * (phase - speedIntegral(phase));
+}
+
+function currentSpeed(request: Request, at: number) {
+  const progress = Math.max(0, Math.min(1, (at - request.at) / request.duration));
+  const peak = peakSpeed(request.initialSpeed);
+  const speed = progress <= rampFraction
+    ? request.initialSpeed + (peak - request.initialSpeed) * smoothSpeed(progress / rampFraction)
+    : peak * (1 - smoothSpeed((progress - rampFraction) / (1 - rampFraction)));
+  return speed * (request.target - request.from) / request.duration;
+}
 
 /** Visual offsets only; the manual wheel controller owns selection and busy. */
 export function createWheelDeceleration(a: {
@@ -43,7 +67,7 @@ export function createWheelDeceleration(a: {
         const elapsed = a.now() - current.at;
         if (!Number.isFinite(elapsed) || elapsed >= current.duration) { complete(current); return; }
         const progress = Math.max(0, elapsed) / current.duration;
-        try { a.write(current.from + (current.target - current.from) * (1 - (1 - progress) ** 3)); }
+        try { a.write(current.from + (current.target - current.from) * travel(progress, current.initialSpeed)); }
         catch { warn('wheel-deceleration-write'); complete(current); return; }
         schedule(current);
       });
@@ -56,9 +80,14 @@ export function createWheelDeceleration(a: {
       if (!(rowHeight > 0) || !Number.isFinite(rowHeight) || !Number.isInteger(maximum) || maximum < 0 || !Number.isFinite(position) || !Number.isFinite(at)) return false;
       const base = request && Math.sign(request.raw - position) === Math.sign(delta) ? request.raw : position;
       const raw = Math.max(0, Math.min(maximum * rowHeight, base + delta));
-      stop();
       const target = wheelIndex(raw, rowHeight, maximum) * rowHeight;
-      const current = { from: position, raw, target, at, duration: Math.min(900, 337.5 + Math.abs(target - position) / rowHeight * 45) };
+      const distance = target - position;
+      const duration = Math.min(900, 337.5 + Math.abs(distance) / rowHeight * 45);
+      const priorSpeed = request ? currentSpeed(request, at) : 0;
+      // Preserve visible speed when retargeting, with room for a new ramp. A reversal starts at rest.
+      const initialSpeed = !request || !distance ? 0.8 : Math.max(0, Math.min(1.55, priorSpeed * duration / distance));
+      stop();
+      const current = { from: position, raw, target, at, duration, initialSpeed };
       request = current;
       if (!animate) complete(current);
       else {

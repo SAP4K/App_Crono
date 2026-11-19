@@ -148,6 +148,8 @@ export function ScheduleEditorSheet({ schedule, isNew, visible = true, onClose, 
       onEditDuration={openDuration} durationRef={registerDuration} onMove={move} onRemove={removeStep} />,
   [draft.steps.length, changeStep, openDuration, registerDuration, move, removeStep]);
   const selectedIndex = durationEdit ? draft.steps.findIndex((step) => step.id === durationEdit.stepId) : -1;
+  const durationValid = durationEdit !== null && durationMilliseconds(durationEdit.parts) !== null;
+  const applyDisabled = wheelBusy || selectedIndex < 0 || !durationValid;
   const title = durationEdit ? m.durationPickerTitle(selectedIndex + 1)
     : calendarEdit ? m.calendarSchedule
     : repeatEdit ? m.repeatSequence
@@ -196,14 +198,16 @@ export function ScheduleEditorSheet({ schedule, isNew, visible = true, onClose, 
       <DurationPicker value={durationEdit.parts} onChange={changeDuration} stepNumber={selectedIndex + 1}
         autoFocus={readyPanel === `duration:${durationEdit.stepId}`} disabled={!visible}
         onInteractionChange={(busy) => { moving.current = busy; setWheelBusy(busy); }} />
-      <Text style={styles.help}>{durationMilliseconds(durationEdit.parts) === null ? m.durationInvalid : m.durationWheelHint}</Text>
-      <MotionPressable accessibilityRole="button" disabled={wheelBusy || selectedIndex < 0 || durationMilliseconds(durationEdit.parts) === null}
-        onPress={applyDuration} style={[styles.primary, (wheelBusy || selectedIndex < 0 || durationMilliseconds(durationEdit.parts) === null) && styles.disabled]}>
-        <Text style={styles.primaryText}>{m.applyDuration}</Text>
-      </MotionPressable>
-      <MotionPressable accessibilityRole="button" onPress={closeDuration} style={[styles.secondary]}>
-        <Text style={styles.secondaryText}>{m.cancel}</Text>
-      </MotionPressable>
+      <Text style={styles.help}>{durationValid ? m.durationWheelHint : m.durationInvalid}</Text>
+      <View style={styles.durationActions}>
+        <MotionPressable accessibilityRole="button" disabled={applyDisabled}
+          onPress={applyDuration} style={[styles.primary, applyDisabled && styles.disabled]}>
+          <Text style={styles.primaryText}>{m.applyDuration}</Text>
+        </MotionPressable>
+        <MotionPressable accessibilityRole="button" onPress={closeDuration} style={styles.secondary}>
+          <Text style={styles.secondaryText}>{m.cancel}</Text>
+        </MotionPressable>
+      </View>
       </PanelTransition>
     </ScrollView>}
     {repeatEdit && repeatable && <ScrollView style={styles.calendarPanel} contentContainerStyle={styles.calendarContent}
@@ -224,6 +228,7 @@ export function ScheduleEditorSheet({ schedule, isNew, visible = true, onClose, 
 const createStyles = (c: Palette) => StyleSheet.create({
   durationPanel: { position: 'absolute', top: 0, bottom: 0, left: 24, right: 24, zIndex: 1, backgroundColor: c.background },
   durationContent: { flexGrow: 1, justifyContent: 'center', paddingBottom: 16 },
+  durationActions: { gap: 12 },
   calendarPanel: { position: 'absolute', top: 0, bottom: 0, left: 24, right: 24, zIndex: 1, backgroundColor: c.background },
   calendarContent: { flexGrow: 1, justifyContent: 'center', paddingVertical: 12 },
   calendarButton: { marginTop: 8, marginBottom: 12, alignItems: 'flex-start' },
