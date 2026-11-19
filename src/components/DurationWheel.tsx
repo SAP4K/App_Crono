@@ -1,5 +1,5 @@
 import { requireOptionalNativeModule } from 'expo';
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef } from 'react';
 import { findNodeHandle, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { NativeScrollEvent } from 'react-native';
 import { useThemeStyles } from '../context/ThemeContext';
@@ -19,6 +19,7 @@ const timestamp = (event: NativeScrollEvent) => (event as NativeScrollEvent & { 
 export const DurationWheel = memo(function DurationWheel(props: DurationWheelProps) {
   const { value, maximum, rowHeight, label, hint, disabled, autoFocus, fontSize = metrics.digitSize } = props;
   const scroll = useRef<ScrollView>(null), focus = useRef<View>(null);
+  const wheelId = useId();
   const animation = useRef<{ target: number; finished: () => void } | null>(null);
   const native = useRef<ReturnType<typeof createNativeWheelSettlement> | null>(null);
   useLayoutEffect(() => {
@@ -49,7 +50,7 @@ export const DurationWheel = memo(function DurationWheel(props: DurationWheelPro
         if (nativeEvent.actionName === 'increment') controller.choose(value + 1);
         if (nativeEvent.actionName === 'decrement') controller.choose(value - 1);
       }} style={[styles.viewport, { height: rowHeight * 3 }, disabled && styles.disabled]}>
-      <ScrollView ref={scroll} style={{ height: rowHeight * 3 }} contentContainerStyle={{ paddingVertical: rowHeight }}
+      <ScrollView ref={scroll} nativeID={androidStop ? `crono-duration-wheel-${wheelId}` : undefined} style={{ height: rowHeight * 3 }} contentContainerStyle={{ paddingVertical: rowHeight }}
         accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants"
         scrollEnabled={!disabled} nestedScrollEnabled bounces={false} overScrollMode="never" showsVerticalScrollIndicator={false}
         snapToInterval={snapOffsets ? undefined : rowHeight} snapToOffsets={snapOffsets} snapToAlignment="start" decelerationRate={Platform.OS === 'android' ? 0.99575 : 0.99915} scrollEventThrottle={16}

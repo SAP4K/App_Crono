@@ -20,10 +20,13 @@ test.beforeEach(({ page }) => {
 });
 test.afterEach(({ page }) => { expectNoPageErrors(page); expect(warnings.get(page)).toEqual([]); });
 
-async function openPicker(page: Page, screen: 'timer' | 'planning') {
-  const data = initialData(); data.timer = initialTimer(20000); data.preferences.timerSound = false;
+async function openPicker(page: Page, screen: 'timer' | 'planning', unit: 0 | 1 | 2 = 2) {
+  const startValue = unit === 0 ? 8 : 20;
+  const unitMs = [3_600_000, 60_000, 1000][unit];
+  const durationMs = startValue * unitMs;
+  const data = initialData(); data.timer = initialTimer(durationMs); data.preferences.timerSound = false;
   data.planning.schedules = [{ id: 'inertia-plan', name: 'Secvență', steps: [
-    { id: 'inertia-step', name: 'Acțiune', durationMs: 20000 },
+    { id: 'inertia-step', name: 'Acțiune', durationMs },
   ] }];
   await seed(page, data);
   await page.addInitScript(() => {
@@ -39,11 +42,11 @@ async function openPicker(page: Page, screen: 'timer' | 'planning') {
     await page.getByRole('button', { name: m.editSchedule('Secvență'), exact: true }).click();
     await page.getByRole('button', { name: m.editStepDuration(1), exact: true }).click();
   }
-  const wheel = page.getByRole('spinbutton', { name: screen === 'timer' ? m.timeUnits[2] : m.stepField(m.timeUnits[2], 1), exact: true });
+  const wheel = page.getByRole('spinbutton', { name: screen === 'timer' ? m.timeUnits[unit] : m.stepField(m.timeUnits[unit], 1), exact: true });
   const action = page.getByRole('button', { name: screen === 'timer' ? m.startTimer : m.applyDuration, exact: true });
-  await expect(wheel).toHaveAttribute('aria-valuenow', '20');
+  await expect(wheel).toHaveAttribute('aria-valuenow', String(startValue));
   await wheel.scrollIntoViewIfNeeded();
-  return { wheel, action, data };
+  return { wheel, action, data, startValue, unitMs };
 }
 
 test('an unrelated pointer release cannot settle the column held by another pointer', async ({ page }) => {
@@ -113,43 +116,46 @@ async function recordWheel(wheel: Locator, action: Locator) {
   }, button);
 }
 
-for (const screen of ['timer', 'planning'] as const) test(`${screen} browser wheel slows progressively into the exact row`, async ({ page }, info) => {
-  await page.emulateMedia({ reducedMotion: 'no-preference' });
-  const { wheel, action } = await openPicker(page, screen);
-  const before = await stored(page), outer = await parentOffsets(wheel);
-  const rowHeight = await wheel.locator('button').first().evaluate((row) => row.getBoundingClientRect().height);
-  const recording = await recordWheel(wheel, action);
-  try {
-    await wheel.hover(); await wheelPixels(page, rowHeight * 6);
-    await expect(wheel).toHaveAttribute('aria-valuenow', '26'); await expect(action).toBeEnabled(); await centered(wheel);
-    await expect.poll(() => recording.evaluate((record) => record.samples.some((sample) => sample.value === 26 && !sample.busy))).toBe(true);
-    await expect.poll(() => recording.evaluate((record) => record.samples.filter((sample) => sample.value === 26 && !sample.busy).length)).toBeGreaterThanOrEqual(2);
-    const samples = await recording.evaluate((record) => record.samples);
-    await info.attach('wheel-speed-profile', { body: JSON.stringify(samples), contentType: 'application/json' });
-    expect(samples.find((sample) => sample.value === 26 && !sample.busy)!.at).toBeGreaterThanOrEqual(600);
-    const target = 26 * rowHeight;
-    const stopped = samples.find((sample, index) => Math.abs(sample.offset - target) < 0.5
-      && samples.slice(index).every((later) => Math.abs(later.offset - target) < 0.5));
-    const accepted = samples.find((sample) => sample.value === 26 && !sample.busy)!;
-    expect(stopped, 'the recorder observed the final centered stop').toBeDefined();
-    const acceptanceLag = Math.max(0, accepted.at - stopped!.at);
-    await info.attach('wheel-stop-to-accept', { body: JSON.stringify({ stoppedAt: stopped!.at, acceptedAt: accepted.at, acceptanceLag }), contentType: 'application/json' });
-    expect(acceptanceLag, 'centered stop to rendered value and action readiness').toBeLessThanOrEqual(100);
-    const moving = samples.slice(1).map((point, index) => ({
-      speed: (point.offset - samples[index].offset) / (point.at - samples[index].at), point,
-    })).filter(({ speed }) => speed > 0.01);
-    expect(moving.length).toBeGreaterThanOrEqual(4);
-    const early = moving.slice(0, 2).reduce((sum, item) => sum + item.speed, 0) / 2;
-    const late = moving.slice(-2).reduce((sum, item) => sum + item.speed, 0) / 2;
-    expect(late).toBeLessThan(early * 0.65);
-    expect(moving.at(-1)!.point.at - moving[0].point.at).toBeGreaterThanOrEqual(460);
-    expect(samples.filter((sample) => sample.offset > 20 * rowHeight + 1 && sample.offset < 26 * rowHeight - 1).every((sample) => sample.busy && sample.value === 20)).toBe(true);
-    expect(await parentOffsets(wheel)).toEqual(outer);
-    const after = await stored(page); expect(after.stopwatch).toEqual(before.stopwatch); expect(after.sessions).toEqual(before.sessions);
-    expect(after.planning).toEqual(before.planning);
-    if (screen === 'timer') expect(after.timer.durationMs).toBe(26000); else expect(after.timer).toEqual(before.timer);
-  } finally { await recording.evaluate((record) => record.stop()); await recording.dispose(); }
-});
+for (const screen of ['timer', 'planning'] as const) for (const unit of [0, 1, 2] as const) {
+  test(`${screen} browser ${m.timeUnits[unit]} wheel slows progressively into the exact row`, async ({ page }, info) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    const { wheel, action, startValue, unitMs } = await openPicker(page, screen, unit);
+    const finalValue = startValue + 6;
+    const before = await stored(page), outer = await parentOffsets(wheel);
+    const rowHeight = await wheel.locator('button').first().evaluate((row) => row.getBoundingClientRect().height);
+    const recording = await recordWheel(wheel, action);
+    try {
+      await wheel.hover(); await wheelPixels(page, rowHeight * 6);
+      await expect(wheel).toHaveAttribute('aria-valuenow', String(finalValue)); await expect(action).toBeEnabled(); await centered(wheel);
+      await expect.poll(() => recording.evaluate((record, value) =>
+        record.samples.filter((sample) => sample.value === value && !sample.busy).length, finalValue)).toBeGreaterThanOrEqual(2);
+      const samples = await recording.evaluate((record) => record.samples);
+      await info.attach('wheel-speed-profile', { body: JSON.stringify(samples), contentType: 'application/json' });
+      expect(samples.find((sample) => sample.value === finalValue && !sample.busy)!.at).toBeGreaterThanOrEqual(600);
+      const target = finalValue * rowHeight;
+      const stopped = samples.find((sample, index) => Math.abs(sample.offset - target) < 0.5
+        && samples.slice(index).every((later) => Math.abs(later.offset - target) < 0.5));
+      const accepted = samples.find((sample) => sample.value === finalValue && !sample.busy)!;
+      expect(stopped, 'the recorder observed the final centered stop').toBeDefined();
+      const acceptanceLag = Math.max(0, accepted.at - stopped!.at);
+      await info.attach('wheel-stop-to-accept', { body: JSON.stringify({ stoppedAt: stopped!.at, acceptedAt: accepted.at, acceptanceLag }), contentType: 'application/json' });
+      expect(acceptanceLag, 'centered stop to rendered value and action readiness').toBeLessThanOrEqual(100);
+      const moving = samples.slice(1).map((point, index) => ({
+        speed: (point.offset - samples[index].offset) / (point.at - samples[index].at), point,
+      })).filter(({ speed }) => speed > 0.01);
+      expect(moving.length).toBeGreaterThanOrEqual(4);
+      const early = moving.slice(0, 2).reduce((sum, item) => sum + item.speed, 0) / 2;
+      const late = moving.slice(-2).reduce((sum, item) => sum + item.speed, 0) / 2;
+      expect(late).toBeLessThan(early * 0.65);
+      expect(moving.at(-1)!.point.at - moving[0].point.at).toBeGreaterThanOrEqual(460);
+      expect(samples.filter((sample) => sample.offset > startValue * rowHeight + 1 && sample.offset < finalValue * rowHeight - 1).every((sample) => sample.busy && sample.value === startValue)).toBe(true);
+      expect(await parentOffsets(wheel)).toEqual(outer);
+      const after = await stored(page); expect(after.stopwatch).toEqual(before.stopwatch); expect(after.sessions).toEqual(before.sessions);
+      expect(after.planning).toEqual(before.planning);
+      if (screen === 'timer') expect(after.timer.durationMs).toBe(finalValue * unitMs); else expect(after.timer).toEqual(before.timer);
+    } finally { await recording.evaluate((record) => record.stop()); await recording.dispose(); }
+  });
+}
 
 async function movingWheel(wheel: Locator) {
   const node = (await wheel.elementHandle())!;
