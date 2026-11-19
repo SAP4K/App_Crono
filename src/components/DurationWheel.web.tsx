@@ -81,6 +81,12 @@ export function DurationWheel(props: DurationWheelProps) {
     const driver = createWheelDeceleration({ geometry: () => input.current.props,
       read: () => alignment.current?.offset ?? element.current?.scrollTop ?? 0,
       write: (offset) => { align(offset); controller.scroll(offset); },
+      reached: (offset) => {
+        const node = element.current;
+        const scale = window.devicePixelRatio;
+        return node !== null && alignment.current === null &&
+          Math.round(node.scrollTop * scale) === Math.round(offset * scale);
+      },
       finish: (offset) => {
         const restore = restoreSnap.current; restoreSnap.current = null; restore?.(); controller.end(offset);
       },
