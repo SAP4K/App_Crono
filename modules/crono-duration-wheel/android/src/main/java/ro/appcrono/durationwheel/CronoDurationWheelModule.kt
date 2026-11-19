@@ -20,9 +20,17 @@ import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
 private const val RELEASE_LOG_TAG = "CronoWheelRelease"
+private const val WHEEL_ID = "crono-duration-wheel-"
+private const val COAST_ID = "${WHEEL_ID}coast-"
 
 class CronoDurationWheelModule : Module() {
-  private data class Release(val time: Long, val position: Int, val fingerVelocity: Float)
+  private class Release(val time: Long, val position: Int, val fingerVelocity: Float) {
+    var coast: Coast? = null
+  }
+
+  private class Coast(val owner: Runnable) {
+    lateinit var frame: Runnable
+  }
 
   private val mainHandler = HandlerCompat.createAsync(Looper.getMainLooper())
   private val releases = WeakHashMap<ReactScrollView, Release>()
@@ -37,16 +45,17 @@ class CronoDurationWheelModule : Module() {
       if (scrollView !is ReactScrollView) return
       when (type) {
         ScrollEventType.END_DRAG -> {
+          if (nativeId(scrollView)?.startsWith(WHEEL_ID) != true) return
+          cancelCoast(scrollView)
           val release = Release(SystemClock.uptimeMillis(), scrollView.scrollY, yVelocity)
           releases[scrollView] = release
-          val nativeId = scrollView.getTag(com.facebook.react.R.id.view_tag_native_id) as? String
-          if (nativeId?.startsWith("crono-duration-wheel-") == true) {
-            // RN chooses its row after END_DRAG on the same touch stack. Retune that
-            // scroller only before its first visible movement, with original physics as fallback.
-            mainHandler.postAtFrontOfQueue { softenRelease(scrollView, release) }
-          }
+          // RN chooses its row after END_DRAG, on the same touch stack.
+          mainHandler.postAtFrontOfQueue { softenRelease(scrollView, release) }
         }
-        ScrollEventType.BEGIN_DRAG, ScrollEventType.MOMENTUM_END -> releases.remove(scrollView)
+        ScrollEventType.BEGIN_DRAG, ScrollEventType.MOMENTUM_END -> {
+          cancelCoast(scrollView)
+          releases.remove(scrollView)
+        }
         else -> Unit
       }
     }
@@ -55,18 +64,39 @@ class CronoDurationWheelModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("CronoDurationWheel")
     OnCreate { ReactScrollViewHelper.addScrollListener(listener) }
-    OnDestroy { ReactScrollViewHelper.removeScrollListener(listener) }
+    OnDestroy {
+      ReactScrollViewHelper.removeScrollListener(listener)
+      mainHandler.post {
+        releases.keys.toList().forEach { cancelCoast(it) }
+        releases.clear()
+      }
+    }
     AsyncFunction("awaitStop") { tag: Int, timestamp: Double, promise: Promise ->
-      val view = runCatching { appContext.findView<ReactScrollView>(tag) }.getOrNull()
+      val view = wheelView(tag)
       if (view == null) promise.resolve(null)
       else awaitStop(view, timestamp, promise)
+    }.runOnQueue(Queues.MAIN)
+    AsyncFunction("scrollWheel") { tag: Int, offset: Double, animated: Boolean ->
+      val view = wheelView(tag)
+      if (view == null) false
+      else {
+        cancelCoast(view)
+        val y = PixelUtil.toPixelFromDIP(offset).roundToInt()
+        view.abortAnimation()
+        if (animated) view.reactSmoothScrollTo(view.scrollX, y) else view.scrollTo(view.scrollX, y)
+        true
+      }
+    }.runOnQueue(Queues.MAIN)
+    AsyncFunction("interruptCoast") { tag: Int, touchTime: Double ->
+      val view = wheelView(tag)
+      if (view != null && (releases[view]?.time ?: Long.MAX_VALUE) <= touchTime) cancelCoast(view)
     }.runOnQueue(Queues.MAIN)
   }
 
   private fun awaitStop(view: ReactScrollView, timestamp: Double, promise: Promise) {
     val release = releases[view]
     // The listener runs immediately before RN creates the timestamped drag-end event.
-    if (release == null || timestamp - release.time !in 0.0..8.0) {
+    if (release == null || release.coast != null || timestamp - release.time !in 0.0..8.0) {
       promise.resolve(null)
       return
     }
@@ -86,7 +116,7 @@ class CronoDurationWheelModule : Module() {
       override fun run() {
         val now = SystemClock.uptimeMillis()
         if (!view.isAttachedToWindow || releases[view] !== release || pendingScroll(view) !== owner ||
-          now - release.time > 3000
+          release.coast != null || now - release.time > 3000
         ) {
           promise.resolve(null)
           return
@@ -106,7 +136,8 @@ class CronoDurationWheelModule : Module() {
   }
 
   private fun softenRelease(view: ReactScrollView, release: Release) {
-    if (!view.isAttachedToWindow || releases[view] !== release || pendingScroll(view) == null ||
+    val owner = pendingScroll(view) ?: return
+    if (!view.isAttachedToWindow || releases[view] !== release ||
       view.scrollY != release.position || view.getFlingAnimator().isRunning
     ) return
 
@@ -121,6 +152,13 @@ class CronoDurationWheelModule : Module() {
     val debug = Log.isLoggable(RELEASE_LOG_TAG, Log.DEBUG)
     val stockVelocity = scroller.currVelocity
     if (debug) Log.d(RELEASE_LOG_TAG, "[FIX:wheel-release] deltaPx=$displacement fingerPxMs=${release.fingerVelocity} stockPxS=$stockVelocity")
+    if (nativeId(view)?.startsWith(COAST_ID) == true) {
+      val profile = durationWheelCoast(displacement, rowHeight, release.fingerVelocity)
+      if (profile != null) {
+        startCoast(view, release, scroller, owner, target, profile)
+        return
+      }
+    }
     // A slight overprojection shortens the portion of the tail that rounds to one pixel.
     val freeDistance = distance + maxOf(2, (distance * 0.02).roundToInt())
     val velocity = durationWheelReleaseVelocity(displacement, freeDistance, rowHeight, release.fingerVelocity, stockVelocity)
@@ -150,6 +188,71 @@ class CronoDurationWheelModule : Module() {
     view.postInvalidateOnAnimation()
   }
 
+  private fun startCoast(view: ReactScrollView, release: Release, scroller: OverScroller,
+    owner: Runnable, target: Int, profile: DurationWheelCoast,
+  ) {
+    val coast = Coast(owner)
+    val width = view.width
+    val height = view.height
+    val contentHeight = view.getChildAt(0)?.height
+    val start = SystemClock.uptimeMillis()
+    var last = release.position
+    scroller.forceFinished(true)
+    // RN's idle callback can start a second snap during a rounded-pixel plateau.
+    // Remove that callback and retain its identity to detect a new native gesture.
+    view.removeCallbacks(owner)
+    release.coast = coast
+    if (Log.isLoggable(RELEASE_LOG_TAG, Log.DEBUG)) {
+      Log.d(RELEASE_LOG_TAG, "coast start fromPx=$last targetPx=$target durationMs=${profile.durationMs}")
+    }
+    coast.frame = object : Runnable {
+      override fun run() {
+        if (release.coast !== coast) return
+        if (!view.isAttachedToWindow || pendingScroll(view) !== owner || view.scrollY != last ||
+          view.width != width || view.height != height || view.getChildAt(0)?.height != contentHeight
+        ) {
+          cancelCoast(view)
+          return
+        }
+        val elapsed = (SystemClock.uptimeMillis() - start).toDouble()
+        val reducing = nativeId(view)?.startsWith(COAST_ID) != true
+        val progress = if (reducing) 1.0 else profile.progress(elapsed)
+        val offset = release.position + ((target - release.position) * progress).roundToInt()
+        if (offset != last) view.scrollTo(view.scrollX, offset)
+        if (view.scrollY != offset) {
+          cancelCoast(view)
+          return
+        }
+        last = offset
+        // The monotone curve cannot move again once pixel rounding reaches the final row.
+        if (offset == target) {
+          release.coast = null
+          clearOwner(view, owner)
+          if (Log.isLoggable(RELEASE_LOG_TAG, Log.DEBUG)) Log.d(RELEASE_LOG_TAG, "coast end atPx=$last elapsedMs=$elapsed")
+          ReactScrollViewHelper.emitScrollMomentumEndEvent(view)
+        } else view.postOnAnimation(this)
+      }
+    }
+    view.postOnAnimation(coast.frame)
+  }
+
+  private fun cancelCoast(view: ReactScrollView) {
+    val release = releases[view] ?: return
+    val coast = release.coast ?: return
+    release.coast = null
+    view.removeCallbacks(coast.frame)
+    clearOwner(view, coast.owner)
+    if (Log.isLoggable(RELEASE_LOG_TAG, Log.DEBUG)) Log.d(RELEASE_LOG_TAG, "coast cancelled atPx=${view.scrollY}")
+  }
+
+  private fun clearOwner(view: ReactScrollView, owner: Runnable) {
+    if (pendingScroll(view) === owner) pendingField?.set(view, null)
+  }
+
+  private fun nativeId(view: ReactScrollView) = view.getTag(com.facebook.react.R.id.view_tag_native_id) as? String
+
+  private fun wheelView(tag: Int) = runCatching { appContext.findView<ReactScrollView>(tag) }.getOrNull()
+
   private fun fitFriction(probe: OverScroller, speed: Int, distance: Int): Float? {
     var lower = 0.0001f
     var upper = 0.5f
@@ -170,7 +273,7 @@ class CronoDurationWheelModule : Module() {
 
   private fun scroller(view: ReactScrollView) = runCatching { scrollerField?.get(view) as? OverScroller }.getOrNull()
 
-  private fun pendingScroll(view: ReactScrollView) = runCatching { pendingField?.get(view) }.getOrNull()
+  private fun pendingScroll(view: ReactScrollView) = runCatching { pendingField?.get(view) as? Runnable }.getOrNull()
 
   private fun scrollField(name: String) =
     runCatching { ReactScrollView::class.java.getDeclaredField(name).apply { isAccessible = true } }.getOrNull()

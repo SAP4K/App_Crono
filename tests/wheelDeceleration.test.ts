@@ -26,12 +26,17 @@ test('wheel units use pixels, row lines and the actual column viewport', () => {
   for (const [delta, mode] of [[NaN, 0], [Infinity, 1], [3, 9]]) assert.equal(wheelDelta(delta, mode, 44, 132), 0);
 });
 
-for (const direction of [-1, 1]) test(`slowing in direction ${direction} is progressive, finite and exactly centered`, () => {
+for (const direction of [-1, 1]) test(`wheel motion in direction ${direction} ramps, tapers and centers exactly`, () => {
   const f = fixture(); f.driver.push(direction * 264);
   let previous = f.read(); const distances: number[] = [];
-  for (let index = 0; index < 6; index++) { f.advance(75); distances.push(Math.abs(f.read() - previous)); previous = f.read(); }
-  assert.ok(distances[0] > distances[2] && distances[2] > distances[4]);
-  assert.deepEqual(f.ends, []); f.advance(157.5);
+  for (let index = 0; index < 12; index++) {
+    f.advance(50);
+    assert.ok(direction * (f.read() - previous) > 0);
+    distances.push(Math.abs(f.read() - previous)); previous = f.read();
+  }
+  assert.ok(distances[0] < distances[1] && distances[1] < distances[2]);
+  assert.ok(distances.slice(2).every((distance, index) => index === 0 || distance < distances[index + 1]));
+  assert.deepEqual(f.ends, []); f.advance(7.5);
   assert.equal(f.read(), (20 + direction * 6) * 44); assert.deepEqual(f.ends, [f.read()]);
   assert.equal(f.driver.isMoving(), false); assert.equal(f.frames.size, 0); assert.deepEqual(f.warnings, []);
 });
@@ -40,7 +45,7 @@ for (const direction of [-1, 1]) test(`six-row travel in direction ${direction} 
   const f = fixture(), initial = f.read(); f.driver.push(direction * 264);
   f.advance(50);
   const distance = Math.abs(f.read() - initial);
-  assert.ok(distance > 59 && distance < 61, 'first 50 ms must move less than the former 64 px');
+  assert.ok(distance > 17 && distance < 24, 'the wheel starts moving during the ramp');
   f.advance(517);
   assert.equal(f.driver.isMoving(), true, 'the old 567 ms endpoint must still be moving');
   assert.deepEqual(f.ends, []);

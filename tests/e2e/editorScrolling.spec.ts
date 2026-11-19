@@ -103,6 +103,7 @@ for (const theme of ['light', 'dark'] as const) test(`short ${theme} editor pane
   await source.click();
   const panel = page.getByRole('dialog', { name: m.durationPickerTitle(1), exact: true });
   await enlarged(panel);
+  const apply = panel.getByRole('button', { name: m.applyDuration, exact: true });
   const cancel = panel.getByRole('button', { name: m.cancel, exact: true });
   const owner = await scrollOwner(cancel);
   const beforeValues = await panel.getByRole('spinbutton').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('aria-valuenow')));
@@ -111,7 +112,9 @@ for (const theme of ['light', 'dark'] as const) test(`short ${theme} editor pane
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.wheel(0, 180);
   await expect.poll(() => owner.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
   await expect(cancel).toBeInViewport();
-  await expect(panel.getByRole('button', { name: m.applyDuration, exact: true })).toBeInViewport();
+  await expect(apply).toBeInViewport();
+  const applyBounds = (await apply.boundingBox())!, cancelBounds = (await cancel.boundingBox())!;
+  expect(cancelBounds.y - (applyBounds.y + applyBounds.height)).toBeCloseTo(12, 0);
   expect(await panel.getByRole('spinbutton').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('aria-valuenow')))).toEqual(beforeValues);
   await cancel.click(); await expect(source).toBeFocused();
   await expect(editor.getByRole('textbox', { name: m.scheduleName, exact: true })).toHaveValue('Keep this draft');

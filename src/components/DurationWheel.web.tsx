@@ -6,6 +6,7 @@ import { durationPickerMetrics as metrics, fonts, type Palette } from '../theme'
 import type { DurationWheelProps } from './DurationWheel.types';
 import { useMotionPreference } from '../context/MotionContext';
 import { createWheelDeceleration, wheelDelta } from '../hooks/wheelDeceleration';
+import { wheelIndex } from '../core/durationPicker';
 
 export function DurationWheel(props: DurationWheelProps) {
   const { value, maximum, rowHeight, label, hint, disabled, autoFocus, fontSize = metrics.digitSize } = props;
@@ -138,7 +139,14 @@ export function DurationWheel(props: DurationWheelProps) {
       if (manual.current?.isMoving()) return;
       const current = animation.current;
       if (current) { if (Math.abs(node.scrollTop - current.target) < 1) current.finished(); }
-      else controller.end(node.scrollTop);
+      else {
+        const { rowHeight, maximum } = input.current.props;
+        const offset = node.scrollTop;
+        const centered = wheelIndex(offset, rowHeight, maximum) * rowHeight;
+        // A queued end can arrive between rows during the current native gesture.
+        // CSS snapping can round its final offset to a fractional physical pixel.
+        if (Math.abs(centered - offset) < 1) controller.end(offset);
+      }
     };
     node.addEventListener('wheel', wheel, { passive: false });
     node.addEventListener('touchstart', touchStart, { passive: true });

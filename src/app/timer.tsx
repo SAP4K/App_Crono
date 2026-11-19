@@ -35,6 +35,7 @@ export default function TimerScreen() {
   }, [timer.durationMs, timer.status]);
   const editable = timer.status === 'idle' || timer.status === 'completed';
   const duration = durationMilliseconds(parts);
+  const actionDisabled = editable && (duration === null || wheelBusy);
   const running = timer.status === 'running';
   const paused = timer.status === 'paused';
   const actionLabel = running ? m.pauseTimer : paused ? m.resumeTimer : timer.status === 'completed' ? m.restartTimer : m.startTimer;
@@ -75,19 +76,21 @@ export default function TimerScreen() {
       <Text style={styles.resetText}>+1 {m.minutesShort}</Text>
     </MotionPressable>}
     <View style={styles.actions}>
-      <MotionPressable accessibilityRole="button" accessibilityLabel={actionLabel} disabled={editable && (duration === null || wheelBusy)} onPress={() => {
-        const previous = getSnapshot().timer;
-        const milliseconds = durationMilliseconds(selected.current);
-        if ((previous.status === 'idle' || previous.status === 'completed') && (moving.current || milliseconds === null)) return;
-        feedback();
-        if (previous.status === 'running') timerControls.pause();
-        else if (previous.status === 'paused') timerControls.resume();
-        else if (milliseconds !== null) { timerControls.configure(milliseconds); timerControls.start(); }
-        const current = getSnapshot().timer;
-        if (current !== previous && current.status === 'running') void notifications.controller.requestPermission();
-      }} style={[styles.primary, editable && (duration === null || wheelBusy) && styles.disabled]}>
-        <Icon name={running ? 'pause' : 'play'} size={19} color={c.actionIcon} /><Text style={styles.primaryText}>{running ? m.pause : paused ? m.resume : timer.status === 'completed' ? m.restart : m.start}</Text>
-      </MotionPressable>
+      <View collapsable={false} style={actionDisabled && styles.disabled}>
+        <MotionPressable accessibilityRole="button" accessibilityLabel={actionLabel} accessibilityState={{ disabled: actionDisabled }} disabled={actionDisabled} onPress={() => {
+          const previous = getSnapshot().timer;
+          const milliseconds = durationMilliseconds(selected.current);
+          if ((previous.status === 'idle' || previous.status === 'completed') && (moving.current || milliseconds === null)) return;
+          feedback();
+          if (previous.status === 'running') timerControls.pause();
+          else if (previous.status === 'paused') timerControls.resume();
+          else if (milliseconds !== null) { timerControls.configure(milliseconds); timerControls.start(); }
+          const current = getSnapshot().timer;
+          if (current !== previous && current.status === 'running') void notifications.controller.requestPermission();
+        }} style={styles.primary}>
+          <Icon name={running ? 'pause' : 'play'} size={19} color={c.actionIcon} /><Text style={styles.primaryText}>{running ? m.pause : paused ? m.resume : timer.status === 'completed' ? m.restart : m.start}</Text>
+        </MotionPressable>
+      </View>
       <MotionPressable accessibilityRole="button" accessibilityLabel={m.resetTimer} disabled={timer.status === 'idle'} onPress={() => { if (running || paused) { feedback(); setConfirmReset(true); } else reset(); }} style={[styles.reset, timer.status === 'idle' && styles.disabled]}><Icon name="reset" size={20} /><Text style={styles.resetText}>{m.reset}</Text></MotionPressable>
     </View>
     <Text style={styles.note}>{m.timerIndependent}</Text>

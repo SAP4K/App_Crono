@@ -2,6 +2,7 @@ import { requireOptionalNativeModule } from 'expo';
 import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef } from 'react';
 import { findNodeHandle, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { NativeScrollEvent } from 'react-native';
+import { useMotionPreference } from '../context/MotionContext';
 import { useThemeStyles } from '../context/ThemeContext';
 import { useDurationWheel } from '../hooks/useDurationWheel';
 import { durationPickerMetrics as metrics, fonts, type Palette } from '../theme';
@@ -10,6 +11,8 @@ import { createNativeWheelSettlement, type NativeWheelStop } from '../hooks/whee
 
 const androidStop = Platform.OS === 'android' ? requireOptionalNativeModule<{
   awaitStop(viewTag: number, releaseTime: number): Promise<NativeWheelStop | null>;
+  scrollWheel?(viewTag: number, offset: number, animated: boolean): Promise<boolean>;
+  interruptCoast?(viewTag: number, touchTime: number): Promise<void>;
 }>('CronoDurationWheel') : null;
 const logWheelLatency = process.env.EXPO_PUBLIC_CRONO_WHEEL_LATENCY_LOG === '1';
 
@@ -20,12 +23,25 @@ export const DurationWheel = memo(function DurationWheel(props: DurationWheelPro
   const { value, maximum, rowHeight, label, hint, disabled, autoFocus, fontSize = metrics.digitSize } = props;
   const scroll = useRef<ScrollView>(null), focus = useRef<View>(null);
   const wheelId = useId();
+  const { active, reduceMotion } = useMotionPreference();
+  const coast = androidStop?.scrollWheel && active && !reduceMotion && !disabled && props.presentationActive !== false;
   const animation = useRef<{ target: number; finished: () => void } | null>(null);
   const native = useRef<ReturnType<typeof createNativeWheelSettlement> | null>(null);
-  useLayoutEffect(() => {
-    native.current = createNativeWheelSettlement((offset) => scroll.current?.scrollTo({ y: offset, animated: false }));
-    return () => { native.current?.cancel(); native.current = null; };
+  const alignmentRevision = useRef(0);
+  const scrollTo = useCallback((offset: number, animated: boolean) => {
+    const revision = ++alignmentRevision.current;
+    const view = scroll.current;
+    const fallback = () => {
+      if (alignmentRevision.current === revision && scroll.current === view) view?.scrollTo({ y: offset, animated });
+    };
+    const tag = androidStop?.scrollWheel ? findNodeHandle(view) : null;
+    if (tag === null) fallback();
+    else void androidStop?.scrollWheel?.(tag, offset, animated).then((written) => { if (!written) fallback(); }, fallback);
   }, []);
+  useLayoutEffect(() => {
+    native.current = createNativeWheelSettlement((offset) => scrollTo(offset, false));
+    return () => { native.current?.cancel(); native.current = null; };
+  }, [scrollTo]);
   const styles = useThemeStyles(createStyles);
   // Android truncates one interval to physical pixels before repeating it. Snap each row independently.
   const snapOffsets = useMemo(() => Platform.OS === 'android'
@@ -33,12 +49,12 @@ export const DurationWheel = memo(function DurationWheel(props: DurationWheelPro
   const align = useCallback((offset: number, cancelMotion = false) => native.current?.align(offset, cancelMotion), []);
   const animate = useCallback((target: number, finished: () => void) => {
     const request = { target, finished }; animation.current = request;
-    scroll.current?.scrollTo({ y: target, animated: true });
+    scrollTo(target, true);
     return () => {
       if (animation.current !== request) return;
-      animation.current = null; scroll.current?.scrollTo({ y: native.current?.read() ?? 0, animated: false });
+      animation.current = null; scrollTo(native.current?.read() ?? 0, false);
     };
-  }, []);
+  }, [scrollTo]);
   const controller = useDurationWheel(props, align, { read: () => native.current?.read() ?? 0, animate,
     stopManual: () => native.current?.cancel() });
   useEffect(() => { if (autoFocus) focus.current?.focus(); }, [autoFocus]);
@@ -50,18 +66,27 @@ export const DurationWheel = memo(function DurationWheel(props: DurationWheelPro
         if (nativeEvent.actionName === 'increment') controller.choose(value + 1);
         if (nativeEvent.actionName === 'decrement') controller.choose(value - 1);
       }} style={[styles.viewport, { height: rowHeight * 3 }, disabled && styles.disabled]}>
-      <ScrollView ref={scroll} nativeID={androidStop ? `crono-duration-wheel-${wheelId}` : undefined} style={{ height: rowHeight * 3 }} contentContainerStyle={{ paddingVertical: rowHeight }}
+      <ScrollView ref={scroll} nativeID={androidStop ? `crono-duration-wheel-${coast ? 'coast-' : ''}${wheelId}` : undefined} style={{ height: rowHeight * 3 }} contentContainerStyle={{ paddingVertical: rowHeight }}
         accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants"
         scrollEnabled={!disabled} nestedScrollEnabled bounces={false} overScrollMode="never" showsVerticalScrollIndicator={false}
         snapToInterval={snapOffsets ? undefined : rowHeight} snapToOffsets={snapOffsets} snapToAlignment="start" decelerationRate={Platform.OS === 'android' ? 0.99575 : 0.99915} scrollEventThrottle={16}
         onContentSizeChange={() => { native.current?.contentResized(); controller.synchronize(); }}
-        onTouchStart={() => controller.beginDrag()} onTouchEnd={() => controller.release()}
+        onTouchStart={({ nativeEvent }) => {
+          alignmentRevision.current++;
+          const tag = androidStop?.interruptCoast ? findNodeHandle(scroll.current) : null;
+          if (tag !== null && Number.isFinite(nativeEvent.timestamp)) {
+            void androidStop?.interruptCoast?.(tag, nativeEvent.timestamp).catch((error: unknown) => {
+              if (logWheelLatency) console.warn('[motion] Android wheel interruption failed', error);
+            });
+          }
+          controller.beginDrag();
+        }} onTouchEnd={() => controller.release()}
         onTouchCancel={() => controller.release()}
         onScrollBeginDrag={({ nativeEvent }) => { controller.beginDrag(); native.current?.begin(timestamp(nativeEvent)); }}
         onScrollEndDrag={({ nativeEvent }) => {
           const time = timestamp(nativeEvent), settlement = native.current;
           if (time === undefined || !settlement?.release(time)) return;
-          controller.release({ position: nativeEvent.contentOffset.y });
+          controller.release({ position: nativeEvent.contentOffset.y, waitForEnd: androidStop !== null });
           if (!androidStop) return;
           const tag = findNodeHandle(scroll.current), acceptStop = settlement.expectStop();
           if (tag === null || !acceptStop) return;
