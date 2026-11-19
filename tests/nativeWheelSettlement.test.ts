@@ -174,3 +174,57 @@ test('a valid native release retains missing-terminal recovery', () => {
   assert.deepEqual(f.values, []); assert.deepEqual(f.busy, [true]);
   f.advance(1); assert.deepEqual(f.values, [7]); assert.deepEqual(f.busy, [true, false]);
 });
+
+test('settled native alignment is issued once before its scroll acknowledgment', () => {
+  const commands: number[] = [];
+  const native = createNativeWheelSettlement((offset) => commands.push(offset));
+  native.begin(10); native.observe(1195.6364, 100); native.release(30);
+  assert.equal(native.confirm(1195.6364, 299), true);
+  native.align(1200);
+  native.cancel(); // Controlled value echoed after selection, before the ScrollView acknowledges it.
+  native.align(1200);
+  assert.deepEqual(commands, [1200]);
+
+  native.observe(1200, 320);
+  native.align(1200);
+  native.align(1200, true);
+  assert.deepEqual(commands, [1200, 1200]);
+});
+
+test('an early stop resolves only the released gesture that requested it', () => {
+  const native = createNativeWheelSettlement(() => {});
+  native.begin(100);
+  assert.equal(native.expectStop(), undefined);
+  native.release(120);
+  const interrupted = native.expectStop()!;
+  native.begin(130); native.release(150); native.observe(1196, 159);
+  assert.equal(interrupted({ offset: 1200, timestamp: 160 }), false);
+  const current = native.expectStop()!;
+  assert.equal(current({ offset: 1200, timestamp: 158 }), false);
+  assert.equal(current({ offset: 1200, timestamp: 160 }), true);
+  assert.equal(current({ offset: 1200, timestamp: 161 }), false);
+  assert.equal(native.confirm(1200, 199), false);
+});
+
+test('cancellation and a regular momentum end invalidate pending early stops', () => {
+  const native = createNativeWheelSettlement(() => {});
+  native.begin(10); native.release(20);
+  const cancelled = native.expectStop()!;
+  native.cancel();
+  assert.equal(cancelled({ offset: 350, timestamp: 30 }), false);
+
+  native.begin(31); native.release(35);
+  const pending = native.expectStop()!;
+  assert.equal(native.confirm(350, 40), true);
+  assert.equal(pending({ offset: 350, timestamp: 42 }), false);
+});
+
+test('native content layout can retry an alignment before its acknowledgment', () => {
+  const commands: number[] = [];
+  const native = createNativeWheelSettlement((offset) => commands.push(offset));
+  native.observe(0, 10);
+  native.align(50); native.align(50);
+  assert.deepEqual(commands, [50]);
+  native.contentResized(); native.align(50);
+  assert.deepEqual(commands, [50, 50]);
+});

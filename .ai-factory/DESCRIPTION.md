@@ -50,7 +50,7 @@ Versions below describe the current package manifest, not a requirement to upgra
 | Portable files | SDK-compatible `expo-file-system ~57.0.7`, `expo-document-picker ~57.0.3`, `expo-sharing ~57.0.25`; platform-specific browser download/upload |
 | Shared state | React Context and custom hooks |
 | Persistence | AsyncStorage `2.2.0`, JSON schema version 1 |
-| Device behavior | Expo Haptics, KeepAwake, SystemUI, StatusBar, and SplashScreen |
+| Device behavior | Expo Haptics, KeepAwake, SystemUI, StatusBar, and SplashScreen. A local Android module observes completed duration-wheel flings. |
 | Completion audio | Local Android MediaPlayer/alarm/service module; SDK-compatible `expo-audio ~57.0.5` on iOS/older Android binaries; `expo-asset ~57.0.20` and observed HTML media promise on web; four bundled patterns |
 | System notifications | SDK-compatible `expo-notifications ~57.0.25`, `expo-intent-launcher ~57.0.1`, date requests and static notification resources; web unsupported |
 | Visuals | React Native StyleSheet, react-native-svg, bundled Inter fonts |
@@ -102,6 +102,7 @@ Read [ARCHITECTURE.md](ARCHITECTURE.md) for the actual folder structure, depende
 | `src/hooks/alertPlayback.ts`, `useAlertPlayback.ts` | Shared duration limits, event priority, preview/Stop, and scoped failures |
 | `src/core/completionAlerts.ts`, `src/hooks/nativeAlertPlayback.ts` | Shared validated policy/priority and Android state mirroring with scoped cancellation |
 | `src/hooks/completionNotificationAdapter.ts`, `completionAlerts.ts`, `.web.ts` | Native/ordinary notification composition and optional platform bridge |
+| `modules/crono-duration-wheel/` | Optional Android completion signal for manual duration-wheel movement |
 | `modules/crono-completion-alerts/` | Atomic delivery projections/receipts, one native alarm/audio owner and bounded media-playback service |
 | `src/hooks/useAlertSound.ts`, `.web.ts` | Source-bound native/browser playback with explicit cleanup |
 | `src/components/StopwatchFace.tsx` | Local display refresh and stopwatch dial |

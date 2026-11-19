@@ -400,7 +400,7 @@ test('literal legacy data survives no-op wheels, a translated action draft, an u
   await edit.click(); await selectDuration(page, [0, 0, 2], undefined, 1);
   await page.getByRole('button', { name: 'Aplică durata', exact: true }).click();
   await page.getByRole('button', { name: 'Salvează orarul', exact: true }).click();
-  await expect.poll(async () => (await stored(page)).planning.schedules[0]?.steps[0]?.durationMs).toBe(2000);
+  await expect.poll(async () => (await stored(page)).planning?.schedules[0]?.steps[0]?.durationMs).toBe(2000);
   const saved = await stored(page);
   expect(saved.stopwatch).toEqual(legacy.stopwatch); expect(saved.timer).toEqual(legacy.timer);
   expect(saved.sessions).toEqual(legacy.sessions);
