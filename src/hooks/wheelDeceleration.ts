@@ -17,8 +17,11 @@ type Request = {
 const rampFraction = 0.18;
 const approachSpeedRatio = 0.04;
 const normalCap = 900;
-const fastCap = 1250;
-const maxFastApproach = 525;
+const referenceFastCap = 1250;
+const referenceApproachLimit = 525;
+const fastCoastTimeGain = 0.23;
+const fastCap = 1400;
+const maxFastApproach = 830;
 const stalledFrameDeadline = 940; // Recover before the shared controller's 1000 ms idle watchdog.
 
 function segment(duration: number, from: number, to: number): Segment {
@@ -53,10 +56,20 @@ function wheelMotion(distance: number, rowHeight: number, duration: number, init
     const approachMsPerPixel = 2 / approachSpeed;
     const base = launch.duration + remaining * brakeMsPerPixel;
     const additionalMsPerPixel = approachMsPerPixel - brakeMsPerPixel;
-    // Give fast motions room for the slow approach even when a shorter curve fits the normal cap.
-    const desired = Math.min(rowHeight * 0.1, maxFastApproach / approachMsPerPixel);
-    const approachDistance = Math.min(desired, (fastCap - base) / additionalMsPerPixel);
-    if (approachDistance >= 2) {
+    const referenceDistance = Math.min(
+      rowHeight * 0.1,
+      referenceApproachLimit / approachMsPerPixel,
+      (referenceFastCap - base) / additionalMsPerPixel,
+    );
+    if (referenceDistance >= 2) {
+      // Moving distance from braking into the slower approach adds time without moving the target.
+      const referenceDuration = base + referenceDistance * additionalMsPerPixel;
+      const approachDistance = Math.min(
+        referenceDistance + referenceDuration * fastCoastTimeGain / additionalMsPerPixel,
+        rowHeight * 0.15,
+        maxFastApproach / approachMsPerPixel,
+        (fastCap - base) / additionalMsPerPixel,
+      );
       const brake = segment((remaining - approachDistance) * brakeMsPerPixel, peak, approachSpeed);
       const approach = segment(approachDistance * approachMsPerPixel, approachSpeed, 0);
       return { duration: launch.duration + brake.duration + approach.duration, segments: [launch, brake, approach] };

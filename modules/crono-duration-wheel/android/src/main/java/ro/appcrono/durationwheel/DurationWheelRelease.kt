@@ -5,9 +5,13 @@ import kotlin.math.abs
 private const val RAMP_FRACTION = 0.18
 private const val PEAK_RATIO = 1.45
 private const val APPROACH_SPEED_RATIO = 0.04
-private const val APPROACH_ROW_FRACTION = 0.20
-private const val MAX_APPROACH_MS = 500.0
-private const val MAX_COAST_MS = 1300.0
+private const val REFERENCE_APPROACH_ROW_FRACTION = 0.20
+private const val REFERENCE_APPROACH_MS = 500.0
+private const val BASE_COAST_LIMIT_MS = 1300.0
+private const val FAST_COAST_TIME_GAIN = 0.23
+private const val FAST_APPROACH_ROW_FRACTION = 0.32
+private const val FAST_APPROACH_LIMIT_MS = 780.0
+private const val FAST_COAST_LIMIT_MS = 1450.0
 
 internal class WheelVelocitySegment(val durationMs: Double, private val from: Double, private val to: Double) {
   val distancePx = durationMs * (from + to) / 2
@@ -44,7 +48,7 @@ internal fun durationWheelCoast(displacement: Int, rowHeight: Double, fingerVelo
   val speed = fingerVelocity.toDouble() * if (displacement > 0) -1 else 1
   if (rowHeight <= 0 || distance < rowHeight / 2 || !speed.isFinite() || speed <= 0) return null
   val duration = 2 * distance / (speed * (PEAK_RATIO + RAMP_FRACTION))
-  if (duration !in 210.0..MAX_COAST_MS) return null
+  if (duration !in 210.0..BASE_COAST_LIMIT_MS) return null
   val peak = PEAK_RATIO * speed
   val launch = WheelVelocitySegment(duration * RAMP_FRACTION, speed, peak)
   if (speed * 1000 / rowHeight >= 8 && distance >= rowHeight) {
@@ -52,11 +56,22 @@ internal fun durationWheelCoast(displacement: Int, rowHeight: Double, fingerVelo
     val remaining = distance - launch.distancePx
     val brakeMsPerPixel = 2 / (peak + approachSpeed)
     val approachMsPerPixel = 2 / approachSpeed
-    // Moving a pixel from braking to the approach spends time at a lower average speed.
-    val available = MAX_COAST_MS - launch.durationMs - remaining * brakeMsPerPixel
-    val fit = available / (approachMsPerPixel - brakeMsPerPixel)
-    val approachDistance = minOf(rowHeight * APPROACH_ROW_FRACTION, MAX_APPROACH_MS / approachMsPerPixel, fit)
-    if (approachDistance >= 4) {
+    val baseDuration = launch.durationMs + remaining * brakeMsPerPixel
+    val additionalMsPerPixel = approachMsPerPixel - brakeMsPerPixel
+    val referenceDistance = minOf(
+      rowHeight * REFERENCE_APPROACH_ROW_FRACTION,
+      REFERENCE_APPROACH_MS / approachMsPerPixel,
+      (BASE_COAST_LIMIT_MS - baseDuration) / additionalMsPerPixel,
+    )
+    if (referenceDistance >= 4) {
+      // Moving distance from braking into the slower approach adds time without moving the target.
+      val referenceDuration = baseDuration + referenceDistance * additionalMsPerPixel
+      val approachDistance = minOf(
+        referenceDistance + referenceDuration * FAST_COAST_TIME_GAIN / additionalMsPerPixel,
+        rowHeight * FAST_APPROACH_ROW_FRACTION,
+        FAST_APPROACH_LIMIT_MS / approachMsPerPixel,
+        (FAST_COAST_LIMIT_MS - baseDuration) / additionalMsPerPixel,
+      )
       val brake = WheelVelocitySegment((remaining - approachDistance) * brakeMsPerPixel, peak, approachSpeed)
       val approach = WheelVelocitySegment(approachDistance * approachMsPerPixel, approachSpeed, 0.0)
       return DurationWheelCoast(distance, launch, brake, approach)
