@@ -203,7 +203,7 @@ class CronoDurationWheelModule : Module() {
     view.removeCallbacks(owner)
     release.coast = coast
     if (Log.isLoggable(RELEASE_LOG_TAG, Log.DEBUG)) {
-      Log.d(RELEASE_LOG_TAG, "coast start fromPx=$last targetPx=$target durationMs=${profile.durationMs}")
+      Log.d(RELEASE_LOG_TAG, "coast start fromPx=$last targetPx=$target durationMs=${profile.durationMs} approachPx=${profile.approachDistancePx} approachAtMs=${profile.approachAtMs} peakAtMs=${profile.peakAtMs}")
     }
     coast.frame = object : Runnable {
       override fun run() {

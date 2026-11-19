@@ -144,15 +144,16 @@ async function recordWheel(wheel: Locator, action: Locator) {
 }
 
 for (const screen of ['timer', 'planning'] as const) for (const unit of [0, 1, 2] as const) {
-  test(`${screen} browser ${m.timeUnits[unit]} wheel accelerates briefly and slows into the exact row`, async ({ page }, info) => {
+  test(`${screen} browser ${m.timeUnits[unit]} wheel brakes visibly into the exact row`, async ({ page }, info) => {
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     const { wheel, action, startValue, unitMs } = await openPicker(page, screen, unit);
-    const finalValue = startValue + 6;
+    const direction = unit === 1 ? -1 : 1;
+    const finalValue = startValue + direction * 6;
     const before = await stored(page), outer = await parentOffsets(wheel);
     const rowHeight = await wheel.locator('button').first().evaluate((row) => row.getBoundingClientRect().height);
     const recording = await recordWheel(wheel, action);
     try {
-      await wheel.hover(); await wheelPixels(page, rowHeight * 6);
+      await wheel.hover(); await wheelPixels(page, direction * rowHeight * 6);
       await expect(wheel).toHaveAttribute('aria-valuenow', String(finalValue)); await expect(action).toBeEnabled(); await centered(wheel);
       await expect.poll(() => recording.evaluate((record, value) =>
         record.samples.filter((sample) => sample.value === value && !sample.busy).length, finalValue)).toBeGreaterThanOrEqual(2);
@@ -167,6 +168,12 @@ for (const screen of ['timer', 'planning'] as const) for (const unit of [0, 1, 2
       const acceptanceLag = Math.max(0, accepted.at - stopped!.at);
       await info.attach('wheel-stop-to-accept', { body: JSON.stringify({ stoppedAt: stopped!.at, acceptedAt: accepted.at, acceptanceLag }), contentType: 'application/json' });
       expect(acceptanceLag, 'centered stop to rendered value and action readiness').toBeLessThanOrEqual(100);
+      const remaining = (sample: Sample) => direction * (target - sample.offset);
+      const approaching = samples.filter((sample) => remaining(sample) <= 3 && remaining(sample) >= 0.5 && sample.at < stopped!.at);
+      expect(approaching.length, 'the final few pixels are visible across multiple frames').toBeGreaterThanOrEqual(3);
+      const visibleApproach = stopped!.at - approaching[0].at;
+      expect(visibleApproach).toBeGreaterThanOrEqual(220);
+      expect(approaching.every((sample) => sample.busy && sample.value === startValue)).toBe(true);
       const moving = samples.slice(1).map((point, index) => ({
         speed: Math.abs(point.offset - samples[index].offset) / (point.at - samples[index].at), point,
       })).filter(({ speed }) => speed > 0.01);
@@ -177,11 +184,15 @@ for (const screen of ['timer', 'planning'] as const) for (const unit of [0, 1, 2
         return window.reduce((sum, item) => sum + item.speed, 0) / window.length;
       };
       const early = windowSpeed(0, 75), peak = windowSpeed(85, 210);
+      const peakSample = moving.filter(({ point }) => point.at >= 85 && point.at < 210)
+        .reduce((fastest, sample) => sample.speed > fastest.speed ? sample : fastest);
+      await info.attach('visible-final-approach', { body: JSON.stringify({ direction, visibleApproach,
+        peakAt: peakSample.point.at, visibleBraking: stopped!.at - peakSample.point.at }), contentType: 'application/json' });
       expect(peak).toBeGreaterThan(early * 1.15);
       expect(windowSpeed(250, 375)).toBeLessThan(peak);
       expect(windowSpeed(450, 575)).toBeLessThan(peak * 0.45);
       expect(moving.at(-1)!.point.at - moving[0].point.at).toBeGreaterThanOrEqual(460);
-      expect(samples.filter((sample) => sample.offset > startValue * rowHeight + 1 && sample.offset < finalValue * rowHeight - 1).every((sample) => sample.busy && sample.value === startValue)).toBe(true);
+      expect(samples.filter((sample) => remaining(sample) > 1 && remaining(sample) < rowHeight * 6 - 1).every((sample) => sample.busy && sample.value === startValue)).toBe(true);
       expect(await parentOffsets(wheel)).toEqual(outer);
       const after = await stored(page); expect(after.stopwatch).toEqual(before.stopwatch); expect(after.sessions).toEqual(before.sessions);
       expect(after.planning).toEqual(before.planning);
