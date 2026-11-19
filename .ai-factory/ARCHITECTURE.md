@@ -152,7 +152,7 @@ assets/audio/                # Original four WAVs and a byte-identical Android-s
 assets/audio/notifications/  # Four generated 15-second native notification clips
 scripts/generate-notification-sounds.mjs # Deterministic PCM asset generation, separate from runtime
 modules/crono-background-access/ # Read-only Android capability probe
-modules/crono-duration-wheel/    # Android scroll-stop observation for the shared wheel
+modules/crono-duration-wheel/    # Android wheel glide and stop confirmation
 modules/crono-completion-alerts/ # Atomic delivery ledger, alarm, bounded player/service
 ```
 
@@ -169,7 +169,7 @@ modules/crono-completion-alerts/ # Atomic delivery ledger, alarm, bounded player
 | `src/audio/` | Map pure sound IDs to static bundled assets; consumed by platform transports |
 | `src/theme.ts` | Export pure palette, radii, Inter/type-size and motion constants without React/native imports or dependencies on application modules |
 | `src/typography.ts` | Select only the platform heading family through React Native Platform |
-| `modules/crono-duration-wheel/` | Observe completion of current Android wheel flings. Selection, scrolling, and busy state belong to the picker. |
+| `modules/crono-duration-wheel/` | Tune the duration-wheel release and verify the final position. Android ScrollView owns frame updates. The picker owns selection and busy state. |
 | `modules/crono-completion-alerts/` | Android delivery projections/receipts and one native audio owner; never edit app clocks/history |
 
 - Keep platform/storage dependencies outside the pure core.
@@ -242,11 +242,13 @@ The current storage unit is the complete `AppData` object at `@crono/app-v1`. Ch
 `PresentationScope` gates only display clocks by route focus; independent sheet scopes preserve portal readouts. `useForegroundNow` also observes existing covered MotionScopes and app activity, refreshing on reveal before paint while retaining 32/200 ms visible cadence. Global runners, audio and OS notification ownership remain outside these scopes. `LapList` owns the full Stopwatch scroll surface and long History details with virtualized variable-height rows; small History details retain the compact sheet.
 
 
-`DurationPicker` composes three numeric columns using pure `durationPicker` helpers. Native columns use finite ScrollViews and adjustable accessibility actions, using numeric deceleration candidates Android 0.99575 / iOS 0.99915 for gentler coasting, pending physical acceptance; the web adapter owns CSS snapping, spinbutton semantics, keyboard/row selection and window-level release cleanup. The injected `durationWheel` controller distinguishes user motion from silent alignment, invalidates stale settling callbacks and releases interaction state on cancellation/disable/unmount. `useDurationWheel` binds committed current props and cancels unfinished motion when the app becomes inactive. Font-scale geometry realigns silently; ordinary controlled-value alignment is nonanimated.
+`DurationPicker` composes three numeric columns using pure `durationPicker` helpers. Native columns use finite ScrollViews and adjustable accessibility actions. iOS uses its platform glide with interval snapping. The web adapter owns CSS snapping, spinbutton semantics, keyboard and row selection, and window-level release cleanup. The injected `durationWheel` controller distinguishes user motion from silent alignment, invalidates stale settling callbacks and releases interaction state on cancellation/disable/unmount. `useDurationWheel` binds committed current props and cancels unfinished motion when the app becomes inactive. Font-scale geometry realigns silently; ordinary controlled-value alignment is nonanimated.
 
 The native adapter's small `wheelSettlement` helper verifies released manual gestures against monotonic native event timestamps. A verified current terminal may supply a newer final offset than the last JS scroll cache; stale, held or unverifiable gestures cannot bypass the shared acceptance gate. Observed native offsets suppress redundant alignment commands. The adapter can retry pending alignment when the content size changes and force alignment during explicit cancellation.
 
-Android sends individual snap offsets to keep the rounded pixel positions of later rows aligned. The optional local `modules/crono-duration-wheel/` module observes a verified manual release and the current React Native ScrollView fling on the UI thread. It reports the actual finished OverScroller position when that release still owns the view. The module checks the React Native 0.86 view fields and leaves regular momentum-end delivery and recovery available when those fields or the native signal are unavailable. The adapter fences async results by gesture identity and native timestamp. The controller accepts the final value before clearing that column, and the picker keeps combined busy until all moving columns have finished.
+Android sends individual snap offsets to keep later rows aligned in physical pixels. The local `modules/crono-duration-wheel/` module limits the release adjustment to the duration wheels. Before the first fling movement, it fits the existing OverScroller path to slow into the row chosen by React Native. The same scroller draws the glide and keeps its usual touch cancellation. The stock path applies when the current release or the scroller state cannot be verified.
+
+The module reports a finished OverScroller at the committed final offset while the same release still owns the view. Regular momentum-end delivery and bounded recovery handle unavailable native confirmation. The adapter fences async results by gesture identity and native timestamp. The controller publishes the centered value before clearing the column. The picker keeps combined busy until every column stops.
 
 Timer alone publishes an explicit local preset revision and route eligibility. The separate injected `wheelPresentation` owner scrolls native/web adapters toward the already accepted value, with one finite fallback and generation-fenced cleanup. It cannot select data or report manual busy state. Lifecycle settlement uses compositor cancellation on web; manual takeover retains the displayed offset, ignoring a cancelled nearest-snap end until displacement or manual fallback. Temporary cancellation offsets remain presentation only.
 

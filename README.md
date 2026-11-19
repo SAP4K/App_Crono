@@ -85,7 +85,7 @@ Open **Timer** and scroll **Ore / Minute / Secunde** (hours/minutes/seconds) unt
 
 Duration selection opens no numeric keyboard. Hours stop at 00–23; minutes and seconds stop at 00–59, without wrapping or carrying into another column. Start waits for every manually moving column to settle; `00:00:00` is invalid. On web, focus a column and use ArrowUp/ArrowDown or Home/End, or click a neighboring value.
 
-Native wheels accept a current, verified final position even when the last scroll update arrives out of step with the end event, avoiding an unnecessary recovery wait. An already centered value is not scrolled again when selection updates. The slow glide and Start/Apply guards remain unchanged. Physical stop-to-accept latency still needs measurement on an updated phone build; see the [settlement plan](.ai-factory/plans/feature-responsive-wheel-settlement.md).
+On Android, the hour, minute and second wheels follow your finger during a drag and slow progressively into the selected row after release. Timer Start and Planning Apply become available after all moving columns have centered. The picker can accept a confirmed native stop before the final scroll update reaches JavaScript. See the [glide verification](.ai-factory/plans/feature-gentle-wheel-stop-profile.md#implementation-evidence) for device measurements.
 
 The default is five minutes; valid durations remain `00:00:01`–`23:59:59`. Setup uses a compact dial and wheels while idle/completed. Running/paused views show a larger countdown and hide the wheels.
 
@@ -138,7 +138,7 @@ Inside the schedule editor, the name, Scheduling, Repeat sequence, action rows, 
 
 The duration, calendar, repeat and discard panels scroll their own complete content when it exceeds the available height. Duration wheels remain separate inputs: scrolling a column changes its value, while scrolling the panel moves its content. Closing a panel returns focus to its source control and restores the opening scroll position when the layout is unchanged; changes remain local until Save schedule.
 
-**Aplică durata** changes only the action draft; **Salvează orarul** saves the whole schedule. The same flick, slow-drag and progressively slowing browser-wheel gestures work here. Apply waits for every moving column to settle and rejects zero duration. **Renunță**, the close button, or Back returns to the editor without applying the temporary selection, including during a glide. The action list retains its position and returns focus to that action. Schedule/action names still use the text keyboard, and completion notices and **Oprește sunetul** remain available inside the duration panel.
+**Aplică durata** changes only the action draft; **Salvează orarul** saves the whole schedule. The duration panel uses the same wheels and release glide as Timer. Apply waits for every moving column to settle and rejects zero duration. **Renunță**, the close button, or Back returns to the editor without applying the temporary selection, including during a glide. The action list retains its position and returns focus to that action. Schedule/action names still use the text keyboard, and completion notices and **Oprește sunetul** remain available inside the duration panel.
 
 Before saving, open **Programare** and choose **Săptămânal** for one or more weekdays or **Dată fixă** for a single calendar date. Use **Manual** for a schedule you want to find in the full list. Tap **Aplică programarea** to apply the rule to the draft, then **Salvează orarul** to save it.
 
