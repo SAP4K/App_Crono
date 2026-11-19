@@ -30,6 +30,7 @@ class CronoDurationWheelModule : Module() {
 
   private class Coast(val owner: Runnable) {
     lateinit var frame: Runnable
+    var stopObserver: Promise? = null
   }
 
   private val mainHandler = HandlerCompat.createAsync(Looper.getMainLooper())
@@ -96,13 +97,24 @@ class CronoDurationWheelModule : Module() {
   private fun awaitStop(view: ReactScrollView, timestamp: Double, promise: Promise) {
     val release = releases[view]
     // The listener runs immediately before RN creates the timestamped drag-end event.
-    if (release == null || release.coast != null || timestamp - release.time !in 0.0..8.0) {
+    if (release == null || timestamp - release.time !in 0.0..8.0 || !view.isAttachedToWindow) {
       promise.resolve(null)
+      return
+    }
+    val coast = release.coast
+    if (coast != null) {
+      if (coast.stopObserver != null || pendingScroll(view) !== coast.owner) promise.resolve(null)
+      else {
+        coast.stopObserver = promise
+        if (Log.isLoggable(RELEASE_LOG_TAG, Log.DEBUG)) {
+          Log.d(RELEASE_LOG_TAG, "[FIX:wheel-latency] observing coast releaseMs=${release.time}")
+        }
+      }
       return
     }
     val scroller = scroller(view)
     val owner = pendingScroll(view)
-    if (scroller == null || owner == null || !view.isAttachedToWindow) {
+    if (scroller == null || owner == null) {
       promise.resolve(null)
       return
     }
@@ -229,6 +241,8 @@ class CronoDurationWheelModule : Module() {
           release.coast = null
           clearOwner(view, owner)
           if (Log.isLoggable(RELEASE_LOG_TAG, Log.DEBUG)) Log.d(RELEASE_LOG_TAG, "coast end atPx=$last elapsedMs=$elapsed")
+          // Publish the committed stop directly, ahead of the regular React Native momentum event.
+          resolveCoastStop(coast, last)
           ReactScrollViewHelper.emitScrollMomentumEndEvent(view)
         } else view.postOnAnimation(this)
       }
@@ -242,7 +256,21 @@ class CronoDurationWheelModule : Module() {
     release.coast = null
     view.removeCallbacks(coast.frame)
     clearOwner(view, coast.owner)
+    resolveCoastStop(coast)
     if (Log.isLoggable(RELEASE_LOG_TAG, Log.DEBUG)) Log.d(RELEASE_LOG_TAG, "coast cancelled atPx=${view.scrollY}")
+  }
+
+  private fun resolveCoastStop(coast: Coast, offsetPx: Int? = null) {
+    val observer = coast.stopObserver ?: return
+    coast.stopObserver = null
+    val timestamp = SystemClock.uptimeMillis().toDouble()
+    val stop = offsetPx?.let {
+      mapOf("offset" to PixelUtil.toDIPFromPixel(it.toFloat()).toDouble(), "timestamp" to timestamp)
+    }
+    if (Log.isLoggable(RELEASE_LOG_TAG, Log.DEBUG)) {
+      Log.d(RELEASE_LOG_TAG, "[FIX:wheel-latency] coast observation resolved offsetPx=$offsetPx timestampMs=$timestamp")
+    }
+    observer.resolve(stop)
   }
 
   private fun clearOwner(view: ReactScrollView, owner: Runnable) {

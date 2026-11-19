@@ -37,7 +37,8 @@ for (const direction of [-1, 1]) test(`wheel motion in direction ${direction} ra
   }
   assert.ok(distances[0] < distances[1] && distances[1] < distances[2]);
   assert.ok(distances.slice(2).every((distance, index) => index === 0 || distance < distances[index + 1]));
-  assert.deepEqual(f.ends, []); f.advance(550);
+  assert.deepEqual(f.ends, []);
+  for (let elapsed = 600; elapsed < 1400; elapsed += 50) f.advance(50);
   assert.equal(f.read(), (20 + direction * 6) * 44); assert.deepEqual(f.ends, [f.read()]);
   assert.equal(f.driver.isMoving(), false); assert.equal(f.frames.size, 0); assert.deepEqual(f.warnings, []);
 });
@@ -48,17 +49,20 @@ for (const direction of [-1, 1]) test(`fast travel in direction ${direction} rea
   f.advance(1);
   const launchSpeed = Math.abs(f.read() - initial);
   assert.ok(launchSpeed > 0.34 && launchSpeed < 0.36);
-  for (const remaining of [3.5, 2]) {
-    for (let elapsed = 1; elapsed < 1250 && Math.abs(target - f.read()) > remaining; elapsed++) f.advance(1);
-    const checkpoint = f.read();
-    assert.ok(Math.abs(target - checkpoint) > remaining - 0.1 && f.driver.isMoving());
-    f.advance(1);
-    const speedRatio = Math.abs(f.read() - checkpoint) / launchSpeed;
-    assert.ok(speedRatio >= 0.03 && speedRatio <= 0.05, `at ${remaining} pixels remaining the speed was ${speedRatio} times launch`);
-  }
+  while (f.driver.isMoving() && Math.abs(target - f.read()) > 5.4) f.advance(1);
+  const checkpoint = f.read();
+  assert.ok(Math.abs(target - checkpoint) > 5.3 && f.driver.isMoving());
+  f.advance(1);
+  const speedRatio = Math.abs(f.read() - checkpoint) / launchSpeed;
+  assert.ok(speedRatio >= 0.03 && speedRatio <= 0.05, `at 5.4 pixels remaining the speed was ${speedRatio} times launch`);
+  while (f.driver.isMoving() && Math.abs(target - f.read()) > 2) f.advance(1);
+  const lateOffset = f.read();
+  f.advance(1);
+  const lateSpeed = Math.abs(f.read() - lateOffset) / launchSpeed;
+  assert.ok(lateSpeed > 0 && lateSpeed < speedRatio);
   f.advance(100);
   assert.ok(Math.abs(target - f.read()) > 0.5);
-  f.advance(400);
+  f.advance(650);
   assert.equal(f.read(), target); assert.deepEqual(f.ends, [target]);
 });
 
@@ -72,7 +76,7 @@ test('one-row adjustment keeps its timing and large fast moves finish within the
     } else {
       for (let elapsed = 0; elapsed < 950; elapsed += 25) f.advance(25);
       assert.equal(f.driver.isMoving(), true); assert.deepEqual(f.ends, []);
-      for (let elapsed = 950; elapsed < 1250; elapsed += 25) f.advance(25);
+      for (let elapsed = 950; elapsed < 1400; elapsed += 25) f.advance(25);
     }
     assert.equal(f.read(), target); assert.deepEqual(f.ends, [target]);
     assert.equal(f.driver.isMoving(), false); assert.equal(f.frames.size, 0); assert.equal(f.timers.size, 0);
@@ -83,23 +87,23 @@ test('a quantized fast glide brakes visibly longer and finishes on its first cen
   const f = fixture(true), target = 26 * 44;
   f.driver.push(264);
   let firstTargetFrame = 0;
-  for (let elapsed = 1; elapsed < 1250; elapsed++) {
+  for (let elapsed = 1; elapsed <= 1400; elapsed++) {
     f.advance(1);
     if (f.read() !== target) { assert.deepEqual(f.ends, []); continue; }
     firstTargetFrame = elapsed;
     assert.deepEqual(f.ends, [target]);
     break;
   }
-  const peakAt = 109.35, referenceStop = 734;
-  const visibleExtension = (firstTargetFrame - peakAt) / (referenceStop - peakAt);
-  assert.ok(visibleExtension >= 1.20 && visibleExtension <= 1.25, `visible braking ratio was ${visibleExtension}`);
+  const referenceStop = 882; // PR #32 with the same six-row input and one-pixel rounding.
+  const durationRatio = firstTargetFrame / referenceStop;
+  assert.ok(durationRatio >= 1.20 && durationRatio <= 1.25, `release-to-center ratio was ${durationRatio}`);
   assert.equal(f.frames.size, 0); assert.equal(f.timers.size, 0);
 });
 
 test('a reversal can take over after the reference glide would already have centered', () => {
   const f = fixture(true), target = 26 * 44;
   f.driver.push(264);
-  for (let elapsed = 0; elapsed < 800; elapsed += 16) f.advance(16);
+  for (let elapsed = 0; elapsed < 1000; elapsed += 16) f.advance(16);
   const visible = f.read(), stale = [...f.frames.values()][0];
   assert.ok(visible < target && f.driver.isMoving());
   f.driver.push(-44); stale(); f.advance(80);
@@ -187,6 +191,18 @@ test('a missing animation frame still settles once and cannot revive after the d
     f.advance(1); assert.deepEqual(f.ends, [34 * 44]); assert.equal(f.driver.isMoving(), false);
     lateFrame(); f.advance(1000); assert.deepEqual(f.ends, [34 * 44]); assert.equal(f.timers.size, 0);
   }
+});
+
+test('a stalled long glide recovers at its planned deadline after one second of live frames', () => {
+  const f = fixture(), target = 34 * 44;
+  f.driver.push(14 * 44);
+  for (let elapsed = 0; elapsed < 1050; elapsed += 25) f.advance(25);
+  assert.ok(f.driver.isMoving() && f.read() < target);
+  const stale = [...f.frames.values()][0];
+  f.frames.clear(); f.advance(389); assert.deepEqual(f.ends, []);
+  f.advance(2); assert.deepEqual(f.ends, [target]);
+  assert.equal(f.driver.isMoving(), false);
+  stale(); f.advance(1000); assert.deepEqual(f.ends, [target]);
 });
 
 test('immediate choices and invalid geometry cannot create hanging requests', () => {

@@ -159,12 +159,12 @@ for (const screen of ['timer', 'planning'] as const) for (const unit of [0, 1, 2
         record.samples.filter((sample) => sample.value === value && !sample.busy).length, finalValue)).toBeGreaterThanOrEqual(2);
       const samples = await recording.evaluate((record) => record.samples);
       await info.attach('wheel-speed-profile', { body: JSON.stringify(samples), contentType: 'application/json' });
-      expect(samples.find((sample) => sample.value === finalValue && !sample.busy)!.at).toBeGreaterThanOrEqual(600);
       const target = finalValue * rowHeight;
       const stopped = samples.find((sample, index) => Math.abs(sample.offset - target) < 0.5
         && samples.slice(index).every((later) => Math.abs(later.offset - target) < 0.5));
       const accepted = samples.find((sample) => sample.value === finalValue && !sample.busy)!;
       expect(stopped, 'the recorder observed the final centered stop').toBeDefined();
+      expect(stopped!.at, 'the glide continues beyond the roughly 903 ms reference stop').toBeGreaterThanOrEqual(1050);
       const acceptanceLag = Math.max(0, accepted.at - stopped!.at);
       await info.attach('wheel-stop-to-accept', { body: JSON.stringify({ stoppedAt: stopped!.at, acceptedAt: accepted.at, acceptanceLag }), contentType: 'application/json' });
       expect(acceptanceLag, 'centered stop to rendered value and action readiness').toBeLessThanOrEqual(100);

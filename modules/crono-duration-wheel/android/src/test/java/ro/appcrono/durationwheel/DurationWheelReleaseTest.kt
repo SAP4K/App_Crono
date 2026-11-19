@@ -21,13 +21,13 @@ class DurationWheelReleaseTest {
       val approachAt = coast.approachAtMs
       assertEquals(0.04 * fingerSpeed, speed(approachAt), 0.001)
       assertEquals(coast.approachDistancePx, direction * (distance - position(approachAt)), 0.001)
-      assertTrue(coast.durationMs in 850.0..1300.0)
+      assertTrue(coast.durationMs in 850.0..1450.0)
       val peakAt = 0.18 * 2 * kotlin.math.abs(distance) / (fingerSpeed * (1.45 + 0.18))
-      // The verified reference first rounded to this target at 823 ms for the same input.
-      val firstCentered = (0..1300).first { position(it.toDouble()).roundToInt() == distance }
-      val visibleExtension = (firstCentered - peakAt) / (823 - peakAt)
-      assertTrue("Visible braking ratio was $visibleExtension", visibleExtension in 1.20..1.25)
-      assertTrue(coast.approachDistancePx in 25.0..29.0)
+      // The PR #32 curve first rounded to this target at 982 ms for the same input.
+      val firstCentered = (0..1450).first { position(it.toDouble()).roundToInt() == distance }
+      val durationRatio = firstCentered / 982.0
+      assertTrue("Release-to-center ratio was $durationRatio", durationRatio in 1.20..1.25)
+      assertTrue(coast.approachDistancePx in 41.0..44.0)
       val brakingSamples = (0..100).map { speed(peakAt + (coast.durationMs - peakAt) * it / 100) }
       assertTrue(brakingSamples.zipWithNext().all { (before, after) -> after <= before && after >= 0 })
       assertEquals(distance.toDouble(), position(coast.durationMs), 0.0)
@@ -38,8 +38,8 @@ class DurationWheelReleaseTest {
   fun longerApproachStillFitsAReleaseCloseToTheCoastLimit() {
     val distance = 3000
     val coast = durationWheelCoast(distance, 412.0 / 3, -3f)!!
-    assertTrue(coast.approachDistancePx in 4.0..15.0)
-    assertTrue(coast.durationMs <= 1300.000001)
+    assertTrue(coast.approachDistancePx in 4.0..17.0)
+    assertTrue(coast.durationMs <= 1450.000001)
     assertEquals(1.0, coast.progress(coast.durationMs), 0.0)
   }
 
